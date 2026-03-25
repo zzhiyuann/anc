@@ -1,14 +1,17 @@
 /**
- * Runner — spawns, suspends, and resumes agent processes in tmux sessions.
+ * Runner — the universal session resolution gate + tmux process management.
  *
- * Lifecycle:
- *   spawn()   → creates tmux session, injects persona, starts claude
- *   suspend() → tells agent to write SUSPEND.md, kills tmux, preserves workspace
- *   resume()  → reads SUSPEND.md, spawns new tmux with continuation prompt
+ * ALL trigger paths (webhook, comment, session, discord, queue) call resolveSession().
+ * It handles: dedup, reactivation, resume, spawn, capacity, circuit breaker.
+ *
+ * Hybrid model:
+ *   First task:  claude --permission-mode auto -p "prompt"
+ *   Follow-ups:  claude --permission-mode auto --continue -p "follow-up"
+ *   Resume:      claude --permission-mode auto --continue -p "resume context"
  */
 
 import { execSync } from 'child_process';
-import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import chalk from 'chalk';
 import type { AgentRole } from '../linear/types.js';
@@ -19,99 +22,181 @@ import {
 import { buildPersona } from '../agents/persona.js';
 import { bus } from '../bus.js';
 import {
-  trackSession, markSuspended, markResumed, hasCapacity,
-  pickSessionToSuspend, getSessionForIssue,
+  trackSession, untrackSession, markIdle, markActiveFromIdle,
+  markSuspended, markResumed, hasCapacity, pickToEvict,
+  getSessionForIssue, isIssueIdle, isIssueSuspended,
 } from './health.js';
+import { isBreakerTripped, recordFailure, recordSuccess } from './circuit-breaker.js';
+import { enqueue } from '../routing/queue.js';
 
-export interface SpawnOptions {
+// --- Public types ---
+
+export interface ResolveResult {
+  action: 'piped' | 'resumed' | 'spawned' | 'queued' | 'blocked';
+  tmuxSession?: string;
+  error?: string;
+}
+
+// --- The Universal Gate ---
+
+/**
+ * resolveSession — ALL trigger paths converge here.
+ * Handles dedup, reactivation, resume, spawn, capacity, circuit breaker.
+ */
+export function resolveSession(opts: {
   role: AgentRole;
   issueKey: string;
   prompt?: string;
-  repoPath?: string;
+  priority?: number;
+  ceoAssigned?: boolean;
+}): ResolveResult {
+  const { role, issueKey, prompt, priority, ceoAssigned } = opts;
+
+  // 1. Circuit breaker
+  const tripped = isBreakerTripped(issueKey);
+  if (tripped > 0) {
+    console.log(chalk.dim(`[resolve] ${issueKey}: breaker tripped (${Math.round(tripped / 1000)}s remaining)`));
+    return { action: 'blocked', error: `circuit breaker: ${Math.round(tripped / 1000)}s` };
+  }
+
+  const existing = getSessionForIssue(issueKey);
+
+  // 2. ACTIVE session → pipe message to it
+  if (existing?.state === 'active' && sessionExists(existing.tmuxSession)) {
+    if (prompt) sendToAgent(existing.tmuxSession, prompt);
+    return { action: 'piped', tmuxSession: existing.tmuxSession };
+  }
+
+  // 3. IDLE session → reactivate with --continue
+  if (existing?.state === 'idle') {
+    const tmux = `anc-${role}-${issueKey}`;
+    const result = spawnClaude({ role, issueKey, prompt, useContinue: true, ceoAssigned, priority });
+    if (result.success) {
+      markActiveFromIdle(issueKey, tmux);
+      bus.emit('agent:resumed', { role, issueKey, tmuxSession: tmux });
+      recordSuccess(issueKey);
+      return { action: 'resumed', tmuxSession: tmux };
+    }
+    recordFailure(issueKey);
+    return { action: 'blocked', error: result.error };
+  }
+
+  // 4. SUSPENDED session → resume with --continue + SUSPEND.md context
+  if (existing?.state === 'suspended') {
+    const workspace = getWorkspacePath(issueKey);
+    const suspendPath = join(workspace, 'SUSPEND.md');
+    let resumePrompt = prompt ?? '';
+    if (existsSync(suspendPath)) {
+      const checkpoint = readFileSync(suspendPath, 'utf-8');
+      resumePrompt = `You are RESUMING work on ${issueKey}.\n\nCheckpoint:\n${checkpoint}\n\n${resumePrompt}`;
+      try { unlinkSync(suspendPath); } catch { /**/ }  // clean up after reading
+    }
+    const tmux = `anc-${role}-${issueKey}`;
+    const result = spawnClaude({ role, issueKey, prompt: resumePrompt, useContinue: true, ceoAssigned, priority });
+    if (result.success) {
+      markResumed(issueKey, tmux);
+      bus.emit('agent:resumed', { role, issueKey, tmuxSession: tmux });
+      recordSuccess(issueKey);
+      return { action: 'resumed', tmuxSession: tmux };
+    }
+    recordFailure(issueKey);
+    return { action: 'blocked', error: result.error };
+  }
+
+  // 5. No session → need to spawn fresh
+  //    Make room if needed: evict idle → suspend active → queue
+  if (!hasCapacity(role)) {
+    const victim = pickToEvict(role);
+    if (victim) {
+      if (victim.state === 'idle') {
+        // Idle sessions: just untrack (workspace preserved, --continue still works later)
+        console.log(chalk.dim(`[resolve] Evicting idle ${victim.role}/${victim.issueKey}`));
+        untrackSession(victim.issueKey);
+      } else {
+        // Active session: needs suspend protocol
+        console.log(chalk.yellow(`[resolve] Suspending ${victim.role}/${victim.issueKey} for ${issueKey}`));
+        suspendSession(victim.issueKey);
+      }
+    } else {
+      // All sessions protected — queue
+      enqueue({ issueKey, issueId: '', agentRole: role, priority: priority ?? 3, context: prompt });
+      return { action: 'queued' };
+    }
+  }
+
+  // Spawn fresh
+  const result = spawnClaude({ role, issueKey, prompt, useContinue: false, ceoAssigned, priority });
+  if (result.success) {
+    recordSuccess(issueKey);
+    return { action: 'spawned', tmuxSession: result.tmuxSession };
+  }
+
+  recordFailure(issueKey);
+  return { action: 'blocked', error: result.error };
+}
+
+// --- Internal spawn ---
+
+interface SpawnInternalOpts {
+  role: AgentRole;
+  issueKey: string;
+  prompt?: string;
+  useContinue: boolean;
   ceoAssigned?: boolean;
   priority?: number;
 }
 
-export interface SpawnResult {
-  tmuxSession: string;
-  workspace: WorkspaceInfo;
-  success: boolean;
-  error?: string;
-  suspended?: string;  // issueKey of session that was suspended to make room
-}
-
-/** Spawn an agent — handles concurrency: suspends lowest-priority if at capacity */
-export function spawnAgent(opts: SpawnOptions): SpawnResult {
-  const { role, issueKey, prompt, repoPath, ceoAssigned, priority } = opts;
+function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: string; error?: string } {
+  const { role, issueKey, prompt, useContinue, ceoAssigned, priority } = opts;
   const tmuxSession = `anc-${role}-${issueKey}`;
 
-  // Check if this issue already has an active session
-  const existing = getSessionForIssue(issueKey);
-  if (existing?.state === 'active' && sessionExists(existing.tmuxSession)) {
-    return { tmuxSession: existing.tmuxSession, workspace: ensureWorkspace(issueKey, role), success: true };
-  }
-
-  // If at capacity, try to make room by suspending
-  let suspendedKey: string | undefined;
-  if (!hasCapacity(role)) {
-    const victim = pickSessionToSuspend(role);
-    if (victim) {
-      console.log(chalk.yellow(`[runner] Suspending ${victim.role}/${victim.issueKey} to make room for ${issueKey}`));
-      suspendSession(victim.issueKey);
-      suspendedKey = victim.issueKey;
-    } else {
-      // All sessions are CEO-assigned or protected — cannot make room
-      console.log(chalk.yellow(`[runner] ${role} at capacity (all protected) — ${issueKey} must queue`));
-      return { tmuxSession, workspace: ensureWorkspace(issueKey, role), success: false, error: 'at capacity, all sessions protected' };
-    }
-  }
-
-  // Prepare workspace
+  // Prepare workspace + persona
   const workspace = ensureWorkspace(issueKey, role);
-  const persona = buildPersona(role);
-  writePersonaToWorkspace(workspace, persona);
-  writeAutoModeSettings(workspace);
+  if (!useContinue) {
+    // Only write persona on first spawn (--continue sessions already have it)
+    const persona = buildPersona(role);
+    writePersonaToWorkspace(workspace, persona);
+    writeAutoModeSettings(workspace);
+  }
 
   // Build prompt
-  const workDir = repoPath ? workspace.codeDir : workspace.root;
-  const fullPrompt = buildPrompt(issueKey, prompt);
+  const fullPrompt = prompt ?? buildDefaultPrompt(issueKey);
 
   // Write script
   const scriptPath = `/tmp/anc-spawn-${tmuxSession}.sh`;
-  writeFileSync(scriptPath, buildSpawnScript(workDir, fullPrompt, role, issueKey), { mode: 0o755 });
+  writeFileSync(scriptPath, buildSpawnScript(workspace.root, fullPrompt, role, issueKey, useContinue), { mode: 0o755 });
 
-  // Kill any stale tmux session with same name
+  // Kill stale tmux
   try { execSync(`tmux kill-session -t "${tmuxSession}" 2>/dev/null`, { stdio: 'pipe' }); } catch { /**/ }
 
   // Spawn
   try {
     execSync(
-      `tmux new-session -d -s "${tmuxSession}" -c "${workDir}" "bash ${scriptPath}"`,
+      `tmux new-session -d -s "${tmuxSession}" -c "${workspace.root}" "bash ${scriptPath}"`,
       { stdio: 'pipe', timeout: 10_000 },
     );
 
-    console.log(chalk.green(`[runner] Spawned ${role} on ${issueKey} (tmux: ${tmuxSession})`));
+    console.log(chalk.green(`[runner] ${useContinue ? 'Resumed' : 'Spawned'} ${role} on ${issueKey}`));
 
     trackSession({
       role, issueKey, tmuxSession, spawnedAt: Date.now(),
       priority: priority ?? 3,
       ceoAssigned: ceoAssigned ?? false,
+      useContinue,
     });
 
     bus.emit('agent:spawned', { role, issueKey, tmuxSession });
-    return { tmuxSession, workspace, success: true, suspended: suspendedKey };
+    return { success: true, tmuxSession };
   } catch (err) {
     const error = (err as Error).message;
     console.error(chalk.red(`[runner] Spawn failed: ${error}`));
     bus.emit('agent:failed', { role, issueKey, error });
-    return { tmuxSession, workspace, success: false, error };
+    return { success: false, tmuxSession, error };
   }
 }
 
 // --- Suspend ---
 
-/** Suspend a session: try to tell agent to checkpoint, then kill tmux.
- *  Workspace + SUSPEND.md are preserved for later resume. */
 export function suspendSession(issueKey: string): boolean {
   const session = getSessionForIssue(issueKey);
   if (!session || session.state !== 'active') return false;
@@ -119,76 +204,27 @@ export function suspendSession(issueKey: string): boolean {
   const workspace = getWorkspacePath(issueKey);
   const suspendPath = join(workspace, 'SUSPEND.md');
 
-  // Try to gracefully ask the agent to checkpoint (give 5s)
+  // Try graceful checkpoint
   if (sessionExists(session.tmuxSession)) {
     try {
       sendToAgent(session.tmuxSession,
-        'SYSTEM: You are being suspended due to resource constraints. ' +
-        'Write SUSPEND.md with your current progress and what to do next, then /exit immediately.'
+        'SYSTEM: Suspending. Write SUSPEND.md with progress + next steps, then /exit.'
       );
-      // Give a brief window for the agent to write SUSPEND.md
       execSync('sleep 3', { stdio: 'pipe' });
     } catch { /**/ }
   }
 
-  // If agent didn't write SUSPEND.md, write a minimal one
   if (!existsSync(suspendPath)) {
-    writeFileSync(suspendPath, `# Suspended\n\nAuto-suspended at ${new Date().toISOString()}.\nNo agent checkpoint was captured.\n`, 'utf-8');
+    writeFileSync(suspendPath, `# Suspended\n\nAuto-suspended at ${new Date().toISOString()}.\n`, 'utf-8');
   }
 
-  // Kill tmux
   killAgent(session.tmuxSession);
-
-  // Update state
   markSuspended(issueKey);
   bus.emit('agent:suspended', { role: session.role, issueKey, reason: 'capacity' });
-  console.log(chalk.yellow(`[runner] Suspended ${session.role}/${issueKey}`));
-
   return true;
 }
 
-// --- Resume ---
-
-/** Resume a suspended session: read SUSPEND.md, spawn new tmux with continuation prompt. */
-export function resumeSession(issueKey: string, additionalPrompt?: string): SpawnResult {
-  const session = getSessionForIssue(issueKey);
-  if (!session || session.state !== 'suspended') {
-    return { tmuxSession: '', workspace: ensureWorkspace(issueKey, session?.role ?? 'engineer'), success: false, error: 'not suspended' };
-  }
-
-  const workspace = getWorkspacePath(issueKey);
-  const suspendPath = join(workspace, 'SUSPEND.md');
-
-  // Build resume prompt
-  let resumePrompt = `You are RESUMING work on ${issueKey}. You were previously suspended.\n`;
-  if (existsSync(suspendPath)) {
-    const suspendContent = readFileSync(suspendPath, 'utf-8');
-    resumePrompt += `\nYour checkpoint from last session:\n\n${suspendContent}\n`;
-  }
-  if (additionalPrompt) {
-    resumePrompt += `\nNew context: ${additionalPrompt}\n`;
-  }
-  resumePrompt += `\nContinue where you left off. When done, write HANDOFF.md and /exit.`;
-
-  // Spawn uses the normal path — it will handle workspace, persona, etc.
-  const result = spawnAgent({
-    role: session.role,
-    issueKey,
-    prompt: resumePrompt,
-    priority: session.priority,
-    ceoAssigned: session.ceoAssigned,
-  });
-
-  if (result.success) {
-    markResumed(issueKey, result.tmuxSession);
-    bus.emit('agent:resumed', { role: session.role, issueKey, tmuxSession: result.tmuxSession });
-    console.log(chalk.green(`[runner] Resumed ${session.role}/${issueKey}`));
-  }
-
-  return result;
-}
-
-// --- Basic operations ---
+// --- Basic tmux operations ---
 
 export function sendToAgent(tmuxSession: string, message: string): boolean {
   try {
@@ -221,28 +257,43 @@ export function captureOutput(tmuxSession: string, lines: number = 50): string {
   } catch { return ''; }
 }
 
-// --- Prompt builders ---
-
-function buildPrompt(issueKey: string, userPrompt?: string): string {
-  const parts = [
-    `You are working on issue ${issueKey}.`,
-    `Read the issue description and any comments for full context.`,
-    `When done, write HANDOFF.md in this directory with: what you did, how to verify, and any concerns.`,
-    `If you are suspended by the system, write SUSPEND.md with your current progress before exiting.`,
-    `Then exit with /exit.`,
-  ];
-  if (userPrompt) parts.unshift(userPrompt);
-  return parts.join('\n');
+/** Scan for existing anc-* tmux sessions on startup and reconstruct registry. */
+export function recoverSessionsFromTmux(): number {
+  try {
+    const output = execSync('tmux list-sessions -F "#{session_name}" 2>/dev/null', { encoding: 'utf-8' });
+    const tmuxSessions = output.split('\n').filter(s => s.startsWith('anc-'));
+    let count = 0;
+    for (const tmux of tmuxSessions) {
+      const match = tmux.match(/^anc-(\w+)-(.+)$/);
+      if (!match) continue;
+      const [, role, ik] = match;
+      if (getSessionForIssue(ik)) continue;
+      trackSession({ role, issueKey: ik, tmuxSession: tmux, spawnedAt: Date.now(), priority: 3, ceoAssigned: false, useContinue: true });
+      count++;
+    }
+    return count;
+  } catch { return 0; }
 }
 
-function buildSpawnScript(workDir: string, prompt: string, role: string, issueKey: string): string {
+// --- Prompt / script builders ---
+
+function buildDefaultPrompt(issueKey: string): string {
+  return [
+    `You are working on issue ${issueKey}.`,
+    `Read the issue description and comments for full context.`,
+    `When you complete meaningful work, write HANDOFF.md. For conversations/questions, just answer directly.`,
+  ].join('\n');
+}
+
+function buildSpawnScript(workDir: string, prompt: string, role: string, issueKey: string, useContinue: boolean): string {
   const promptFile = `/tmp/anc-prompt-${role}-${issueKey}.txt`;
   writeFileSync(promptFile, prompt, 'utf-8');
+  const continueFlag = useContinue ? ' --continue' : '';
   return `#!/bin/bash
 cd "${workDir}" || exit 1
 export AGENT_ROLE="${role}"
 export ANC_ISSUE_KEY="${issueKey}"
 export ANC_SERVER_URL="http://localhost:${process.env.ANC_WEBHOOK_PORT || 3849}"
-claude --permission-mode auto -p "$(cat ${promptFile})"
+claude --permission-mode auto${continueFlag} -p "$(cat ${promptFile})"
 `;
 }

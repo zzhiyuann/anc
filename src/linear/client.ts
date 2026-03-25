@@ -192,6 +192,93 @@ export async function dismissSession(sessionId: string, asAgent?: AgentRole): Pr
   }
 }
 
+// --- Scheduler queries ---
+
+export async function getIssuesByRole(role: AgentRole, status: IssueStatus): Promise<LinearIssue[]> {
+  const { getAgent } = await import('../agents/registry.js');
+  const agent = getAgent(role);
+  if (!agent?.linearUserId) return [];
+
+  const client = getSystemClient();
+  const stateId = await getWorkflowStateId(status);
+  if (!stateId) return [];
+
+  try {
+    const issues = await client.issues({
+      filter: {
+        assignee: { id: { eq: agent.linearUserId } },
+        state: { id: { eq: stateId } },
+      },
+      first: 10,
+    });
+
+    return issues.nodes.map(i => ({
+      id: i.id,
+      identifier: i.identifier,
+      title: i.title,
+      priority: i.priority,
+      labels: [],
+      status,
+      url: i.url,
+    }));
+  } catch { return []; }
+}
+
+export async function getUnassignedTodoIssues(): Promise<LinearIssue[]> {
+  const client = getSystemClient();
+  const config = getConfig();
+  const stateId = await getWorkflowStateId('Todo');
+  if (!stateId) return [];
+
+  try {
+    const issues = await client.issues({
+      filter: {
+        team: { id: { eq: config.linearTeamId } },
+        state: { id: { eq: stateId } },
+        assignee: { null: true },
+      },
+      first: 10,
+    });
+
+    return issues.nodes.map(i => ({
+      id: i.id,
+      identifier: i.identifier,
+      title: i.title,
+      priority: i.priority,
+      labels: [],
+      status: 'Todo' as IssueStatus,
+      url: i.url,
+    }));
+  } catch { return []; }
+}
+
+export async function getIssuesByStatus(status: IssueStatus): Promise<LinearIssue[]> {
+  const client = getSystemClient();
+  const config = getConfig();
+  const stateId = await getWorkflowStateId(status);
+  if (!stateId) return [];
+
+  try {
+    const issues = await client.issues({
+      filter: {
+        team: { id: { eq: config.linearTeamId } },
+        state: { id: { eq: stateId } },
+      },
+      first: 50,
+    });
+
+    return issues.nodes.map(i => ({
+      id: i.id,
+      identifier: i.identifier,
+      title: i.title,
+      priority: i.priority,
+      labels: [],
+      status,
+      url: i.url,
+    }));
+  } catch { return []; }
+}
+
 /** Clear cached clients (for testing) */
 export function _resetClients(): void {
   clientCache.clear();

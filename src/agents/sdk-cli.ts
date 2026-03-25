@@ -71,6 +71,27 @@ program
     await sdk.group(message);
   });
 
+program
+  .command('reply <issue-key> <comment-id> <body>')
+  .description('Reply to a specific comment (threaded)')
+  .action(async (key: string, commentId: string, body: string) => {
+    await sdk.reply(key, commentId, body);
+  });
+
+program
+  .command('search <query>')
+  .description('Search issues by text')
+  .action(async (query: string) => {
+    await sdk.search(query);
+  });
+
+program
+  .command('list-issues [status]')
+  .description('List issues, optionally filtered by status')
+  .action(async (status?: string) => {
+    await sdk.listIssues(status);
+  });
+
 // Error handling
 program.hook('postAction', () => process.exit(0));
 

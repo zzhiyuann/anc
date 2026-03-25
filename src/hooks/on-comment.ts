@@ -1,15 +1,18 @@
 /**
- * Comment event handler — routes CEO messages to the right agent.
- * Concurrency-aware: resumes suspended sessions, pipes to active ones.
+ * Comment event handler — routes CEO messages via resolveSession.
+ * Detects conversation vs task mode from issue status.
  */
 
 import { bus } from '../bus.js';
 import { routeComment, type CommentContext } from '../routing/router.js';
-import { hasCapacity, getSessionForIssue, isIssueSuspended, isIssueActive } from '../runtime/health.js';
-import { spawnAgent, sendToAgent, resumeSession } from '../runtime/runner.js';
-import { enqueue } from '../routing/queue.js';
+import { getSessionForIssue } from '../runtime/health.js';
+import { resolveSession } from '../runtime/runner.js';
 import { getIssue } from '../linear/client.js';
+import { downloadCommentImages } from '../linear/images.js';
+import { getWorkspacePath } from '../runtime/workspace.js';
 import chalk from 'chalk';
+
+const CONVERSATION_STATUSES = ['Done', 'In Review', 'Canceled'];
 
 export function registerCommentHandlers(): void {
   bus.on('webhook:comment.created', async ({ comment, issue }) => {
@@ -24,11 +27,11 @@ export function registerCommentHandlers(): void {
           assigneeId: full.assigneeId,
           labels: full.labels,
           project: full.project,
+          state: full.status,
         };
       }
     }
 
-    // Get current session state for this issue
     const session = issue.identifier ? getSessionForIssue(issue.identifier) : undefined;
 
     const ctx: CommentContext = {
@@ -38,7 +41,6 @@ export function registerCommentHandlers(): void {
     };
 
     const decision = routeComment(ctx);
-
     if (decision.target === 'skip') {
       console.log(chalk.dim(`[comment] ${issue.identifier}: skipped (${decision.reason})`));
       return;
@@ -46,48 +48,23 @@ export function registerCommentHandlers(): void {
 
     console.log(chalk.cyan(`[comment] ${issue.identifier} → ${decision.target} (${decision.reason})`));
 
-    // CASE 1: Issue has an ACTIVE session for the target role → pipe message
-    if (session && session.role === decision.target && session.state === 'active') {
-      const sent = sendToAgent(session.tmuxSession, comment.body);
-      if (sent) {
-        console.log(chalk.green(`[comment] Piped to active ${decision.target}/${issue.identifier}`));
-        return;
-      }
-      // Send failed — session might be dead, fall through
-    }
+    // Download images from comment body
+    const workspace = getWorkspacePath(issue.identifier);
+    const processedBody = await downloadCommentImages(comment.body, workspace);
 
-    // CASE 2: Issue has a SUSPENDED session → resume with the new comment as context
-    if (isIssueSuspended(issue.identifier)) {
-      console.log(chalk.green(`[comment] Resuming suspended ${decision.target}/${issue.identifier}`));
-      resumeSession(issue.identifier, `Follow-up from CEO: ${comment.body}`);
-      return;
-    }
+    // Detect conversation vs task mode
+    const issueStatus = enrichedIssue.state ?? '';
+    const isConversation = CONVERSATION_STATUSES.includes(issueStatus);
 
-    // CASE 3: No existing session — spawn new (or queue if at capacity)
-    if (hasCapacity(decision.target)) {
-      spawnAgent({
-        role: decision.target,
-        issueKey: issue.identifier,
-        prompt: `Follow-up from CEO on ${issue.identifier}: ${comment.body}`,
-        priority: decision.priority,
-      });
-    } else {
-      // spawnAgent handles auto-suspend internally — try it
-      const result = spawnAgent({
-        role: decision.target,
-        issueKey: issue.identifier,
-        prompt: `Follow-up from CEO on ${issue.identifier}: ${comment.body}`,
-        priority: decision.priority,
-      });
-      if (!result.success) {
-        enqueue({
-          issueKey: issue.identifier,
-          issueId: issue.id,
-          agentRole: decision.target,
-          priority: decision.priority,
-          context: `Follow-up comment: ${comment.body.substring(0, 500)}`,
-        });
-      }
-    }
+    const prompt = isConversation
+      ? `CEO asks on ${issue.identifier}: ${processedBody}\n\nJust answer the question. No HANDOFF needed.`
+      : `Follow-up from CEO on ${issue.identifier}: ${processedBody}`;
+
+    resolveSession({
+      role: decision.target,
+      issueKey: issue.identifier,
+      prompt,
+      priority: decision.priority,
+    });
   });
 }

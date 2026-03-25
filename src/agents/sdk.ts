@@ -144,6 +144,54 @@ export async function group(message: string): Promise<void> {
   console.log(`Posted to group`);
 }
 
+/** Reply to a specific comment (threaded) */
+export async function reply(issueKey: string, commentId: string, body: string): Promise<void> {
+  if (!body || body.trim().length === 0) throw new Error('Reply body cannot be empty');
+
+  await linearGraphQL(`
+    mutation($input: CommentCreateInput!) { commentCreate(input: $input) { success } }
+  `, { input: { issueId: issueKey, body, parentId: commentId } });
+
+  console.log(`Replied on ${issueKey}`);
+}
+
+/** Search issues by text */
+export async function search(query: string): Promise<void> {
+  const data = await linearGraphQL(`
+    query($query: String!) {
+      searchIssues(term: $query, first: 10) {
+        nodes { identifier, title, state { name }, assignee { name } }
+      }
+    }
+  `, { query }) as { searchIssues: { nodes: Array<{ identifier: string; title: string; state: { name: string }; assignee?: { name: string } }> } };
+
+  for (const issue of data.searchIssues.nodes) {
+    const assignee = issue.assignee?.name ?? 'unassigned';
+    console.log(`  ${issue.identifier} [${issue.state.name}] ${issue.title} (${assignee})`);
+  }
+}
+
+/** List issues by status */
+export async function listIssues(status?: string): Promise<void> {
+  const filter: Record<string, unknown> = {};
+  if (status) {
+    filter.state = { name: { eq: status } };
+  }
+
+  const data = await linearGraphQL(`
+    query($filter: IssueFilter) {
+      issues(filter: $filter, first: 20, orderBy: updatedAt) {
+        nodes { identifier, title, state { name }, priority, assignee { name } }
+      }
+    }
+  `, { filter }) as { issues: { nodes: Array<{ identifier: string; title: string; state: { name: string }; priority: number; assignee?: { name: string } }> } };
+
+  for (const issue of data.issues.nodes) {
+    const assignee = issue.assignee?.name ?? 'unassigned';
+    console.log(`  ${issue.identifier} [${issue.state.name}] P${issue.priority} ${issue.title} (${assignee})`);
+  }
+}
+
 // --- Validation ---
 
 function validateRole(role: string): void {
