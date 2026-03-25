@@ -1,13 +1,15 @@
 /**
- * Completion handler — detects HANDOFF.md and runs quality gates.
+ * Completion handler — detects HANDOFF.md and SUSPEND.md, runs quality gates.
  * Task-type-aware: different checks for code vs strategy vs research.
  */
 
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { bus } from '../bus.js';
-import { getTrackedSessions, untrackSession } from '../runtime/health.js';
+import { getTrackedSessions, untrackSession, markSuspended } from '../runtime/health.js';
 import { hasHandoff, readHandoff, type WorkspaceInfo } from '../runtime/workspace.js';
 import { getWorkspacePath } from '../runtime/workspace.js';
-import { addComment, setIssueStatus } from '../linear/client.js';
+import { addComment } from '../linear/client.js';
 import { sessionExists } from '../runtime/runner.js';
 import type { TaskType, IssueStatus } from '../linear/types.js';
 import chalk from 'chalk';
@@ -26,13 +28,13 @@ export function detectTaskType(title: string, labels: string[]): TaskType {
   return 'code';
 }
 
-// --- Quality checks per task type ---
+// --- Quality checks ---
 
-type QualityCheck = (handoff: string, workspace: WorkspaceInfo) => { pass: boolean; warning?: string };
+type QualityCheck = (handoff: string) => { pass: boolean; warning?: string };
 
 const hasContent: QualityCheck = (handoff) => ({
   pass: handoff.trim().length > 50,
-  warning: 'HANDOFF.md is too short — please describe what was done',
+  warning: 'HANDOFF.md is too short',
 });
 
 const hasVerification: QualityCheck = (handoff) => ({
@@ -45,86 +47,73 @@ const GATES: Record<TaskType, QualityCheck[]> = {
   strategy: [hasContent],
   research: [hasContent],
   ops: [hasContent],
-  trivial: [],  // auto-close, no checks
+  trivial: [],
 };
 
-// --- Status decision ---
-
 function decideStatus(taskType: TaskType, handoff: string): IssueStatus {
-  // Trivial issues with success signals → auto-done
   if (taskType === 'trivial' && /\b(pass|fixed|done|resolved|verified)\b/i.test(handoff)) {
     return 'Done';
   }
-  // Everything else → In Review for CEO
   return 'In Review';
 }
 
-// --- Completion monitor (periodic check) ---
+// --- Main tick handler ---
 
 export function registerCompletionHandlers(): void {
-  // Periodic health + completion check
   bus.on('system:tick', async () => {
     const sessions = getTrackedSessions();
 
     for (const session of sessions) {
+      if (session.state !== 'active') continue;  // only check active sessions
+
       const workspacePath = getWorkspacePath(session.issueKey);
-      const workspace: WorkspaceInfo = {
-        root: workspacePath,
-        ancDir: `${workspacePath}/.anc`,
-        codeDir: `${workspacePath}/code`,
-        claudeDir: `${workspacePath}/.claude`,
-        memoryDir: `${workspacePath}/.agent-memory`,
-        handoffPath: `${workspacePath}/HANDOFF.md`,
-      };
+      const handoffPath = join(workspacePath, 'HANDOFF.md');
+      const suspendPath = join(workspacePath, 'SUSPEND.md');
+      const alive = sessionExists(session.tmuxSession);
 
-      // Check if process died without HANDOFF
-      if (!sessionExists(session.tmuxSession)) {
-        if (!hasHandoff(workspace)) {
-          console.log(chalk.yellow(`[complete] ${session.role} on ${session.issueKey}: died without HANDOFF`));
-          bus.emit('agent:failed', { role: session.role, issueKey: session.issueKey, error: 'session ended without HANDOFF.md' });
-          untrackSession(session.tmuxSession);
-          continue;
-        }
-      }
+      // --- HANDOFF.md detected → completion ---
+      if (existsSync(handoffPath)) {
+        const handoff = readFileSync(handoffPath, 'utf-8');
+        if (!handoff || handoff.trim().length === 0) continue;
 
-      // Check for HANDOFF.md
-      if (hasHandoff(workspace)) {
-        const handoff = readHandoff(workspace);
-        if (!handoff) continue;
+        console.log(chalk.green(`[complete] ${session.role}/${session.issueKey}: HANDOFF detected`));
 
-        console.log(chalk.green(`[complete] ${session.role} on ${session.issueKey}: HANDOFF detected`));
-
-        // Detect task type (using issue key as title fallback)
         const taskType = detectTaskType(session.issueKey, []);
-
-        // Run quality checks
         const checks = GATES[taskType];
         const warnings: string[] = [];
         for (const check of checks) {
-          const result = check(handoff, workspace);
-          if (!result.pass && result.warning) {
-            warnings.push(result.warning);
-          }
+          const result = check(handoff);
+          if (!result.pass && result.warning) warnings.push(result.warning);
         }
 
         // Post HANDOFF as comment
-        const summary = handoff.length > 2000 ? handoff.substring(0, 2000) + '\n\n...(truncated)' : handoff;
-        let commentBody = summary;
+        let body = handoff.length > 2000 ? handoff.substring(0, 2000) + '\n\n...(truncated)' : handoff;
         if (warnings.length > 0) {
-          commentBody += `\n\n**Quality check warnings:**\n${warnings.map(w => `- ⚠️ ${w}`).join('\n')}`;
+          body += `\n\n**Quality check warnings:**\n${warnings.map(w => `- ⚠️ ${w}`).join('\n')}`;
         }
-
-        // Post comment and update status
-        await addComment(session.issueKey, commentBody, session.role);
+        await addComment(session.issueKey, body, session.role);
 
         const newStatus = decideStatus(taskType, handoff);
-        // Note: setIssueStatus needs the issue UUID, not identifier.
-        // For now we log — the Linear client will need to resolve identifier→id.
-
         console.log(chalk.green(`[complete] ${session.issueKey} → ${newStatus}`));
 
         bus.emit('agent:completed', { role: session.role, issueKey: session.issueKey, handoff });
-        untrackSession(session.tmuxSession);
+        untrackSession(session.issueKey);
+        continue;
+      }
+
+      // --- SUSPEND.md detected (agent wrote checkpoint before being killed) ---
+      if (existsSync(suspendPath) && !alive) {
+        console.log(chalk.yellow(`[complete] ${session.role}/${session.issueKey}: SUSPEND.md found, session dead → marking suspended`));
+        markSuspended(session.issueKey);
+        bus.emit('agent:suspended', { role: session.role, issueKey: session.issueKey, reason: 'agent wrote SUSPEND.md' });
+        continue;
+      }
+
+      // --- Process died without any artifact ---
+      if (!alive) {
+        console.log(chalk.red(`[complete] ${session.role}/${session.issueKey}: died without HANDOFF or SUSPEND`));
+        bus.emit('agent:failed', { role: session.role, issueKey: session.issueKey, error: 'session died without artifacts' });
+        untrackSession(session.issueKey);
       }
     }
   });

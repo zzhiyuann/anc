@@ -61,6 +61,8 @@ export interface AncEvents {
   'agent:spawned': { role: string; issueKey: string; tmuxSession: string };
   'agent:completed': { role: string; issueKey: string; handoff: string };
   'agent:failed': { role: string; issueKey: string; error: string };
+  'agent:suspended': { role: string; issueKey: string; reason: string };
+  'agent:resumed': { role: string; issueKey: string; tmuxSession: string };
   'agent:health': { role: string; alive: boolean; tmuxSession: string };
 
   // Queue events

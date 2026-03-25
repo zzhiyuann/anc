@@ -5,9 +5,8 @@
 
 import { bus } from '../bus.js';
 import { getAgentByLinearUserId } from '../agents/registry.js';
-import { isRoleBusy } from '../runtime/health.js';
-import { spawnAgent, sendToAgent } from '../runtime/runner.js';
-import { getSessionForIssue } from '../runtime/health.js';
+import { hasCapacity, getSessionForIssue, isIssueSuspended } from '../runtime/health.js';
+import { spawnAgent, sendToAgent, resumeSession } from '../runtime/runner.js';
 import { enqueue } from '../routing/queue.js';
 import { getIssue } from '../linear/client.js';
 import chalk from 'chalk';
@@ -37,7 +36,13 @@ export function registerSessionHandlers(): void {
       return;
     }
 
-    if (isRoleBusy(agent.role)) {
+    // Check if issue is suspended — resume instead of fresh spawn
+    if (isIssueSuspended(issue.identifier)) {
+      resumeSession(issue.identifier, session.prompt);
+      return;
+    }
+
+    if (!hasCapacity(agent.role)) {
       enqueue({
         issueKey: issue.identifier,
         issueId: issue.id,

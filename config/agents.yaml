@@ -3,6 +3,7 @@ agents:
     name: "Engineer"
     model: claude-code
     linearUserId: ""  # fill after OAuth setup
+    maxConcurrency: 3  # can work on 3 issues in parallel
     base: personas/base.md
     role: personas/roles/engineer.md
     protocols:
@@ -14,6 +15,7 @@ agents:
     name: "Strategist"
     model: claude-code
     linearUserId: ""
+    maxConcurrency: 2
     base: personas/base.md
     role: personas/roles/strategist.md
     protocols:
@@ -25,6 +27,7 @@ agents:
     name: "Ops"
     model: claude-code
     linearUserId: ""
+    maxConcurrency: 2
     base: personas/base.md
     role: personas/roles/ops.md
     protocols:

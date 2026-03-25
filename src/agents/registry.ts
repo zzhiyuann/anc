@@ -16,6 +16,7 @@ interface AgentsYaml {
     model: 'claude-code';
     linearUserId: string;
     oauthTokenPath?: string;
+    maxConcurrency?: number;
     base: string;
     role: string;
     protocols: string[];
@@ -31,9 +32,9 @@ export function loadAgentRegistry(configDir?: string): AgentConfig[] {
   if (!existsSync(path)) {
     // Default 3-agent roster
     registry = [
-      { name: 'Engineer', role: 'engineer', model: 'claude-code', linearUserId: '', personaFiles: [] },
-      { name: 'Strategist', role: 'strategist', model: 'claude-code', linearUserId: '', personaFiles: [] },
-      { name: 'Ops', role: 'ops', model: 'claude-code', linearUserId: '', personaFiles: [] },
+      { name: 'Engineer', role: 'engineer', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 3 },
+      { name: 'Strategist', role: 'strategist', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 2 },
+      { name: 'Ops', role: 'ops', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 2 },
     ];
     return registry;
   }
@@ -45,6 +46,7 @@ export function loadAgentRegistry(configDir?: string): AgentConfig[] {
     model: cfg.model,
     linearUserId: cfg.linearUserId,
     oauthTokenPath: cfg.oauthTokenPath,
+    maxConcurrency: cfg.maxConcurrency ?? 3,
     personaFiles: [cfg.base, cfg.role, ...cfg.protocols],
   }));
 

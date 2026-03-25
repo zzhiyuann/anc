@@ -35,11 +35,10 @@ export function startGateway(port?: number): void {
       // Import dynamically to avoid circular deps
       const { getRegisteredAgents } = await import('./agents/registry.js');
       const { getHealthStatus } = await import('./runtime/health.js');
-      const agents = getRegisteredAgents().map(a => ({
-        role: a.role,
-        name: a.name,
-        ...getHealthStatus(a.role),
-      }));
+      const agents = getRegisteredAgents().map(a => {
+        const health = getHealthStatus(a.role);
+        return { role: a.role, name: a.name, ...health };
+      });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ agents, uptime: Math.round(process.uptime()) }));
       return;

@@ -65,10 +65,12 @@ agent
     const agents = getRegisteredAgents();
     for (const a of agents) {
       const health = getHealthStatus(a.role);
-      const status = health.active
-        ? chalk.green(`active on ${health.issueKey} (${health.uptime}s)`)
-        : chalk.dim('idle');
-      console.log(`  ${chalk.bold(a.name)} (${a.role}): ${status}`);
+      console.log(`  ${chalk.bold(a.name)} (${a.role}) — ${health.activeSessions}/${health.maxConcurrency} active, ${health.suspendedSessions} suspended`);
+      for (const s of health.sessions) {
+        const icon = s.state === 'active' ? chalk.green('●') : chalk.yellow('◐');
+        const uptime = s.uptime ? ` (${s.uptime}s)` : '';
+        console.log(`    ${icon} ${s.issueKey} [${s.state}]${uptime}`);
+      }
     }
   });
 
@@ -91,33 +93,58 @@ agent
   .command('stop <role>')
   .description('Stop an agent')
   .action(async (role: string) => {
-    const { getActiveSession } = await import('./runtime/health.js');
+    const { getActiveSessions } = await import('./runtime/health.js');
     const { killAgent } = await import('./runtime/runner.js');
-    const session = getActiveSession(role);
-    if (!session) {
-      console.log(chalk.dim(`${role} is not running`));
+    const active = getActiveSessions(role);
+    if (active.length === 0) {
+      console.log(chalk.dim(`${role} has no active sessions`));
       return;
     }
-    killAgent(session.tmuxSession);
-    console.log(chalk.yellow(`Stopped ${role}`));
+    for (const s of active) {
+      killAgent(s.tmuxSession);
+      console.log(chalk.yellow(`Stopped ${role}/${s.issueKey}`));
+    }
+  });
+
+agent
+  .command('suspend <issue-key>')
+  .description('Suspend an active session (preserves workspace + checkpoint)')
+  .action(async (issueKey: string) => {
+    const { suspendSession } = await import('./runtime/runner.js');
+    const ok = suspendSession(issueKey);
+    if (ok) console.log(chalk.yellow(`Suspended ${issueKey}`));
+    else console.log(chalk.dim(`${issueKey} is not active`));
+  });
+
+agent
+  .command('resume <issue-key>')
+  .description('Resume a suspended session')
+  .option('--prompt <prompt>', 'Additional context for the agent')
+  .action(async (issueKey: string, opts?: { prompt?: string }) => {
+    const { resumeSession } = await import('./runtime/runner.js');
+    const result = resumeSession(issueKey, opts?.prompt);
+    if (result.success) console.log(chalk.green(`Resumed ${issueKey} (tmux: ${result.tmuxSession})`));
+    else console.log(chalk.red(`Failed to resume: ${result.error}`));
   });
 
 agent
   .command('jump <role>')
   .description('Attach to an agent tmux session')
   .action(async (role: string) => {
-    const { getActiveSession } = await import('./runtime/health.js');
-    const { execSync } = await import('child_process');
-    const session = getActiveSession(role);
-    if (!session) {
-      console.log(chalk.dim(`${role} is not running`));
+    const { getActiveSessions } = await import('./runtime/health.js');
+    const active = getActiveSessions(role);
+    if (active.length === 0) {
+      console.log(chalk.dim(`${role} has no active sessions`));
       return;
     }
-    // Open in terminal
-    try {
-      execSync(`open -a Ghostty tmux attach-session -t "${session.tmuxSession}"`, { stdio: 'inherit' });
-    } catch {
-      console.log(`Run: tmux attach-session -t "${session.tmuxSession}"`);
+    // Show all active sessions — user picks which to jump to
+    if (active.length === 1) {
+      console.log(`Run: tmux attach-session -t "${active[0].tmuxSession}"`);
+    } else {
+      console.log(`${role} has ${active.length} active sessions:`);
+      for (const s of active) {
+        console.log(`  tmux attach-session -t "${s.tmuxSession}"  # ${s.issueKey}`);
+      }
     }
   });
 
@@ -136,8 +163,11 @@ program
     console.log(chalk.bold('Agents:'));
     for (const a of agents) {
       const h = getHealthStatus(a.role);
-      const s = h.active ? chalk.green(`${h.issueKey} (${h.uptime}s)`) : chalk.dim('idle');
-      console.log(`  ${a.role}: ${s}`);
+      console.log(`  ${a.role}: ${h.activeSessions}/${h.maxConcurrency} active, ${h.suspendedSessions} suspended`);
+      for (const s of h.sessions) {
+        const icon = s.state === 'active' ? '●' : '◐';
+        console.log(`    ${icon} ${s.issueKey} [${s.state}]${s.uptime ? ` ${s.uptime}s` : ''}`);
+      }
     }
 
     const queued = getQueue('queued');

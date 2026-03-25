@@ -5,7 +5,7 @@
 
 import { bus } from '../bus.js';
 import { loadRoutingConfig, buildMentionRegex } from '../routing/rules.js';
-import { isRoleBusy } from '../runtime/health.js';
+import { hasCapacity } from '../runtime/health.js';
 import { spawnAgent } from '../runtime/runner.js';
 import { enqueue } from '../routing/queue.js';
 import { replyInDiscord } from '../channels/discord.js';
@@ -29,7 +29,7 @@ export function registerDiscordHandlers(): void {
     // Remove the @mention from the prompt
     const prompt = content.replace(regex, '').trim();
 
-    if (isRoleBusy(role)) {
+    if (!hasCapacity(role)) {
       enqueue({
         issueKey,
         issueId: '',
