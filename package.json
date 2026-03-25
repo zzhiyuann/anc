@@ -1,0 +1,35 @@
+{
+  "name": "anc",
+  "version": "0.1.0",
+  "description": "Agent Native Company — Linear-native agent orchestration, rebuilt from scratch",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "anc": "dist/index.js",
+    "anc-sdk": "dist/agents/sdk-cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "author": "Zhiyuan Wang",
+  "license": "MIT",
+  "dependencies": {
+    "@linear/sdk": "^78.0.0",
+    "better-sqlite3": "^12.8.0",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "discord.js": "^14.25.1",
+    "yaml": "^2.7.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}

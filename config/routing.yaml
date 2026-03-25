@@ -1,0 +1,40 @@
+comment_routing:
+  - match: "@{agent}"
+    target: mentioned_agent
+  - match: reply_to_agent
+    target: parent_agent
+  - match: has_delegate
+    target: delegate
+  - match: has_assignee
+    target: assignee
+  - match: last_active
+    target: last_agent
+
+comment_default: skip
+
+issue_routing:
+  - label: "agent:cc"
+    target: engineer
+  - label: "Bug"
+    target: engineer
+  - label: "Feature"
+    target: engineer
+  - label: "Improvement"
+    target: engineer
+  - label: "Plan"
+    target: strategist
+  - titlePattern: "\\[Strategy\\]"
+    target: strategist
+  - titlePattern: "\\[Research\\]"
+    target: strategist
+
+issue_default: ops
+
+self_prefixes:
+  - "self:"
+  - "note:"
+
+agent_roles:
+  - engineer
+  - strategist
+  - ops

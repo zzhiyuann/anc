@@ -1,0 +1,33 @@
+agents:
+  engineer:
+    name: "Engineer"
+    model: claude-code
+    linearUserId: ""  # fill after OAuth setup
+    base: personas/base.md
+    role: personas/roles/engineer.md
+    protocols:
+      - personas/protocols/completion.md
+      - personas/protocols/communication.md
+      - personas/protocols/memory.md
+
+  strategist:
+    name: "Strategist"
+    model: claude-code
+    linearUserId: ""
+    base: personas/base.md
+    role: personas/roles/strategist.md
+    protocols:
+      - personas/protocols/completion.md
+      - personas/protocols/communication.md
+      - personas/protocols/memory.md
+
+  ops:
+    name: "Ops"
+    model: claude-code
+    linearUserId: ""
+    base: personas/base.md
+    role: personas/roles/ops.md
+    protocols:
+      - personas/protocols/completion.md
+      - personas/protocols/communication.md
+      - personas/protocols/memory.md
