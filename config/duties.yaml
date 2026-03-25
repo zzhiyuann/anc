@@ -1,0 +1,77 @@
+# Standing Duties — proactive behaviors triggered by time or events.
+# Each role can have multiple duties. Adding new proactive behaviors = adding entries here.
+#
+# Triggers:
+#   cron: "2h" / "30m" / "24h" — periodic
+#   event: "agent:failed" / "agent:completed" — reactive to bus events
+#
+# Variables in prompt: {issueKey}, {role}, {error}, {timestamp}
+
+duties:
+  # --- Ops: Company Pulse ---
+  - id: company-pulse
+    role: ops
+    trigger:
+      cron: "2h"
+    issuePrefix: "pulse"
+    prompt: |
+      [Company Pulse] Run a health check of the entire system.
+
+      Scan these areas and report findings:
+
+      1. **System Health**: Check `anc status` for tripped circuit breakers, queue depth, and agent states. Check tmux for orphaned sessions.
+      2. **Issue Flow**: Use `anc list-issues "In Review"` — flag any stuck > 24h. Use `anc list-issues "In Progress"` — flag any with no recent activity.
+      3. **Agent Performance**: Check shared memory for recent retrospectives. Note patterns of failure.
+
+      Actions:
+      - Small fixable problems → create sub-issues and dispatch to Engineer
+      - CEO attention needed → use `anc group` to post summary to Discord
+      - Critical (system down, data risk) → Telegram notification
+
+      Write your findings to `.agent-memory/pulse-{timestamp}.md`.
+      No HANDOFF needed — this is a standing duty.
+
+  # --- Ops: Failure Post-Mortem ---
+  - id: failure-postmortem
+    role: ops
+    trigger:
+      event: "agent:failed"
+    issuePrefix: "postmortem"
+    prompt: |
+      [Failure Post-Mortem] Agent {role} failed on {issueKey}.
+      Error: {error}
+
+      Investigate:
+      1. Read the workspace at ~/anc-workspaces/{issueKey}/ for any output
+      2. Check if this issue has failed before (pattern?)
+      3. Classify: transient (rate limit, timeout) or systemic (code bug, config error)?
+
+      Actions:
+      - Transient → log to shared memory, no issue needed
+      - Systemic → create a fix issue: `anc create-sub {issueKey} "Fix: <root cause>" "<details>"`
+      - Pattern (3+ failures on same issue) → flag to CEO via Discord
+
+      Write findings to shared memory: `~/.anc/shared-memory/postmortem-{issueKey}.md`
+      No HANDOFF needed.
+
+  # --- Strategist: Weekly Strategy Review ---
+  # Uncomment when ready:
+  # - id: strategy-review
+  #   role: strategist
+  #   trigger:
+  #     cron: "168h"  # weekly
+  #   issuePrefix: "strategy"
+  #   prompt: |
+  #     [Weekly Strategy Review] Review the company's direction.
+  #     ...
+
+  # --- Engineer: Tech Debt Scan ---
+  # Uncomment when ready:
+  # - id: tech-debt-scan
+  #   role: engineer
+  #   trigger:
+  #     cron: "72h"  # every 3 days
+  #   issuePrefix: "techdebt"
+  #   prompt: |
+  #     [Tech Debt Scan] Review recent code changes for quality issues.
+  #     ...

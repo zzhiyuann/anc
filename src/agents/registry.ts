@@ -17,6 +17,7 @@ interface AgentsYaml {
     linearUserId: string;
     oauthTokenPath?: string;
     maxConcurrency?: number;
+    dutySlots?: number;
     base: string;
     role: string;
     protocols: string[];
@@ -32,9 +33,9 @@ export function loadAgentRegistry(configDir?: string): AgentConfig[] {
   if (!existsSync(path)) {
     // Default 3-agent roster
     registry = [
-      { name: 'Engineer', role: 'engineer', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 3 },
-      { name: 'Strategist', role: 'strategist', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 2 },
-      { name: 'Ops', role: 'ops', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 2 },
+      { name: 'Engineer', role: 'engineer', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 3, dutySlots: 1 },
+      { name: 'Strategist', role: 'strategist', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 2, dutySlots: 1 },
+      { name: 'Ops', role: 'ops', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 2, dutySlots: 1 },
     ];
     return registry;
   }
@@ -47,6 +48,7 @@ export function loadAgentRegistry(configDir?: string): AgentConfig[] {
     linearUserId: cfg.linearUserId,
     oauthTokenPath: cfg.oauthTokenPath,
     maxConcurrency: cfg.maxConcurrency ?? 3,
+    dutySlots: cfg.dutySlots ?? 1,
     personaFiles: [cfg.base, cfg.role, ...cfg.protocols],
   }));
 

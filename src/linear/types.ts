@@ -65,7 +65,8 @@ export interface AgentConfig {
   linearUserId: string;
   oauthTokenPath?: string;
   personaFiles: string[];
-  maxConcurrency: number;  // how many parallel sessions this role can run
+  maxConcurrency: number;   // parallel task sessions
+  dutySlots: number;        // separate pool for proactive duties (never starved by tasks)
 }
 
 // --- Webhook payloads ---

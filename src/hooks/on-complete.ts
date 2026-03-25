@@ -160,6 +160,42 @@ async function processHandoff(
     renameSync(handoffPath, archivePath);
   } catch { /**/ }
 
+  // Process RETRO.md → append to shared memory
+  await processRetro(session.role, session.issueKey, workspace);
+
   markIdle(session.issueKey);
   bus.emit('agent:completed', { role: session.role, issueKey: session.issueKey, handoff });
+}
+
+/** Process retrospective — append to shared memory for cross-session learning. */
+async function processRetro(role: string, issueKey: string, workspace: string): Promise<void> {
+  const retroPath = join(workspace, 'RETRO.md');
+  if (!existsSync(retroPath)) return;
+
+  try {
+    const retro = readFileSync(retroPath, 'utf-8').trim();
+    if (retro.length === 0) return;
+
+    const { writeSharedMemory, readSharedMemory } = await import('../agents/memory.js');
+    const filename = `retros-${role}.md`;
+    const existing = readSharedMemory(filename) ?? `# ${role} Retrospectives\n`;
+
+    // Append this retro (keep last 10 to avoid unbounded growth)
+    const header = `\n## ${issueKey} — ${new Date().toISOString().split('T')[0]}\n`;
+    const updated = existing + header + retro + '\n';
+
+    // Trim to last 10 entries if needed
+    const entries = updated.split(/\n## /).filter(Boolean);
+    const trimmed = entries.length > 11
+      ? entries[0] + '\n## ' + entries.slice(-10).join('\n## ')
+      : updated;
+
+    writeSharedMemory(filename, trimmed);
+    console.log(chalk.green(`[complete] ${role}/${issueKey}: retrospective saved to shared memory`));
+
+    // Archive RETRO.md
+    try { unlinkSync(retroPath); } catch { /**/ }
+  } catch (err) {
+    console.error(chalk.dim(`[complete] Failed to process retro: ${(err as Error).message}`));
+  }
 }

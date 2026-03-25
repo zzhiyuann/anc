@@ -23,7 +23,7 @@ import { buildPersona } from '../agents/persona.js';
 import { bus } from '../bus.js';
 import {
   trackSession, untrackSession, markIdle, markActiveFromIdle,
-  markSuspended, markResumed, hasCapacity, pickToEvict,
+  markSuspended, markResumed, hasCapacity, hasDutyCapacity, pickToEvict,
   getSessionForIssue, isIssueIdle, isIssueSuspended,
 } from './health.js';
 import { isBreakerTripped, recordFailure, recordSuccess } from './circuit-breaker.js';
@@ -49,8 +49,9 @@ export function resolveSession(opts: {
   prompt?: string;
   priority?: number;
   ceoAssigned?: boolean;
+  isDuty?: boolean;
 }): ResolveResult {
-  const { role, issueKey, prompt, priority, ceoAssigned } = opts;
+  const { role, issueKey, prompt, priority, ceoAssigned, isDuty } = opts;
 
   // 1. Circuit breaker
   const tripped = isBreakerTripped(issueKey);
@@ -104,8 +105,9 @@ export function resolveSession(opts: {
   }
 
   // 5. No session → need to spawn fresh
-  //    Make room if needed: evict idle → suspend active → queue
-  if (!hasCapacity(role)) {
+  //    Duty sessions use separate pool; task sessions use main pool
+  const poolHasRoom = isDuty ? hasDutyCapacity(role) : hasCapacity(role);
+  if (!poolHasRoom) {
     const victim = pickToEvict(role);
     if (victim) {
       if (victim.state === 'idle') {
@@ -125,7 +127,7 @@ export function resolveSession(opts: {
   }
 
   // Spawn fresh
-  const result = spawnClaude({ role, issueKey, prompt, useContinue: false, ceoAssigned, priority });
+  const result = spawnClaude({ role, issueKey, prompt, useContinue: false, ceoAssigned, priority, isDuty });
   if (result.success) {
     recordSuccess(issueKey);
     return { action: 'spawned', tmuxSession: result.tmuxSession };
@@ -144,10 +146,11 @@ interface SpawnInternalOpts {
   useContinue: boolean;
   ceoAssigned?: boolean;
   priority?: number;
+  isDuty?: boolean;
 }
 
 function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: string; error?: string } {
-  const { role, issueKey, prompt, useContinue, ceoAssigned, priority } = opts;
+  const { role, issueKey, prompt, useContinue, ceoAssigned, priority, isDuty } = opts;
   const tmuxSession = `anc-${role}-${issueKey}`;
 
   // Prepare workspace + persona
@@ -183,6 +186,7 @@ function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: 
       priority: priority ?? 3,
       ceoAssigned: ceoAssigned ?? false,
       useContinue,
+      isDuty: isDuty ?? false,
     });
 
     bus.emit('agent:spawned', { role, issueKey, tmuxSession });

@@ -31,6 +31,7 @@ export interface TrackedSession {
   ceoAssigned: boolean;       // CEO manually assigned → never auto-suspend
   handoffProcessed: boolean;  // HANDOFF.md already handled for this session cycle
   useContinue: boolean;       // has prior context → use --continue on next spawn
+  isDuty: boolean;            // proactive duty session (uses separate capacity pool)
 }
 
 // All tracked sessions (active + idle + suspended)
@@ -40,13 +41,14 @@ const sessions = new Map<string, TrackedSession>();  // key = issueKey
 
 export function trackSession(params: {
   role: AgentRole; issueKey: string; tmuxSession: string; spawnedAt: number;
-  priority: number; ceoAssigned: boolean; useContinue?: boolean;
+  priority: number; ceoAssigned: boolean; useContinue?: boolean; isDuty?: boolean;
 }): void {
   sessions.set(params.issueKey, {
     ...params,
     state: 'active',
     handoffProcessed: false,
     useContinue: params.useContinue ?? false,
+    isDuty: params.isDuty ?? false,
   });
 }
 
@@ -80,15 +82,33 @@ export function getAllSessionsForRole(role: AgentRole): TrackedSession[] {
   return [...sessions.values()].filter(s => s.role === role);
 }
 
-/** Only ACTIVE sessions count against concurrency limits */
+/** Count active TASK sessions (excludes duties) */
+export function activeTaskCount(role: AgentRole): number {
+  return getActiveSessions(role).filter(s => !s.isDuty).length;
+}
+
+/** Count active DUTY sessions */
+export function activeDutyCount(role: AgentRole): number {
+  return getActiveSessions(role).filter(s => s.isDuty).length;
+}
+
+/** Legacy: total active count */
 export function activeCount(role: AgentRole): number {
   return getActiveSessions(role).length;
 }
 
+/** Can this role accept another TASK session? */
 export function hasCapacity(role: AgentRole): boolean {
   const agent = getAgent(role);
   if (!agent) return false;
-  return activeCount(role) < agent.maxConcurrency;
+  return activeTaskCount(role) < agent.maxConcurrency;
+}
+
+/** Can this role accept another DUTY session? (separate pool) */
+export function hasDutyCapacity(role: AgentRole): boolean {
+  const agent = getAgent(role);
+  if (!agent) return false;
+  return activeDutyCount(role) < agent.dutySlots;
 }
 
 export function isIssueActive(issueKey: string): boolean {

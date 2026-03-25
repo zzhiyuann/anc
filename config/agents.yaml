@@ -3,7 +3,8 @@ agents:
     name: "Engineer"
     model: claude-code
     linearUserId: ""  # fill after OAuth setup
-    maxConcurrency: 3  # can work on 3 issues in parallel
+    maxConcurrency: 3  # parallel task sessions
+    dutySlots: 1       # separate pool for proactive duties
     base: personas/base.md
     role: personas/roles/engineer.md
     protocols:
@@ -16,6 +17,7 @@ agents:
     model: claude-code
     linearUserId: ""
     maxConcurrency: 2
+    dutySlots: 1
     base: personas/base.md
     role: personas/roles/strategist.md
     protocols:
@@ -28,6 +30,7 @@ agents:
     model: claude-code
     linearUserId: ""
     maxConcurrency: 2
+    dutySlots: 1
     base: personas/base.md
     role: personas/roles/ops.md
     protocols:
