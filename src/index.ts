@@ -13,6 +13,15 @@ program
   .description('ANC — Agent Native Company. Linear-native agent orchestration.')
   .version('0.1.0');
 
+// --- Setup ---
+program
+  .command('setup')
+  .description('Initialize ANC — create directories, validate credentials')
+  .action(async () => {
+    const { setupCommand } = await import('./commands/setup.js');
+    await setupCommand();
+  });
+
 // --- Serve ---
 program
   .command('serve')
@@ -58,6 +67,29 @@ program
       cleanup();
       await bus.emit('system:tick', { timestamp: Date.now() });
     }, 30_000);
+
+    // Event logging to DB
+    const { logEvent, closeDb, backupDb } = await import('./core/db.js');
+    bus.on('agent:spawned', ({ role, issueKey }) => logEvent('spawned', role, issueKey));
+    bus.on('agent:completed', ({ role, issueKey }) => logEvent('completed', role, issueKey));
+    bus.on('agent:failed', ({ role, issueKey, error }) => logEvent('failed', role, issueKey, error));
+    bus.on('agent:idle', ({ role, issueKey }) => logEvent('idle', role, issueKey));
+    bus.on('agent:suspended', ({ role, issueKey, reason }) => logEvent('suspended', role, issueKey, reason));
+    bus.on('agent:resumed', ({ role, issueKey }) => logEvent('resumed', role, issueKey));
+
+    // Periodic DB backup (every 30 min)
+    setInterval(() => backupDb(), 30 * 60_000);
+
+    // Graceful shutdown
+    const shutdown = (signal: string) => {
+      console.log(chalk.dim(`\n[${signal}] Shutting down...`));
+      const { stopDiscordBot } = require('./channels/discord.js');
+      try { stopDiscordBot(); } catch { /**/ }
+      closeDb();
+      process.exit(0);
+    };
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
 
     console.log(chalk.bold('Event handlers registered. System ready.'));
   });

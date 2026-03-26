@@ -44,6 +44,17 @@ export function startGateway(port?: number): void {
       return;
     }
 
+    // --- Events (audit log) ---
+    if (req.method === 'GET' && req.url?.startsWith('/events')) {
+      const { getRecentEvents } = await import('./core/db.js');
+      const url = new URL(req.url, 'http://localhost');
+      const limit = parseInt(url.searchParams.get('limit') || '50');
+      const events = getRecentEvents(limit);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(events));
+      return;
+    }
+
     // --- Webhook ---
     if (req.method === 'POST' && (req.url === '/webhook' || req.url === '/')) {
       const body = await readBody(req);
