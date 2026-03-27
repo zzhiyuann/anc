@@ -5,6 +5,8 @@
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { join, dirname } from 'path';
 import { bus } from './bus.js';
 import { createLogger } from './core/logger.js';
 
@@ -129,6 +131,38 @@ export function startGateway(port?: number): void {
         const result = await handleDispatchRequest(JSON.parse(body));
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: (err as Error).message }));
+      }
+      return;
+    }
+
+    // --- Plan announcement endpoint (for agent SDK + hook guard) ---
+    if (req.method === 'POST' && req.url === '/plan-announce') {
+      const body = await readBody(req);
+      try {
+        const { role, issueKey, plan } = JSON.parse(body);
+        const { getRootLink } = await import('./bridge/mappings.js');
+        const { replyInDiscord, postToDiscord } = await import('./channels/discord.js');
+
+        const rootLink = getRootLink(issueKey);
+        if (rootLink) {
+          await replyInDiscord(rootLink.discordMessageId, rootLink.discordChannelId,
+            `**[${role}]** 🚀 ${plan}`);
+        } else {
+          await postToDiscord(role, `🚀 **${issueKey}**: ${plan}`);
+        }
+
+        // Mark announced in workspace
+        const config = getConfig();
+        const markerPath = join(config.workspaceBase, issueKey, '.anc', 'plan-announced');
+        const markerDir = dirname(markerPath);
+        if (!existsSync(markerDir)) mkdirSync(markerDir, { recursive: true });
+        writeFileSync(markerPath, '', 'utf-8');
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: (err as Error).message }));

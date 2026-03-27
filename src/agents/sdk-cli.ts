@@ -72,6 +72,13 @@ program
   });
 
 program
+  .command('plan <text>')
+  .description('Announce your plan to Discord (bridge-aware)')
+  .action(async (text: string) => {
+    await sdk.plan(text);
+  });
+
+program
   .command('reply <issue-key> <comment-id> <body>')
   .description('Reply to a specific comment (threaded)')
   .action(async (key: string, commentId: string, body: string) => {

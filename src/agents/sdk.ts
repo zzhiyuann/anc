@@ -144,6 +144,12 @@ export async function group(message: string): Promise<void> {
   console.log(`Posted to group`);
 }
 
+/** Announce plan to Discord (bridge-aware) */
+export async function plan(text: string): Promise<void> {
+  await post('/plan-announce', { role: ROLE, issueKey: process.env.ANC_ISSUE_KEY, plan: text });
+  console.log(`Plan announced`);
+}
+
 /** Reply to a specific comment (threaded) */
 export async function reply(issueKey: string, commentId: string, body: string): Promise<void> {
   if (!body || body.trim().length === 0) throw new Error('Reply body cannot be empty');

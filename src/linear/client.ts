@@ -177,6 +177,18 @@ export async function createSubIssue(
 
   const client = asAgent ? getAgentClient(asAgent) : getSystemClient();
   const config = getConfig();
+
+  // Resolve target agent's Linear user ID for delegate assignment
+  let assigneeId: string | undefined;
+  if (asAgent) {
+    const { getAgent } = await import('../agents/registry.js');
+    const agent = getAgent(asAgent);
+    assigneeId = agent?.linearUserId;
+  }
+
+  // Get Todo state so sub-issues start ready for pickup (not Backlog)
+  const todoStateId = await getWorkflowStateId('Todo');
+
   try {
     const result = await withRateLimit(() => client.createIssue({
       teamId: config.linearTeamId,
@@ -184,6 +196,8 @@ export async function createSubIssue(
       description,
       priority,
       parentId: parent.id,
+      ...(assigneeId ? { assigneeId } : {}),
+      ...(todoStateId ? { stateId: todoStateId } : {}),
     }));
     const created = await result.issue;
     return created?.identifier ?? null;

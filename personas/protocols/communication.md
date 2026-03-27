@@ -12,6 +12,13 @@ anc create-sub <parent-key> "Title" "Description"
 anc group "message"   # post to Discord
 ```
 
+## Plan Announcement
+After reading the issue, before writing any code, announce your plan:
+```bash
+anc plan "Brief 1-2 sentence summary of your approach"
+```
+This posts to Discord so the team knows what you're doing.
+
 ## Comment Quality
 Every substantive comment must include:
 1. **What was done** (outcome, not just action)
