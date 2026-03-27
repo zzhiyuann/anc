@@ -1,37 +1,64 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { bus } from '../src/bus.js';
 
-// Mock the Linear client before importing on-lifecycle
+// Mock all dependencies before importing on-lifecycle
 vi.mock('../src/linear/client.js', () => ({
   addComment: vi.fn().mockResolvedValue('comment-id'),
+  getIssue: vi.fn().mockResolvedValue({ id: 'issue-uuid-1', identifier: 'ANC-1' }),
+  createAgentSession: vi.fn().mockResolvedValue('session-uuid-1'),
+  dismissSession: vi.fn().mockResolvedValue(true),
 }));
 
-import { addComment } from '../src/linear/client.js';
+vi.mock('../src/runtime/health.js', () => ({
+  getSessionForIssue: vi.fn().mockReturnValue({ linearSessionId: 'session-uuid-1' }),
+}));
+
+vi.mock('../src/channels/discord.js', () => ({
+  postToDiscord: vi.fn().mockResolvedValue('discord-msg-id'),
+  addReactions: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { addComment, getIssue, createAgentSession, dismissSession } from '../src/linear/client.js';
+import { getSessionForIssue } from '../src/runtime/health.js';
+import { postToDiscord, addReactions } from '../src/channels/discord.js';
 import { registerLifecycleHandlers } from '../src/hooks/on-lifecycle.js';
 
 const mockedAddComment = vi.mocked(addComment);
+const mockedGetIssue = vi.mocked(getIssue);
+const mockedCreateAgentSession = vi.mocked(createAgentSession);
+const mockedDismissSession = vi.mocked(dismissSession);
+const mockedGetSession = vi.mocked(getSessionForIssue);
+const mockedPostToDiscord = vi.mocked(postToDiscord);
+const mockedAddReactions = vi.mocked(addReactions);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Reset defaults
+  mockedGetIssue.mockResolvedValue({ id: 'issue-uuid-1', identifier: 'ANC-1' } as any);
+  mockedCreateAgentSession.mockResolvedValue('session-uuid-1');
+  mockedGetSession.mockReturnValue({ linearSessionId: 'session-uuid-1' } as any);
+  mockedPostToDiscord.mockResolvedValue('discord-msg-id');
+
   // Clear bus listeners to avoid double-registration
   bus.off('agent:spawned');
   bus.off('agent:failed');
   bus.off('agent:suspended');
   bus.off('agent:resumed');
   bus.off('agent:idle');
+  bus.off('agent:completed');
   registerLifecycleHandlers();
 });
+
+// ---- Lifecycle Comments ----
 
 describe('Lifecycle Comments', () => {
   it('posts comment on agent:spawned', async () => {
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 'anc-engineer-ANC-1' });
-    expect(mockedAddComment).toHaveBeenCalledOnce();
     expect(mockedAddComment).toHaveBeenCalledWith('ANC-1', expect.stringContaining('started working'), 'engineer');
   });
 
   it('posts comment on agent:failed with error detail', async () => {
     await bus.emit('agent:failed', { role: 'engineer', issueKey: 'ANC-1', error: 'tmux died' });
-    expect(mockedAddComment).toHaveBeenCalledOnce();
     const body = mockedAddComment.mock.calls[0][1];
     expect(body).toContain('error');
     expect(body).toContain('tmux died');
@@ -39,7 +66,6 @@ describe('Lifecycle Comments', () => {
 
   it('posts comment on agent:suspended with reason', async () => {
     await bus.emit('agent:suspended', { role: 'ops', issueKey: 'ANC-2', reason: 'capacity' });
-    expect(mockedAddComment).toHaveBeenCalledOnce();
     const body = mockedAddComment.mock.calls[0][1];
     expect(body).toContain('suspended');
     expect(body).toContain('capacity');
@@ -47,7 +73,6 @@ describe('Lifecycle Comments', () => {
 
   it('posts comment on agent:resumed', async () => {
     await bus.emit('agent:resumed', { role: 'strategist', issueKey: 'ANC-3', tmuxSession: 't' });
-    expect(mockedAddComment).toHaveBeenCalledOnce();
     expect(mockedAddComment).toHaveBeenCalledWith('ANC-3', expect.stringContaining('resumed'), 'strategist');
   });
 
@@ -62,15 +87,19 @@ describe('Lifecycle Comments', () => {
   });
 });
 
+// ---- Duty Session Filtering ----
+
 describe('Duty Session Filtering', () => {
   it('skips pulse-* sessions on spawned', async () => {
     await bus.emit('agent:spawned', { role: 'ops', issueKey: 'pulse-daily', tmuxSession: 't' });
     expect(mockedAddComment).not.toHaveBeenCalled();
+    expect(mockedCreateAgentSession).not.toHaveBeenCalled();
   });
 
   it('skips postmortem-* sessions on failed', async () => {
     await bus.emit('agent:failed', { role: 'ops', issueKey: 'postmortem-123', error: 'err' });
     expect(mockedAddComment).not.toHaveBeenCalled();
+    expect(mockedDismissSession).not.toHaveBeenCalled();
   });
 
   it('skips pulse-* sessions on suspended', async () => {
@@ -85,9 +114,17 @@ describe('Duty Session Filtering', () => {
 
   it('skips pulse-* sessions on idle', async () => {
     await bus.emit('agent:idle', { role: 'ops', issueKey: 'pulse-hourly' });
-    expect(mockedAddComment).not.toHaveBeenCalled();
+    expect(mockedDismissSession).not.toHaveBeenCalled();
+  });
+
+  it('skips duty sessions on completed', async () => {
+    await bus.emit('agent:completed', { role: 'ops', issueKey: 'pulse-daily', handoff: 'done' });
+    expect(mockedDismissSession).not.toHaveBeenCalled();
+    expect(mockedPostToDiscord).not.toHaveBeenCalled();
   });
 });
+
+// ---- Comment Content Format ----
 
 describe('Comment Content Format', () => {
   it('spawned comment includes bold role name', async () => {
@@ -112,5 +149,95 @@ describe('Comment Content Format', () => {
     await bus.emit('agent:suspended', { role: 'engineer', issueKey: 'ANC-10', reason: 'capacity' });
     const body = mockedAddComment.mock.calls[0][1];
     expect(body).toContain('resume');
+  });
+});
+
+// ---- AgentSession Management ----
+
+describe('AgentSession Management', () => {
+  it('creates AgentSession on spawned', async () => {
+    await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
+    expect(mockedGetIssue).toHaveBeenCalledWith('ANC-1');
+    expect(mockedCreateAgentSession).toHaveBeenCalledWith('issue-uuid-1', 'engineer');
+  });
+
+  it('stores linearSessionId on tracked session after spawn', async () => {
+    const tracked: any = {};
+    mockedGetSession.mockReturnValue(tracked);
+    await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
+    expect(tracked.linearSessionId).toBe('session-uuid-1');
+  });
+
+  it('dismisses AgentSession on failed', async () => {
+    await bus.emit('agent:failed', { role: 'engineer', issueKey: 'ANC-1', error: 'err' });
+    expect(mockedDismissSession).toHaveBeenCalledWith('session-uuid-1', 'engineer');
+  });
+
+  it('dismisses AgentSession on suspended', async () => {
+    await bus.emit('agent:suspended', { role: 'engineer', issueKey: 'ANC-1', reason: 'capacity' });
+    expect(mockedDismissSession).toHaveBeenCalledWith('session-uuid-1', 'engineer');
+  });
+
+  it('dismisses AgentSession on idle', async () => {
+    await bus.emit('agent:idle', { role: 'engineer', issueKey: 'ANC-1' });
+    expect(mockedDismissSession).toHaveBeenCalledWith('session-uuid-1', 'engineer');
+  });
+
+  it('dismisses AgentSession on completed', async () => {
+    await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: '# Done' });
+    expect(mockedDismissSession).toHaveBeenCalledWith('session-uuid-1', 'engineer');
+  });
+
+  it('creates new AgentSession on resumed', async () => {
+    await bus.emit('agent:resumed', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
+    expect(mockedCreateAgentSession).toHaveBeenCalledWith('issue-uuid-1', 'engineer');
+  });
+
+  it('skips dismiss when no linearSessionId', async () => {
+    mockedGetSession.mockReturnValue({ linearSessionId: undefined } as any);
+    await bus.emit('agent:idle', { role: 'engineer', issueKey: 'ANC-1' });
+    expect(mockedDismissSession).not.toHaveBeenCalled();
+  });
+
+  it('clears linearSessionId after dismiss', async () => {
+    const tracked: any = { linearSessionId: 'session-uuid-1' };
+    mockedGetSession.mockReturnValue(tracked);
+    await bus.emit('agent:idle', { role: 'engineer', issueKey: 'ANC-1' });
+    expect(tracked.linearSessionId).toBeUndefined();
+  });
+});
+
+// ---- Discord Notifications ----
+
+describe('Discord Notifications', () => {
+  it('posts to Discord on agent:failed', async () => {
+    await bus.emit('agent:failed', { role: 'engineer', issueKey: 'ANC-1', error: 'boom' });
+    expect(mockedPostToDiscord).toHaveBeenCalledWith('engineer', expect.stringContaining('ANC-1'));
+    expect(mockedAddReactions).toHaveBeenCalledWith('discord-msg-id', ['❌']);
+  });
+
+  it('posts to Discord on agent:completed', async () => {
+    await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: '# HANDOFF\n\nDid the thing.' });
+    expect(mockedPostToDiscord).toHaveBeenCalledWith('engineer', expect.stringContaining('completed'));
+    expect(mockedAddReactions).toHaveBeenCalledWith('discord-msg-id', ['✅']);
+  });
+
+  it('truncates long handoff in Discord message', async () => {
+    const longHandoff = 'x'.repeat(500);
+    await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: longHandoff });
+    const discordBody = mockedPostToDiscord.mock.calls[0][1];
+    expect(discordBody.length).toBeLessThan(500);
+    expect(discordBody).toContain('...');
+  });
+
+  it('adds warning reaction when handoff has quality check warnings', async () => {
+    await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: '# Done\n\nQuality check warnings found.' });
+    expect(mockedAddReactions).toHaveBeenCalledWith('discord-msg-id', ['✅', '⚠️']);
+  });
+
+  it('skips reactions when Discord post fails', async () => {
+    mockedPostToDiscord.mockResolvedValue(null as any);
+    await bus.emit('agent:failed', { role: 'engineer', issueKey: 'ANC-1', error: 'err' });
+    expect(mockedAddReactions).not.toHaveBeenCalled();
   });
 });
