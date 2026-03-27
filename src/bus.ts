@@ -17,19 +17,19 @@ class TypedEventBus<Events> {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    const set = this.listeners.get(event)!;
-    set.add(listener as Listener<unknown>);
+    const listeners = this.listeners.get(event)!;
+    listeners.add(listener as Listener<unknown>);
     // Return unsubscribe function
-    return () => set.delete(listener as Listener<unknown>);
+    return () => listeners.delete(listener as Listener<unknown>);
   }
 
   async emit<K extends keyof Events & string>(event: K, data: Events[K]): Promise<void> {
-    const set = this.listeners.get(event);
-    if (!set || set.size === 0) return;
+    const listeners = this.listeners.get(event);
+    if (!listeners || listeners.size === 0) return;
 
     // Run all handlers concurrently — errors are logged, never propagated
     const results = await Promise.allSettled(
-      [...set].map(fn => Promise.resolve(fn(data)))
+      [...listeners].map(fn => Promise.resolve(fn(data)))
     );
 
     for (const r of results) {
