@@ -130,7 +130,19 @@ export function _resetLifecycle(): void {
 /** Base URL for serving workspace docs (Tailscale-accessible) */
 const DOC_BASE = `http://100.89.67.80:${process.env.ANC_WEBHOOK_PORT || 3849}/docs`;
 
-/** Convert raw HANDOFF.md into a clean Discord-friendly summary with doc links */
+/** Strip markdown formatting — Discord renders it as rich text which looks terrible */
+function stripMd(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')     // # headers
+    .replace(/\*\*(.+?)\*\*/g, '$1') // **bold**
+    .replace(/\*(.+?)\*/g, '$1')     // *italic*
+    .replace(/`([^`]+)`/g, '$1')     // `code`
+    .replace(/^[-*]\s+/gm, '- ')     // normalize bullets
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url) → text
+    .trim();
+}
+
+/** Convert raw HANDOFF.md into a clean plain-text Discord summary */
 function formatCompletionSummary(handoff: string, issueKey: string): string {
   const lines = handoff.split('\n');
   const bullets: string[] = [];
@@ -142,7 +154,7 @@ function formatCompletionSummary(handoff: string, issueKey: string): string {
     if (inSummary && /^##/.test(line)) break;
     if (inSummary) {
       const trimmed = line.trim();
-      if (trimmed.length > 0) bullets.push(trimmed);
+      if (trimmed.length > 0) bullets.push(stripMd(trimmed));
     }
   }
 
@@ -152,20 +164,14 @@ function formatCompletionSummary(handoff: string, issueKey: string): string {
       const trimmed = line.trim();
       if (trimmed.startsWith('#') || trimmed.length === 0) continue;
       if (trimmed.startsWith('---')) continue;
-      bullets.push(trimmed);
+      bullets.push(stripMd(trimmed));
       if (bullets.length >= 3) break;
     }
   }
 
-  // Replace file references with clickable doc links
   const result = bullets
     .slice(0, 5)
-    .map(b => {
-      // Convert `filename.md` or filename.md references to hyperlinks
-      return b.replace(/`([^`]+\.(md|html|txt))`/g, (_m, file) =>
-        `[${file}](${DOC_BASE}/${issueKey}/${file})`);
-    })
-    .map(b => b.startsWith('- ') || b.startsWith('• ') ? b : `• ${b}`)
+    .map(b => b.startsWith('- ') ? b : `- ${b}`)
     .join('\n');
 
   return result || 'Completed (see Linear for details)';

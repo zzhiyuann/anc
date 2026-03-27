@@ -174,6 +174,13 @@ async function processHandoff(
 
   // Execute dispatches (if any) — pass previous agent's summary as context
   if (actions?.dispatches && actions.dispatches.length > 0) {
+    // For same-issue chain dispatches: untrack current session first
+    // so resolveSession creates a fresh session for the next agent
+    const hasSameIssueDispatch = actions.dispatches.some(d => !d.newIssue);
+    if (hasSameIssueDispatch) {
+      untrackSession(session.issueKey);
+    }
+
     const previousContext = summary.length > 500
       ? summary.substring(0, 500) + '...'
       : summary;

@@ -16,7 +16,7 @@
  */
 
 import { bus } from '../bus.js';
-import { loadRoutingConfig, buildMentionRegex } from '../routing/rules.js';
+import { loadRoutingConfig, buildMentionRegex, extractRoleFromMatch } from '../routing/rules.js';
 import { resolveSession } from '../runtime/resolve.js';
 import { createIssue, addComment, getIssue } from '../linear/client.js';
 import { replyInDiscord, reactToMessage } from '../channels/discord.js';
@@ -116,8 +116,9 @@ export function registerBridgeHandlers(): void {
     // If @agent mentioned, dispatch immediately
     const mentionRegex = buildMentionRegex(config);
     const match = content.match(mentionRegex);
-    if (match) {
-      const role = match[1].toLowerCase();
+    const mentionedRole = match ? extractRoleFromMatch(match) : null;
+    if (match && mentionedRole) {
+      const role = mentionedRole;
       const prompt = content.replace(mentionRegex, '').trim();
       const result = resolveSession({
         role,

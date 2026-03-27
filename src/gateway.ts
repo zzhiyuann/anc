@@ -228,6 +228,29 @@ export function startGateway(port?: number): void {
       return;
     }
 
+    // --- Assets endpoint: serve static files (avatars, etc.) ---
+    if (req.method === 'GET' && req.url?.startsWith('/assets/')) {
+      const urlPath = decodeURIComponent(req.url.slice(8));
+      if (urlPath.includes('..')) { res.writeHead(403); res.end('Forbidden'); return; }
+
+      const { dirname: dn } = await import('path');
+      const { fileURLToPath } = await import('url');
+      const thisFile = fileURLToPath(import.meta.url);
+      const assetsDir = join(dn(thisFile), '..', 'assets');
+      const filePath = join(assetsDir, urlPath);
+
+      if (!existsSync(filePath)) { res.writeHead(404); res.end('Not found'); return; }
+
+      const ext = extname(filePath).toLowerCase();
+      const mimes: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.gif': 'image/gif' };
+      res.writeHead(200, {
+        'Content-Type': mimes[ext] || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=86400',
+      });
+      res.end(readFileSync(filePath));
+      return;
+    }
+
     // --- Docs endpoint: serve workspace files with MD→HTML conversion ---
     if (req.method === 'GET' && req.url?.startsWith('/docs/')) {
       const urlPath = decodeURIComponent(req.url.slice(6)); // strip /docs/

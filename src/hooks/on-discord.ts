@@ -3,7 +3,7 @@
  */
 
 import { bus } from '../bus.js';
-import { loadRoutingConfig, buildMentionRegex } from '../routing/rules.js';
+import { loadRoutingConfig, buildMentionRegex, extractRoleFromMatch } from '../routing/rules.js';
 import { resolveSession } from '../runtime/resolve.js';
 import { replyInDiscord } from '../channels/discord.js';
 import { createLogger } from '../core/logger.js';
@@ -20,7 +20,8 @@ export function registerDiscordHandlers(): void {
     const match = content.match(regex);
     if (!match) return;
 
-    const role = match[1].toLowerCase();
+    const role = extractRoleFromMatch(match);
+    if (!role) return;
     const issueMatch = content.match(/([A-Z]+-\d+)/);
     const issueKey = issueMatch ? issueMatch[1] : 'discord-adhoc';
     const prompt = content.replace(regex, '').trim();

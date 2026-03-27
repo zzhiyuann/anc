@@ -4,7 +4,7 @@
  */
 
 import type { RouteDecision, RouteTarget, CommentPayload, IssuePayload, AgentRole } from '../linear/types.js';
-import { loadRoutingConfig, buildMentionRegex, detectMentionByUserId, isSelfNote, type RoutingConfig } from './rules.js';
+import { loadRoutingConfig, buildMentionRegex, extractRoleFromMatch, detectMentionByUserId, isSelfNote, type RoutingConfig } from './rules.js';
 import { getRegisteredAgents, getAgentByLinearUserId } from '../agents/registry.js';
 import { enqueue } from './queue.js';
 
@@ -41,8 +41,8 @@ export function routeComment(ctx: CommentContext): RouteDecision {
         const regex = buildMentionRegex(config);
         const match = comment.body.match(regex);
         if (match) {
-          const role = match[1].toLowerCase();
-          return { target: role, reason: `@${role} mentioned`, issueKey: issue.identifier, priority: issue.priority };
+          const role = extractRoleFromMatch(match);
+          if (role) return { target: role, reason: `@${role} mentioned`, issueKey: issue.identifier, priority: issue.priority };
         }
         // Method 2: Linear user ID in body (Linear's native @mention format)
         const byId = detectMentionByUserId(comment.body, agents);

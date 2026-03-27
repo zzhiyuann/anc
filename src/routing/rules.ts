@@ -73,10 +73,27 @@ export function loadRoutingConfig(configDir?: string): RoutingConfig {
 }
 
 /** Build a regex matching all known agent roles for @mention detection.
- *  Matches both plain text (@Engineer) and Linear's format. */
+ *  Matches plain text (@Engineer), Discord role mentions (<@&ROLE_ID>), and Linear's format. */
 export function buildMentionRegex(config: RoutingConfig): RegExp {
   const escaped = config.agent_roles.map(r => r.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  return new RegExp(`@(${escaped.join('|')})\\b`, 'i');
+  // Match plain text @role OR Discord role mention <@&ID>
+  return new RegExp(`(?:@(${escaped.join('|')})\\b|<@&(\\d+)>)`, 'i');
+}
+
+/** Map of Discord role IDs → agent role names (populated at runtime) */
+const discordRoleMap = new Map<string, string>();
+
+export function setDiscordRoleMapping(roleId: string, roleName: string): void {
+  discordRoleMap.set(roleId, roleName.toLowerCase());
+}
+
+/** Extract agent role from a mention regex match (handles both plain text and Discord role ID) */
+export function extractRoleFromMatch(match: RegExpMatchArray): string | null {
+  // Group 1: plain text match (@engineer)
+  if (match[1]) return match[1].toLowerCase();
+  // Group 2: Discord role ID (<@&123>)
+  if (match[2]) return discordRoleMap.get(match[2]) ?? null;
+  return null;
 }
 
 /** Detect @mention by Linear user ID — Linear embeds mentions as user IDs in webhook payload.

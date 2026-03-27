@@ -6,7 +6,7 @@
 
 import { Client, GatewayIntentBits, type Message } from 'discord.js';
 import { bus } from '../bus.js';
-import { loadRoutingConfig, buildMentionRegex } from '../routing/rules.js';
+import { loadRoutingConfig, buildMentionRegex, setDiscordRoleMapping } from '../routing/rules.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('discord');
@@ -25,10 +25,10 @@ const DISPLAY_NAMES: Record<string, string> = {
 };
 
 const AVATARS: Record<string, string> = {
-  engineer: 'https://api.dicebear.com/9.x/bottts-neutral/png?seed=anc-engineer&backgroundColor=3b82f6&size=128',
-  strategist: 'https://api.dicebear.com/9.x/bottts-neutral/png?seed=anc-strategist&backgroundColor=8b5cf6&size=128',
-  ops: 'https://api.dicebear.com/9.x/bottts-neutral/png?seed=anc-ops&backgroundColor=f59e0b&size=128',
-  system: 'https://api.dicebear.com/9.x/bottts-neutral/png?seed=anc-system&backgroundColor=64748b&size=128',
+  engineer: 'https://i.imgur.com/KvQawXI.png',
+  strategist: 'https://i.imgur.com/T3tC78u.png',
+  ops: 'https://i.imgur.com/BUDVf5m.png',
+  system: 'https://i.imgur.com/BUDVf5m.png',
 };
 
 // --- Dedup (prevent double-posting) ---
@@ -95,6 +95,22 @@ export async function startDiscordBot(): Promise<boolean> {
         log.warn(`Webhook auto-create failed (per-agent avatars disabled): ${(err as Error).message}`);
       }
     }
+
+    // Map Discord role IDs → agent role names (for @mention autocomplete)
+    try {
+      const config = loadRoutingConfig();
+      const guild = client!.guilds.cache.first();
+      if (guild) {
+        const roles = await guild.roles.fetch();
+        for (const [id, role] of roles) {
+          const match = config.agent_roles.find(r => r.toLowerCase() === role.name.toLowerCase());
+          if (match) {
+            setDiscordRoleMapping(id, match);
+            log.debug(`Role mapped: ${role.name} → ${id}`);
+          }
+        }
+      }
+    } catch { /**/ }
   });
 
   // Listen for messages — emit all messages to the bus (bridge + @mention handlers)
