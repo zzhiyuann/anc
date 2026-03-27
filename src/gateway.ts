@@ -167,7 +167,7 @@ export function startGateway(port?: number): void {
       }));
       return;
     }
-
+ b247a02 (feat: add /health/detailed endpoint with per-component status (ANC-64))
     // --- Status ---
     if (req.method === 'GET' && req.url === '/status') {
       // Import dynamically to avoid circular deps
