@@ -89,7 +89,7 @@ export function startGateway(port?: number): void {
         return { role: a.role, name: a.name, ...health };
       });
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ agents, uptime: Math.round(process.uptime()) }));
+      res.end(JSON.stringify({ agents, uptime_seconds: Math.round(process.uptime()) }));
       return;
     }
 
