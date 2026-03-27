@@ -46,21 +46,10 @@ export function registerLifecycleHandlers(): void {
       await addComment(issueKey, `**${role}** picked up this issue.`, role).catch(() => {});
     }
 
-    // Create AgentSession → "Working..." badge
-    try {
-      const issue = await getIssue(issueKey);
-      if (issue) {
-        const sessionId = await createAgentSession(issue.id, role);
-        if (sessionId) {
-          // Store the Linear session ID for later dismissal
-          const tracked = getSessionForIssue(issueKey);
-          if (tracked) tracked.linearSessionId = sessionId;
-          log.debug(`AgentSession created for ${issueKey}: ${sessionId}`);
-        }
-      }
-    } catch (err) {
-      log.debug(`Failed to create AgentSession: ${(err as Error).message}`);
-    }
+    // NOTE: We do NOT create AgentSession here.
+    // Linear auto-creates one when we set delegateId in setIssueInProgress().
+    // Creating a second one causes duplicate "Working..." badges.
+    // We only handle DISMISSING sessions (in completion/fail/idle handlers).
   });
 
   // --- FAILED: comment + dismiss AgentSession + notify Discord ---
@@ -80,21 +69,10 @@ export function registerLifecycleHandlers(): void {
     await dismissLinearSession(issueKey, role);
   });
 
-  // --- RESUMED: comment + create new AgentSession ---
+  // --- RESUMED: comment only (Linear auto-creates AgentSession from delegate) ---
   bus.on('agent:resumed', async ({ role, issueKey }) => {
     if (isDutyIssue(issueKey)) return;
     await addComment(issueKey, `**${role}** resumed working.`, role).catch(() => {});
-
-    try {
-      const issue = await getIssue(issueKey);
-      if (issue) {
-        const sessionId = await createAgentSession(issue.id, role);
-        if (sessionId) {
-          const tracked = getSessionForIssue(issueKey);
-          if (tracked) tracked.linearSessionId = sessionId;
-        }
-      }
-    } catch { /**/ }
   });
 
   // --- IDLE: dismiss AgentSession (no comment — on-complete handles that) ---
