@@ -80,6 +80,94 @@ export function startGateway(port?: number): void {
       return;
     }
 
+    // --- Health Detailed ---
+    if (req.method === 'GET' && req.url === '/health/detailed') {
+      const start = Date.now();
+      const { getRateLimitStatus } = await import('./linear/rate-limiter.js');
+      const { getDb } = await import('./core/db.js');
+      const { getTrackedSessions } = await import('./runtime/health.js');
+      const { getQueue } = await import('./routing/queue.js');
+      const { getTrippedBreakers } = await import('./runtime/circuit-breaker.js');
+
+      const components: Record<string, { status: string; [key: string]: unknown }> = {};
+
+      // Database health
+      try {
+        const dbStart = Date.now();
+        const d = getDb();
+        d.prepare('SELECT 1').get();
+        components.database = { status: 'ok', latency_ms: Date.now() - dbStart };
+      } catch (err) {
+        components.database = { status: 'error', error: (err as Error).message };
+      }
+
+      // Linear API rate limiter
+      const rateLimit = getRateLimitStatus();
+      components.linear_api = {
+        status: rateLimit.tokens === 0 ? 'degraded' : 'ok',
+        rate_limit_remaining: rateLimit.tokens,
+        rate_limit_max: rateLimit.max,
+      };
+
+      // Dispatch queue
+      const queued = getQueue('queued');
+      const processing = getQueue('processing');
+      const queueDepth = queued.length + processing.length;
+      components.webhook_queue = {
+        status: queueDepth > 20 ? 'degraded' : 'ok',
+        depth: queueDepth,
+        queued: queued.length,
+        processing: processing.length,
+      };
+
+      // Active sessions
+      const sessions = getTrackedSessions();
+      const activeCt = sessions.filter(s => s.state === 'active').length;
+      const idleCt = sessions.filter(s => s.state === 'idle').length;
+      const suspendedCt = sessions.filter(s => s.state === 'suspended').length;
+      components.active_sessions = {
+        status: 'ok',
+        count: activeCt,
+        idle: idleCt,
+        suspended: suspendedCt,
+        total: sessions.length,
+      };
+
+      // Circuit breakers
+      const tripped = getTrippedBreakers();
+      components.circuit_breakers = {
+        status: tripped.length > 0 ? 'degraded' : 'ok',
+        tripped_count: tripped.length,
+        tripped: tripped.map(b => ({
+          issueKey: b.issueKey,
+          failCount: b.failCount,
+          backoff_remaining_ms: Math.max(0, b.backoffUntil - Date.now()),
+        })),
+      };
+
+      // Webhooks
+      components.webhooks = {
+        status: 'ok',
+        last_received: lastWebhookAt,
+        total_count: webhookCount,
+      };
+
+      // Overall rollup
+      const overallStatus = Object.values(components).some(c => c.status === 'error') ? 'error'
+        : Object.values(components).some(c => c.status === 'degraded') ? 'degraded' : 'ok';
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: overallStatus,
+        service: 'anc',
+        version: '0.1.0',
+        uptime: Math.round(process.uptime()),
+        components,
+        response_time_ms: Date.now() - start,
+      }));
+      return;
+    }
+
     // --- Status ---
     if (req.method === 'GET' && req.url === '/status') {
       // Import dynamically to avoid circular deps
