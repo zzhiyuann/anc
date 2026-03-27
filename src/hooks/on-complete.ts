@@ -26,6 +26,13 @@ import { createLogger } from '../core/logger.js';
 
 const log = createLogger('complete');
 
+/** Escape bare filenames (.md, .html, .ts, etc.) with backticks to prevent Linear auto-linking.
+ *  e.g. "HANDOFF.md" → "`HANDOFF.md`", but already-backticked "`foo.md`" stays unchanged. */
+function escapeFilenames(text: string): string {
+  // Match filenames not already in backticks: word chars + dots ending in known extensions
+  return text.replace(/(?<!`)(\b[\w.-]+\.(md|html|ts|js|json|yaml|yml|txt|css|sh|py|docx|pptx|pdf)\b)(?!`)/gi, '`$1`');
+}
+
 // --- Task type detection ---
 
 const TRIVIAL_RE = /\b(test|fix|hotfix|typo|lint|cleanup|rename|bump|patch|chore|refactor|nit)\b/i;
@@ -46,12 +53,12 @@ type QualityCheck = (handoff: string) => { pass: boolean; warning?: string };
 
 const hasContent: QualityCheck = (h) => ({
   pass: h.trim().length > 50,
-  warning: 'HANDOFF.md is too short',
+  warning: '`HANDOFF.md` is too short',
 });
 
 const hasVerification: QualityCheck = (h) => ({
   pass: /\b(pass|verified|confirmed|fixed|resolved|works|tested|green)\b/i.test(h),
-  warning: 'No verification evidence in HANDOFF.md',
+  warning: 'No verification evidence in `HANDOFF.md`',
 });
 
 const GATES: Record<TaskType, QualityCheck[]> = {
@@ -153,8 +160,9 @@ async function processHandoff(
   const actions = parseActions(handoff);
   const summary = extractSummary(handoff);
 
-  // Post summary as comment (without the Actions block)
-  let commentBody = summary.length > 2000 ? summary.substring(0, 2000) + '\n\n...(truncated)' : summary;
+  // Post summary as comment — escape bare filenames to prevent Linear auto-linking
+  const escapedSummary = escapeFilenames(summary);
+  let commentBody = escapedSummary.length > 2000 ? escapedSummary.substring(0, 2000) + '\n\n...(truncated)' : escapedSummary;
   if (warnings.length > 0) {
     commentBody += `\n\n**Quality check warnings:**\n${warnings.map(w => `- ${w}`).join('\n')}`;
   }
