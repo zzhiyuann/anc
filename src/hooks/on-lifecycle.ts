@@ -12,7 +12,9 @@
 
 import { bus } from '../bus.js';
 import { addComment } from '../linear/client.js';
-import chalk from 'chalk';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('lifecycle');
 
 export function registerLifecycleHandlers(): void {
   bus.on('agent:spawned', async ({ role, issueKey }) => {
@@ -40,6 +42,6 @@ export function registerLifecycleHandlers(): void {
     if (issueKey.startsWith('pulse-') || issueKey.startsWith('postmortem-')) return;
     // Don't post for idle if HANDOFF was already processed (on-complete handles that)
     // This only fires for lightweight completions (conversations, no HANDOFF)
-    console.log(chalk.dim(`[lifecycle] ${role}/${issueKey} → idle`));
+    log.debug(`${role}/${issueKey} → idle`, { role, issueKey });
   });
 }
