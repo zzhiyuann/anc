@@ -289,6 +289,8 @@ export ANC_ISSUE_KEY="${issueKey}"
 export ANC_WORKSPACE_ROOT="${workDir}"
 export ANC_SERVER_URL="http://localhost:${process.env.ANC_WEBHOOK_PORT || 3849}"
 ${tokenLine}
-claude --permission-mode auto${continueFlag} -p "$(cat ${promptFile})"
+# Read prompt from file (avoids shell quoting issues with special characters)
+PROMPT=$(cat "${promptFile}")
+claude --permission-mode auto${continueFlag} -p "$PROMPT"
 `;
 }

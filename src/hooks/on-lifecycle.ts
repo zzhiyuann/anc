@@ -14,6 +14,9 @@
  *   suspended → dismiss
  */
 
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 import { bus } from '../bus.js';
 import { addComment, createAgentSession, dismissSession, getIssue } from '../linear/client.js';
 import { getSessionForIssue } from '../runtime/health.js';
@@ -177,16 +180,45 @@ function formatCompletionSummary(handoff: string, issueKey: string): string {
   return result || 'Completed (see Linear for details)';
 }
 
-/** Dismiss the Linear AgentSession (removes "Working..." badge) */
+/** Dismiss ALL active AgentSessions for this issue (not just tracked one).
+ *  Linear can create multiple sessions per issue (webhook + our createAgentSession).
+ *  We must dismiss ALL of them to prevent orphaned "Working..." badges. */
 async function dismissLinearSession(issueKey: string, role: string): Promise<void> {
+  // 1. Dismiss the tracked session
   const tracked = getSessionForIssue(issueKey);
-  if (!tracked?.linearSessionId) return;
+  if (tracked?.linearSessionId) {
+    try {
+      await dismissSession(tracked.linearSessionId, role);
+      tracked.linearSessionId = undefined;
+    } catch { /**/ }
+  }
 
+  // 2. Query and dismiss ALL active sessions for this issue
   try {
-    await dismissSession(tracked.linearSessionId, role);
-    tracked.linearSessionId = undefined;
-    log.debug(`AgentSession dismissed for ${issueKey}`);
+    const issue = await getIssue(issueKey);
+    if (!issue) return;
+
+    const token = readFileSync(join(homedir(), '.anc', 'agents', role, '.oauth-token'), 'utf-8').trim();
+    const res = await fetch('https://api.linear.app/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        query: `{ agentSessions(filter: { issue: { id: { eq: "${issue.id}" } }, status: { in: ["active", "pending"] } }, first: 10) { nodes { id status } } }`,
+      }),
+    });
+    const json = await res.json() as { data?: { agentSessions?: { nodes: Array<{ id: string }> } } };
+    const sessions = json.data?.agentSessions?.nodes ?? [];
+
+    for (const s of sessions) {
+      try {
+        await dismissSession(s.id, role);
+      } catch { /**/ }
+    }
+
+    if (sessions.length > 0) {
+      log.debug(`Dismissed ${sessions.length} AgentSession(s) for ${issueKey}`);
+    }
   } catch (err) {
-    log.debug(`Failed to dismiss AgentSession: ${(err as Error).message}`);
+    log.debug(`Failed to dismiss all sessions: ${(err as Error).message}`);
   }
 }
