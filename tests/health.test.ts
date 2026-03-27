@@ -72,11 +72,11 @@ describe('Capacity (idle does NOT count)', () => {
   it('only active sessions count against maxConcurrency', () => {
     track({ issueKey: 'RYA-1' });
     track({ issueKey: 'RYA-2', tmuxSession: 't2' });
-    expect(hasCapacity('engineer')).toBe(true);  // 2/10
+    expect(hasCapacity('engineer')).toBe(true);  // 2/5
 
-    // Fill to 10
-    for (let i = 3; i <= 10; i++) track({ issueKey: `RYA-${i}`, tmuxSession: `t${i}` });
-    expect(hasCapacity('engineer')).toBe(false);  // 10/10
+    // Fill to 5
+    for (let i = 3; i <= 5; i++) track({ issueKey: `RYA-${i}`, tmuxSession: `t${i}` });
+    expect(hasCapacity('engineer')).toBe(false);  // 5/5
 
     // Mark one idle → capacity opens up
     markIdle('RYA-1');
@@ -86,11 +86,11 @@ describe('Capacity (idle does NOT count)', () => {
   it('suspended sessions do not count', () => {
     track({ issueKey: 'RYA-1' });
     track({ issueKey: 'RYA-2', tmuxSession: 't2' });
-    for (let i = 3; i <= 10; i++) track({ issueKey: `RYA-${i}`, tmuxSession: `t${i}` });
-    expect(hasCapacity('engineer')).toBe(false);  // 10/10
+    for (let i = 3; i <= 5; i++) track({ issueKey: `RYA-${i}`, tmuxSession: `t${i}` });
+    expect(hasCapacity('engineer')).toBe(false);  // 5/5
 
-    markSuspended('RYA-10');
-    expect(hasCapacity('engineer')).toBe(true);  // 9/10
+    markSuspended('RYA-5');
+    expect(hasCapacity('engineer')).toBe(true);  // 4/5
   });
 });
 
@@ -142,7 +142,7 @@ describe('Health Status', () => {
     expect(status.activeSessions).toBe(1);
     expect(status.idleSessions).toBe(1);
     expect(status.suspendedSessions).toBe(1);
-    expect(status.maxConcurrency).toBe(10);
+    expect(status.maxConcurrency).toBe(5);
     expect(status.sessions).toHaveLength(3);
   });
 });

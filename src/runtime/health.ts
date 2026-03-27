@@ -97,11 +97,17 @@ export function activeCount(role: AgentRole): number {
   return getActiveSessions(role).length;
 }
 
-/** Can this role accept another TASK session? */
+const GLOBAL_MAX_SESSIONS = Number(process.env.ANC_MAX_TOTAL_SESSIONS) || 18;
+
+/** Can this role accept another TASK session? Checks both per-role AND global limits. */
 export function hasCapacity(role: AgentRole): boolean {
   const agent = getAgent(role);
   if (!agent) return false;
-  return activeTaskCount(role) < agent.maxConcurrency;
+  if (activeTaskCount(role) >= agent.maxConcurrency) return false;
+  // Global cap across all roles
+  const totalActive = [...sessions.values()].filter(s => s.state === 'active').length;
+  if (totalActive >= GLOBAL_MAX_SESSIONS) return false;
+  return true;
 }
 
 /** Can this role accept another DUTY session? (separate pool) */

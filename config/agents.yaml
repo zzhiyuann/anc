@@ -3,7 +3,7 @@ agents:
     name: "Engineer"
     model: claude-code
     linearUserId: "0000aa44-7f3e-4d47-a1cc-4eadebdef64d"
-    maxConcurrency: 10
+    maxConcurrency: 5
     dutySlots: 1
     base: personas/base.md
     role: personas/roles/engineer.md
@@ -16,7 +16,7 @@ agents:
     name: "Strategist"
     model: claude-code
     linearUserId: "b7171924-f008-49eb-a6f9-9603fdce960f"
-    maxConcurrency: 10
+    maxConcurrency: 5
     dutySlots: 1
     base: personas/base.md
     role: personas/roles/strategist.md
@@ -29,7 +29,7 @@ agents:
     name: "Ops"
     model: claude-code
     linearUserId: "1f4d2ee9-4cb4-4243-9c91-9dcc8249fb48"
-    maxConcurrency: 10
+    maxConcurrency: 5
     dutySlots: 1
     base: personas/base.md
     role: personas/roles/ops.md

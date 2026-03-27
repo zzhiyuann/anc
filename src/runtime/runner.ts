@@ -13,6 +13,7 @@
 import { execSync } from 'child_process';
 import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import chalk from 'chalk';
 import type { AgentRole } from '../linear/types.js';
 import {
@@ -191,12 +192,35 @@ function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: 
     });
 
     bus.emit('agent:spawned', { role, issueKey, tmuxSession });
+
+    // Set delegate on Linear (async, non-blocking)
+    setDelegateOnLinear(role, issueKey).catch(() => {});
+
     return { success: true, tmuxSession };
   } catch (err) {
     const error = (err as Error).message;
     console.error(chalk.red(`[runner] Spawn failed: ${error}`));
     bus.emit('agent:failed', { role, issueKey, error });
     return { success: false, tmuxSession, error };
+  }
+}
+
+/** Set the Linear issue delegate to the agent — shows who's working on it in Linear UI */
+async function setDelegateOnLinear(role: string, issueKey: string): Promise<void> {
+  try {
+    const { getAgent } = await import('../agents/registry.js');
+    const { getSystemClient, getIssue } = await import('../linear/client.js');
+    const agent = getAgent(role);
+    if (!agent?.linearUserId) return;
+
+    const issue = await getIssue(issueKey);
+    if (!issue) return;
+
+    const client = getSystemClient();
+    await client.updateIssue(issue.id, { assigneeId: agent.linearUserId });
+    console.log(chalk.dim(`[runner] Delegated ${issueKey} → ${role} on Linear`));
+  } catch (err) {
+    console.error(chalk.dim(`[runner] Failed to set delegate: ${(err as Error).message}`));
   }
 }
 
@@ -294,11 +318,19 @@ function buildSpawnScript(workDir: string, prompt: string, role: string, issueKe
   const promptFile = `/tmp/anc-prompt-${role}-${issueKey}.txt`;
   writeFileSync(promptFile, prompt, 'utf-8');
   const continueFlag = useContinue ? ' --continue' : '';
+
+  // Load agent OAuth token so the claude session posts as the agent, not CEO
+  const tokenPath = join(homedir(), '.anc', 'agents', role, '.oauth-token');
+  const tokenLine = existsSync(tokenPath)
+    ? `export ANC_AGENT_TOKEN="Bearer $(cat ${tokenPath})"`
+    : '# No agent OAuth token — will use CEO identity';
+
   return `#!/bin/bash
 cd "${workDir}" || exit 1
 export AGENT_ROLE="${role}"
 export ANC_ISSUE_KEY="${issueKey}"
 export ANC_SERVER_URL="http://localhost:${process.env.ANC_WEBHOOK_PORT || 3849}"
+${tokenLine}
 claude --permission-mode auto${continueFlag} -p "$(cat ${promptFile})"
 `;
 }
