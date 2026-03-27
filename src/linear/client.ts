@@ -276,12 +276,29 @@ export async function emitActivity(
   ephemeral: boolean = true,
   asAgent?: AgentRole,
 ): Promise<boolean> {
-  const client = asAgent ? getAgentClient(asAgent) : getSystemClient();
+  // Use direct fetch — SDK's createAgentActivity may not be available in all versions
+  const role = asAgent ?? 'ops';
+  const tokenPath = join(homedir(), '.anc', 'agents', role, '.oauth-token');
+  if (!existsSync(tokenPath)) return false;
+  const token = readFileSync(tokenPath, 'utf-8').trim();
+
   try {
-    await (client as unknown as { createAgentActivity: (input: Record<string, unknown>) => Promise<unknown> })
-      .createAgentActivity({ agentSessionId: sessionId, type, body, ephemeral: type === 'thought' ? ephemeral : false });
-    return true;
-  } catch {
+    const res = await fetch('https://api.linear.app/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        query: `mutation($input: AgentActivityCreateInput!) { agentActivityCreate(input: $input) { success } }`,
+        variables: { input: { agentSessionId: sessionId, type: type.toUpperCase(), body, ephemeral } },
+      }),
+    });
+    const json = await res.json() as { data?: { agentActivityCreate?: { success: boolean } }; errors?: unknown[] };
+    if (json.errors) {
+      log.debug(`emitActivity error: ${JSON.stringify(json.errors)}`);
+      return false;
+    }
+    return json.data?.agentActivityCreate?.success ?? false;
+  } catch (err) {
+    log.debug(`emitActivity failed: ${(err as Error).message}`);
     return false;
   }
 }
