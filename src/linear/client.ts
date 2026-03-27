@@ -7,6 +7,9 @@ import { LinearClient, LinearDocument } from '@linear/sdk';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { getConfig, type LinearIssue, type AgentRole, VALID_STATUSES, type IssueStatus } from './types.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('linear');
 
 // --- Client cache ---
 
@@ -96,7 +99,7 @@ export async function addComment(issueIdOrKey: string, body: string, asAgent?: A
     if (issueIdOrKey.match(/^[A-Z]+-\d+$/)) {
       const issue = await getIssue(issueIdOrKey);
       if (!issue) {
-        console.error(`[linear] Issue not found: ${issueIdOrKey}`);
+        log.warn(`Issue not found: ${issueIdOrKey}`);
         return null;
       }
       issueId = issue.id;
@@ -105,7 +108,7 @@ export async function addComment(issueIdOrKey: string, body: string, asAgent?: A
     const created = await comment.comment;
     return created?.id ?? null;
   } catch (err) {
-    console.error(`[linear] Failed to add comment on ${issueIdOrKey}:`, (err as Error).message);
+    log.error(`Failed to add comment on ${issueIdOrKey}: ${(err as Error).message}`);
     return null;
   }
 }
@@ -121,7 +124,7 @@ export async function setIssueStatus(issueId: string, status: IssueStatus): Prom
     await client.updateIssue(issueId, { stateId });
     return true;
   } catch (err) {
-    console.error(`[linear] Failed to set status:`, (err as Error).message);
+    log.error(`Failed to set status: ${(err as Error).message}`);
     return false;
   }
 }
@@ -149,7 +152,7 @@ export async function createSubIssue(
     const created = await result.issue;
     return created?.identifier ?? null;
   } catch (err) {
-    console.error(`[linear] Failed to create sub-issue:`, (err as Error).message);
+    log.error(`Failed to create sub-issue: ${(err as Error).message}`);
     return null;
   }
 }
@@ -182,7 +185,7 @@ export async function createAgentSession(issueId: string, asAgent: AgentRole): P
       ._request(`mutation($input: AgentSessionCreateInput!) { agentSessionCreate(input: $input) { agentSession { id } } }`, { input: { issueId } });
     return (data as { agentSessionCreate: { agentSession: { id: string } } }).agentSessionCreate?.agentSession?.id ?? null;
   } catch (err) {
-    console.error(`[linear] Failed to create agent session:`, (err as Error).message);
+    log.error(`Failed to create agent session: ${(err as Error).message}`);
     return null;
   }
 }

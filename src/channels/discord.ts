@@ -7,7 +7,9 @@
 import { Client, GatewayIntentBits, type Message } from 'discord.js';
 import { bus } from '../bus.js';
 import { loadRoutingConfig, buildMentionRegex } from '../routing/rules.js';
-import chalk from 'chalk';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('discord');
 
 let client: Client | null = null;
 let channelId: string | null = null;
@@ -39,7 +41,7 @@ export async function startDiscordBot(): Promise<boolean> {
   channelId = process.env.ANC_DISCORD_CHANNEL_ID ?? null;
 
   if (!token) {
-    console.log(chalk.dim('[discord] No bot token — disabled'));
+    log.debug('No bot token — disabled');
     return false;
   }
 
@@ -52,7 +54,7 @@ export async function startDiscordBot(): Promise<boolean> {
   });
 
   client.on('ready', () => {
-    console.log(chalk.green(`[discord] Bot connected as ${client!.user?.tag}`));
+    log.info(`Bot connected as ${client!.user?.tag}`);
   });
 
   // Listen for messages — route @agent-role mentions to the event bus
@@ -67,7 +69,7 @@ export async function startDiscordBot(): Promise<boolean> {
     const match = msg.content.match(mentionRegex);
 
     if (match) {
-      console.log(chalk.cyan(`[discord] @${match[1]} from ${msg.author.username}: ${msg.content.substring(0, 80)}`));
+      log.info(`@${match[1]} from ${msg.author.username}: ${msg.content.substring(0, 80)}`);
       bus.emit('discord:message', {
         content: msg.content,
         authorId: msg.author.id,
@@ -81,7 +83,7 @@ export async function startDiscordBot(): Promise<boolean> {
     await client.login(token);
     return true;
   } catch (err) {
-    console.error(chalk.red(`[discord] Login failed: ${(err as Error).message}`));
+    log.error(`Login failed: ${(err as Error).message}`);
     return false;
   }
 }
@@ -108,7 +110,7 @@ export async function postToDiscord(role: string, message: string): Promise<bool
       return true;
     }
   } catch (err) {
-    console.error(chalk.red(`[discord] Post failed: ${(err as Error).message}`));
+    log.error(`Post failed: ${(err as Error).message}`);
   }
   return false;
 }

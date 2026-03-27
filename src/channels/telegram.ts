@@ -3,7 +3,9 @@
  * Uses direct Bot API (no polling, no OpenClaw dependency).
  */
 
-import chalk from 'chalk';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('telegram');
 
 const BOT_TOKEN = process.env.ANC_TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.ANC_TELEGRAM_CHAT_ID;
@@ -41,7 +43,7 @@ export async function sendTelegram(message: string): Promise<boolean> {
     const data = await res.json() as { ok: boolean };
     return data.ok;
   } catch (err) {
-    console.error(chalk.red(`[telegram] Send failed: ${(err as Error).message}`));
+    log.error(`Send failed: ${(err as Error).message}`);
     return false;
   }
 }

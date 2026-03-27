@@ -14,8 +14,10 @@ import { execSync } from 'child_process';
 import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import chalk from 'chalk';
 import type { AgentRole } from '../linear/types.js';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('runner');
 import {
   ensureWorkspace, writePersonaToWorkspace, writeAutoModeSettings,
   type WorkspaceInfo, getWorkspacePath,
@@ -57,7 +59,7 @@ export function resolveSession(opts: {
   // 1. Circuit breaker
   const tripped = isBreakerTripped(issueKey);
   if (tripped > 0) {
-    console.log(chalk.dim(`[resolve] ${issueKey}: breaker tripped (${Math.round(tripped / 1000)}s remaining)`));
+    log.debug(`${issueKey}: breaker tripped (${Math.round(tripped / 1000)}s remaining)`, { issueKey });
     return { action: 'blocked', error: `circuit breaker: ${Math.round(tripped / 1000)}s` };
   }
 
@@ -113,11 +115,11 @@ export function resolveSession(opts: {
     if (victim) {
       if (victim.state === 'idle') {
         // Idle sessions: just untrack (workspace preserved, --continue still works later)
-        console.log(chalk.dim(`[resolve] Evicting idle ${victim.role}/${victim.issueKey}`));
+        log.debug(`Evicting idle ${victim.role}/${victim.issueKey}`, { role: victim.role, issueKey: victim.issueKey });
         untrackSession(victim.issueKey);
       } else {
         // Active session: needs suspend protocol
-        console.log(chalk.yellow(`[resolve] Suspending ${victim.role}/${victim.issueKey} for ${issueKey}`));
+        log.warn(`Suspending ${victim.role}/${victim.issueKey} for ${issueKey}`, { role: victim.role, issueKey });
         suspendSession(victim.issueKey);
       }
     } else {
@@ -183,7 +185,7 @@ function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: 
       { stdio: 'pipe', timeout: 10_000 },
     );
 
-    console.log(chalk.green(`[runner] ${useContinue ? 'Resumed' : 'Spawned'} ${role} on ${issueKey}`));
+    log.info(`${useContinue ? 'Resumed' : 'Spawned'} ${role} on ${issueKey}`, { role, issueKey });
 
     trackSession({
       role, issueKey, tmuxSession, spawnedAt: Date.now(),
@@ -201,7 +203,7 @@ function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: 
     return { success: true, tmuxSession };
   } catch (err) {
     const error = (err as Error).message;
-    console.error(chalk.red(`[runner] Spawn failed: ${error}`));
+    log.error(`Spawn failed: ${error}`, { role, issueKey });
     bus.emit('agent:failed', { role, issueKey, error });
     return { success: false, tmuxSession, error };
   }
@@ -218,9 +220,9 @@ async function setIssueInProgress(role: string, issueKey: string): Promise<void>
     if (!issue) return;
 
     await setIssueStatus(issue.id, 'In Progress');
-    console.log(chalk.dim(`[runner] ${issueKey} → In Progress`));
+    log.debug(`${issueKey} → In Progress`, { issueKey });
   } catch (err) {
-    console.error(chalk.dim(`[runner] Failed to set In Progress: ${(err as Error).message}`));
+    log.error(`Failed to set In Progress: ${(err as Error).message}`, { issueKey });
   }
 }
 

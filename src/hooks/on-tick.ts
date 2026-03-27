@@ -11,7 +11,9 @@ import { resolveSession, sessionExists } from '../runtime/runner.js';
 import { getIssuesByRole, getUnassignedTodoIssues, getIssuesByStatus, setIssueStatus, getIssue } from '../linear/client.js';
 import { routeIssue } from '../routing/router.js';
 import { cleanupBreakers } from '../runtime/circuit-breaker.js';
-import chalk from 'chalk';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('scheduler');
 
 let tickCount = 0;
 const HEARTBEAT_EVERY = 10;     // every 10 ticks = 5 min
@@ -24,19 +26,19 @@ export function registerTickHandlers(): void {
     try {
       await autoDispatchFromBacklog();
     } catch (err) {
-      console.error(chalk.red(`[scheduler] autoDispatch error: ${(err as Error).message}`));
+      log.error(`autoDispatch error: ${(err as Error).message}`);
     }
 
     // Every 5 min: periodic maintenance
     if (tickCount % HEARTBEAT_EVERY === 0) {
       try { await heartbeatTriage(); } catch (err) {
-        console.error(chalk.dim(`[scheduler] heartbeat error: ${(err as Error).message}`));
+        log.error(`heartbeat error: ${(err as Error).message}`);
       }
       try { await reconcileStale(); } catch (err) {
-        console.error(chalk.dim(`[scheduler] reconcile error: ${(err as Error).message}`));
+        log.error(`reconcile error: ${(err as Error).message}`);
       }
       try { janitorOrphanTmux(); } catch (err) {
-        console.error(chalk.dim(`[scheduler] janitor error: ${(err as Error).message}`));
+        log.error(`janitor error: ${(err as Error).message}`);
       }
       cleanupBreakers();
     }
@@ -62,12 +64,12 @@ async function autoDispatchFromBacklog(): Promise<void> {
 
         const result = resolveSession({ role: agent.role, issueKey: issue.identifier, priority: issue.priority });
         if (result.action === 'spawned' || result.action === 'resumed') {
-          console.log(chalk.cyan(`[scheduler] Auto-dispatched ${agent.role} on ${issue.identifier} (assigned)`));
+          log.info(`Auto-dispatched ${agent.role} on ${issue.identifier} (assigned)`, { role: agent.role, issueKey: issue.identifier });
           dispatched++;
         }
       }
     } catch (err) {
-      console.error(chalk.dim(`[scheduler] assigned dispatch error: ${(err as Error).message}`));
+      log.error(`assigned dispatch error: ${(err as Error).message}`);
     }
   }
 
@@ -75,7 +77,7 @@ async function autoDispatchFromBacklog(): Promise<void> {
   if (dispatched < MAX_DISPATCHES_PER_TICK) {
     try {
       const unassigned = await getUnassignedTodoIssues();
-      console.log(chalk.dim(`[scheduler] Found ${unassigned.length} unassigned Todo issues`));
+      log.debug(`Found ${unassigned.length} unassigned Todo issues`);
       for (const issue of unassigned) {
         if (dispatched >= MAX_DISPATCHES_PER_TICK) break;
         if (getSessionForIssue(issue.identifier)) continue;
@@ -98,12 +100,12 @@ async function autoDispatchFromBacklog(): Promise<void> {
 
         const result = resolveSession({ role: decision.target, issueKey: issue.identifier, priority: issue.priority });
         if (result.action === 'spawned' || result.action === 'resumed') {
-          console.log(chalk.cyan(`[scheduler] Auto-dispatched ${decision.target} on ${issue.identifier} (routed)`));
+          log.info(`Auto-dispatched ${decision.target} on ${issue.identifier} (routed)`, { role: decision.target, issueKey: issue.identifier });
           dispatched++;
         }
       }
     } catch (err) {
-      console.error(chalk.dim(`[scheduler] unassigned dispatch error: ${(err as Error).message}`));
+      log.error(`unassigned dispatch error: ${(err as Error).message}`);
     }
   }
 }
@@ -125,7 +127,7 @@ async function heartbeatTriage(): Promise<void> {
       priority: 4,
     });
 
-    console.log(chalk.cyan(`[scheduler] Heartbeat: ${unassigned.length} unassigned issues → Ops`));
+    log.info(`Heartbeat: ${unassigned.length} unassigned issues → Ops`);
   } catch {
     // Linear API might fail — non-fatal
   }
@@ -144,7 +146,7 @@ async function reconcileStale(): Promise<void> {
       const created = new Date(issue.url).getTime();  // fallback — ideally check createdAt
       if (Date.now() - created < 10 * 60_000) continue;  // < 10 min old
 
-      console.log(chalk.yellow(`[scheduler] Stale: ${issue.identifier} In Progress but no session → Todo`));
+      log.warn(`Stale: ${issue.identifier} In Progress but no session → Todo`, { issueKey: issue.identifier });
       await setIssueStatus(issue.id, 'Todo');
     }
   } catch {
@@ -161,7 +163,7 @@ function janitorOrphanTmux(): void {
 
     for (const orphan of ancSessions) {
       if (!tracked.has(orphan)) {
-        console.log(chalk.dim(`[janitor] Killing orphan: ${orphan}`));
+        log.debug(`Killing orphan: ${orphan}`);
         try { execSync(`tmux kill-session -t "${orphan}"`, { stdio: 'pipe' }); } catch { /**/ }
       }
     }
