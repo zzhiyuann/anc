@@ -179,20 +179,21 @@ function checkAgentTokens(): CheckResult[] {
   return results;
 }
 
-function checkDependencies(): CheckResult[] {
+async function checkDependencies(): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
 
-  // tmux
-  const tmuxPath = binExists('tmux');
-  if (tmuxPath) {
+  // tmux — use runner's resolved path (same logic the spawn code uses)
+  try {
+    const { getTmuxPath } = await import('../runtime/runner.js');
+    const tmuxBin = getTmuxPath();
     try {
-      const ver = execSync('tmux -V', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-      results.push(check('tmux', 'pass', ver));
+      const ver = execSync(`${tmuxBin} -V`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+      results.push(check('tmux', 'pass', `${ver} (${tmuxBin})`));
     } catch {
-      results.push(check('tmux', 'pass', tmuxPath));
+      results.push(check('tmux', 'pass', tmuxBin));
     }
-  } else {
-    results.push(check('tmux', 'fail', 'not found — required for agent sessions'));
+  } catch {
+    results.push(check('tmux', 'fail', 'not found — required for agent sessions. Install: brew install tmux'));
   }
 
   // claude (Claude Code CLI)
@@ -331,11 +332,13 @@ async function checkGateway(): Promise<CheckResult[]> {
   return results;
 }
 
-function checkTmuxSessions(): CheckResult[] {
+async function checkTmuxSessions(): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
 
   try {
-    const output = execSync('tmux list-sessions -F "#{session_name}"', {
+    const { getTmuxPath } = await import('../runtime/runner.js');
+    const tmuxBin = getTmuxPath();
+    const output = execSync(`${tmuxBin} list-sessions -F "#{session_name}"`, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();

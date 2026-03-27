@@ -17,6 +17,42 @@ import type { AgentRole } from '../linear/types.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('runner');
+
+// --- Resolve tmux binary path at module load ---
+// Bare `tmux` fails with ENOENT when ANC runs as a service without /opt/homebrew/bin in PATH.
+
+function findTmux(): string {
+  // 1. Try PATH first (works in interactive shells)
+  try {
+    return execSync('which tmux', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+  } catch { /* not in PATH */ }
+
+  // 2. Check common locations (macOS Homebrew, Linux packages)
+  const candidates = [
+    '/opt/homebrew/bin/tmux',   // macOS ARM Homebrew
+    '/usr/local/bin/tmux',      // macOS Intel Homebrew / manual
+    '/usr/bin/tmux',            // Linux system package
+    '/snap/bin/tmux',           // Linux snap
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+
+  return ''; // empty = not found, checked at spawn time
+}
+
+const TMUX = findTmux();
+
+/** Get the resolved tmux path. Throws if tmux was not found. */
+export function getTmuxPath(): string {
+  if (!TMUX) {
+    throw new Error(
+      'tmux not found. Install it (brew install tmux / apt install tmux) ' +
+      'and ensure it is in PATH or at a standard location.',
+    );
+  }
+  return TMUX;
+}
 import {
   ensureWorkspace, writePersonaToWorkspace, writeAutoModeSettings,
   getWorkspacePath,
@@ -65,12 +101,13 @@ export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSe
   writeFileSync(scriptPath, _buildSpawnScript(workspace.root, fullPrompt, role, issueKey, useContinue), { mode: 0o755 });
 
   // Kill stale tmux
-  try { execSync(`tmux kill-session -t "${tmuxSession}" 2>/dev/null`, { stdio: 'pipe' }); } catch { /**/ }
+  const tmux = getTmuxPath();
+  try { execSync(`${tmux} kill-session -t "${tmuxSession}" 2>/dev/null`, { stdio: 'pipe' }); } catch { /**/ }
 
   // Spawn
   try {
     execSync(
-      `tmux new-session -d -s "${tmuxSession}" -c "${workspace.root}" "bash ${scriptPath}"`,
+      `${tmux} new-session -d -s "${tmuxSession}" -c "${workspace.root}" "bash ${scriptPath}"`,
       { stdio: 'pipe', timeout: 10_000 },
     );
 
@@ -148,22 +185,23 @@ export function suspendSession(issueKey: string): boolean {
 
 export function sendToAgent(tmuxSession: string, message: string): boolean {
   try {
+    const tmux = getTmuxPath();
     const escaped = message.replace(/'/g, "'\\''");
-    execSync(`tmux send-keys -t "${tmuxSession}" '${escaped}' Enter`, { stdio: 'pipe', timeout: 5000 });
+    execSync(`${tmux} send-keys -t "${tmuxSession}" '${escaped}' Enter`, { stdio: 'pipe', timeout: 5000 });
     return true;
   } catch { return false; }
 }
 
 export function killAgent(tmuxSession: string): boolean {
   try {
-    execSync(`tmux kill-session -t "${tmuxSession}"`, { stdio: 'pipe' });
+    execSync(`${getTmuxPath()} kill-session -t "${tmuxSession}"`, { stdio: 'pipe' });
     return true;
   } catch { return false; }
 }
 
 export function sessionExists(tmuxSession: string): boolean {
   try {
-    execSync(`tmux has-session -t "${tmuxSession}" 2>/dev/null`, { stdio: 'pipe' });
+    execSync(`${getTmuxPath()} has-session -t "${tmuxSession}" 2>/dev/null`, { stdio: 'pipe' });
     return true;
   } catch { return false; }
 }
@@ -171,7 +209,7 @@ export function sessionExists(tmuxSession: string): boolean {
 export function captureOutput(tmuxSession: string, lines: number = 50): string {
   try {
     return execSync(
-      `tmux capture-pane -t "${tmuxSession}" -p -S -${lines}`,
+      `${getTmuxPath()} capture-pane -t "${tmuxSession}" -p -S -${lines}`,
       { stdio: 'pipe', encoding: 'utf-8', timeout: 5000 },
     ).trim();
   } catch { return ''; }
@@ -180,7 +218,8 @@ export function captureOutput(tmuxSession: string, lines: number = 50): string {
 /** Scan for existing anc-* tmux sessions on startup and reconstruct registry. */
 export function recoverSessionsFromTmux(): number {
   try {
-    const output = execSync('tmux list-sessions -F "#{session_name}" 2>/dev/null', { encoding: 'utf-8' });
+    const tmux = getTmuxPath();
+    const output = execSync(`${tmux} list-sessions -F "#{session_name}" 2>/dev/null`, { encoding: 'utf-8' });
     const tmuxSessions = output.split('\n').filter(s => s.startsWith('anc-'));
     let count = 0;
     for (const tmux of tmuxSessions) {
@@ -217,8 +256,16 @@ export function _buildSpawnScript(workDir: string, prompt: string, role: string,
     ? `export ANC_AGENT_TOKEN="Bearer $(cat ${tokenPath})"`
     : '# No agent OAuth token — will use CEO identity';
 
+  // Capture current PATH so spawned tmux sessions can find claude and other tools.
+  // Without this, service-launched ANC processes inherit a minimal PATH that
+  // lacks /opt/homebrew/bin, /usr/local/bin, ~/.local/bin, etc.
+  const currentPath = process.env.PATH || '/usr/bin:/bin';
+
   return `#!/bin/bash
 cd "${workDir}" || exit 1
+
+# Ensure tools (claude, node, git, etc.) are findable inside tmux
+export PATH="${currentPath}"
 
 # Prevent Claude nesting detection
 unset CLAUDE_CODE CLAUDECODE CLAUDE_CODE_ENTRYPOINT

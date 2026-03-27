@@ -8,7 +8,7 @@ import { bus } from '../bus.js';
 import { getRegisteredAgents } from '../agents/registry.js';
 import { hasCapacity, getTrackedSessions, getSessionForIssue } from '../runtime/health.js';
 import { resolveSession } from '../runtime/resolve.js';
-import { sessionExists } from '../runtime/runner.js';
+import { sessionExists, getTmuxPath } from '../runtime/runner.js';
 import { getIssuesByRole, getUnassignedTodoIssues, getIssuesByStatus, setIssueStatus, getIssue } from '../linear/client.js';
 import { routeIssue } from '../routing/router.js';
 import { cleanupBreakers } from '../runtime/circuit-breaker.js';
@@ -158,17 +158,18 @@ async function reconcileStale(): Promise<void> {
 /** Janitor: kill orphan tmux sessions not in our registry. */
 function janitorOrphanTmux(): void {
   try {
-    const output = execSync('tmux list-sessions -F "#{session_name}" 2>/dev/null', { encoding: 'utf-8' });
+    const tmux = getTmuxPath();
+    const output = execSync(`${tmux} list-sessions -F "#{session_name}" 2>/dev/null`, { encoding: 'utf-8' });
     const ancSessions = output.split('\n').filter(s => s.startsWith('anc-'));
     const tracked = new Set(getTrackedSessions().map(s => s.tmuxSession));
 
     for (const orphan of ancSessions) {
       if (!tracked.has(orphan)) {
         log.debug(`Killing orphan: ${orphan}`);
-        try { execSync(`tmux kill-session -t "${orphan}"`, { stdio: 'pipe' }); } catch { /**/ }
+        try { execSync(`${tmux} kill-session -t "${orphan}"`, { stdio: 'pipe' }); } catch { /**/ }
       }
     }
   } catch {
-    // tmux not running — fine
+    // tmux not running or not found — fine
   }
 }
