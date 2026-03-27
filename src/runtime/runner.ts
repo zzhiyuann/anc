@@ -148,44 +148,10 @@ async function setIssueInProgress(role: string, issueKey: string): Promise<void>
     // Set status to In Progress
     await setIssueStatus(issue.id, 'In Progress', role);
 
-    // Set agent as delegate — shows who's working on it in Linear UI
-    // Then immediately acknowledge the auto-created AgentSession to prevent "Did not respond"
-    const agent = getAgent(role);
-    if (agent?.linearUserId) {
-      const { getAgentClient } = await import('../linear/client.js');
-      const client = getAgentClient(role);
-      try {
-        await (client as unknown as { updateIssue: (id: string, input: Record<string, unknown>) => Promise<unknown> })
-          .updateIssue(issue.id, { delegateId: agent.linearUserId });
-        log.debug(`${issueKey} → In Progress, delegate=${role}`, { issueKey });
-
-        // Linear auto-creates an AgentSession when delegate is set.
-        // We must acknowledge it immediately or it shows "Did not respond".
-        // Wait briefly for Linear to create the session, then dismiss it.
-        setTimeout(async () => {
-          try {
-            const tokenPath = join(homedir(), '.anc', 'agents', role, '.oauth-token');
-            const token = readFileSync(tokenPath, 'utf-8').trim();
-            const res = await fetch('https://api.linear.app/graphql', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({
-                query: `{ agentSessions(filter: { issue: { id: { eq: "${issue.id}" } }, status: { in: ["active", "pending"] } }, first: 5) { nodes { id } } }`,
-              }),
-            });
-            const json = await res.json() as { data?: { agentSessions?: { nodes: Array<{ id: string }> } } };
-            const sessions = json.data?.agentSessions?.nodes ?? [];
-            for (const s of sessions) {
-              const { dismissSession: dismiss } = await import('../linear/client.js');
-              await dismiss(s.id, role);
-            }
-            if (sessions.length > 0) log.debug(`Acknowledged ${sessions.length} AgentSession(s) for ${issueKey}`);
-          } catch { /**/ }
-        }, 3000);  // 3s delay for Linear to create the session
-      } catch {
-        log.debug(`${issueKey} → In Progress (delegate failed)`, { issueKey });
-      }
-    }
+    // NOTE: We do NOT set delegateId. Setting it triggers Linear to auto-create
+    // an AgentSession that we can't reliably dismiss, causing "Did not respond".
+    // Agent identity is visible through the "picked up this issue" comment.
+    log.debug(`${issueKey} → In Progress`, { issueKey });
   } catch (err) {
     log.error(`Failed to set In Progress: ${(err as Error).message}`, { issueKey });
   }

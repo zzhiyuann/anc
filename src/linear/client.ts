@@ -207,7 +207,7 @@ export async function createSubIssue(
       const forceUpdate: Record<string, unknown> = {};
       const todoState = await getWorkflowStateId('Todo');
       if (todoState) forceUpdate.stateId = todoState;
-      if (delegateId) forceUpdate.delegateId = delegateId;
+      // NOTE: do NOT set delegateId — triggers "Did not respond" AgentSession bug
       if (Object.keys(forceUpdate).length > 0) {
         try {
           await withRateLimit(() => client.updateIssue(created.id, forceUpdate as Parameters<typeof client.updateIssue>[1]));
