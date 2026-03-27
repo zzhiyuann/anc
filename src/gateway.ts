@@ -70,6 +70,7 @@ export function startGateway(port?: number): void {
       res.end(JSON.stringify({
         status: 'ok',
         service: 'anc',
+        version: '0.1.0',
         uptime: Math.round(process.uptime()),
         lastChecked: new Date().toISOString(),
         rateLimit: getRateLimitStatus(),
