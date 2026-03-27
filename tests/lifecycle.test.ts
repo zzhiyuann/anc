@@ -54,7 +54,7 @@ beforeEach(() => {
 describe('Lifecycle Comments', () => {
   it('posts comment on agent:spawned', async () => {
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 'anc-engineer-ANC-1' });
-    expect(mockedAddComment).toHaveBeenCalledWith('ANC-1', expect.stringContaining('started working'), 'engineer');
+    expect(mockedAddComment).toHaveBeenCalledWith('ANC-1', expect.stringContaining('picked up'), 'engineer');
   });
 
   it('posts comment on agent:failed with error detail', async () => {
