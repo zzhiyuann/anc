@@ -49,7 +49,7 @@ program
     const { registerDutyHandlers } = await import('./hooks/on-duties.js');
     const { registerLifecycleHandlers } = await import('./hooks/on-lifecycle.js');
     const { registerBridgeHandlers } = await import('./hooks/on-bridge.js');
-    const { startDiscordBot } = await import('./channels/discord.js');
+    const { startDiscordBot, stopDiscordBot } = await import('./channels/discord.js');
     const { bus } = await import('./bus.js');
     const { cleanup } = await import('./routing/queue.js');
     const { recoverSessionsFromTmux } = await import('./runtime/runner.js');
@@ -100,7 +100,6 @@ program
     // Graceful shutdown
     const shutdown = (signal: string) => {
       log.info(`[${signal}] Shutting down...`);
-      const { stopDiscordBot } = require('./channels/discord.js');
       try { stopDiscordBot(); } catch { /**/ }
       closeDb();
       process.exit(0);
