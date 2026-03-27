@@ -212,6 +212,56 @@ agent
     }
   });
 
+// --- Agent SDK commands (run inside agent tmux sessions) ---
+program
+  .command('comment [issue-key]')
+  .description('Post a comment as the current agent')
+  .argument('<message>', 'Comment body')
+  .action(async (issueKey: string | undefined, message: string) => {
+    // commander parses: anc comment ANC-66 "msg" → issueKey=ANC-66, message="msg"
+    //                   anc comment "msg"        → issueKey="msg", message=undefined
+    if (!message) { message = issueKey!; issueKey = undefined; }
+    const { commentCommand } = await import('./commands/sdk.js');
+    await commentCommand(issueKey, message);
+  });
+
+program
+  .command('read-issue [issue-key]')
+  .description('Read issue details, comments, and sub-issues')
+  .action(async (issueKey?: string) => {
+    const { readIssueCommand } = await import('./commands/sdk.js');
+    await readIssueCommand(issueKey);
+  });
+
+program
+  .command('create-sub [parent-key]')
+  .description('Create a sub-issue under the current or specified issue')
+  .argument('<title>', 'Sub-issue title')
+  .argument('[description]', 'Sub-issue description', '')
+  .action(async (parentKey: string | undefined, title: string, description: string) => {
+    if (!description && !title) { title = parentKey!; parentKey = undefined; }
+    const { createSubCommand } = await import('./commands/sdk.js');
+    await createSubCommand(parentKey, title, description);
+  });
+
+program
+  .command('search <term>')
+  .description('Search Linear issues')
+  .action(async (term: string) => {
+    const { searchCommand } = await import('./commands/sdk.js');
+    await searchCommand(term);
+  });
+
+program
+  .command('plan [issue-key]')
+  .description('Post a plan comment on the current issue')
+  .argument('<summary>', 'Plan summary')
+  .action(async (issueKey: string | undefined, summary: string) => {
+    if (!summary) { summary = issueKey!; issueKey = undefined; }
+    const { planCommand } = await import('./commands/sdk.js');
+    await planCommand(issueKey, summary);
+  });
+
 // --- Company ---
 const company = program.command('company').description('Fleet-level management');
 
