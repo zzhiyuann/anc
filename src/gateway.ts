@@ -5,14 +5,37 @@
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { join, dirname, extname } from 'path';
 import { bus } from './bus.js';
 import { createLogger } from './core/logger.js';
 
 const log = createLogger('gateway');
 import { getConfig } from './linear/types.js';
 import { verifySignature, classifyWebhook } from './linear/webhooks.js';
+
+/** Simple MD → mobile-friendly HTML (no dependencies) */
+function mdToHtml(md: string, title: string): string {
+  let html = md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/^• (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[hul])/gm, '');
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<style>body{font-family:-apple-system,system-ui,sans-serif;max-width:720px;margin:0 auto;padding:16px;line-height:1.6;color:#222}
+h1,h2,h3{margin-top:1.5em}code{background:#f0f0f0;padding:2px 6px;border-radius:3px;font-size:0.9em}
+ul{padding-left:1.2em}li{margin:4px 0}pre{background:#f5f5f5;padding:12px;overflow-x:auto;border-radius:6px}</style>
+</head><body><p>${html}</p></body></html>`;
+}
 
 let lastWebhookAt: string | null = null;
 let webhookCount = 0;
@@ -201,6 +224,45 @@ export function startGateway(port?: number): void {
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: (err as Error).message }));
+      }
+      return;
+    }
+
+    // --- Docs endpoint: serve workspace files with MD→HTML conversion ---
+    if (req.method === 'GET' && req.url?.startsWith('/docs/')) {
+      const urlPath = decodeURIComponent(req.url.slice(6)); // strip /docs/
+      const parts = urlPath.split('/');
+      if (parts.length < 2) { res.writeHead(400); res.end('Usage: /docs/{issueKey}/{filename}'); return; }
+
+      const issueKey = parts[0];
+      const filename = parts.slice(1).join('/');
+      const config = getConfig();
+      const filePath = join(config.workspaceBase, issueKey, filename);
+
+      // Security: prevent path traversal
+      if (!filePath.startsWith(config.workspaceBase) || filename.includes('..')) {
+        res.writeHead(403); res.end('Forbidden'); return;
+      }
+
+      if (!existsSync(filePath)) {
+        res.writeHead(404); res.end('Not found'); return;
+      }
+
+      const content = readFileSync(filePath, 'utf-8');
+      const ext = extname(filePath).toLowerCase();
+
+      if (ext === '.md') {
+        // Convert markdown to simple HTML (mobile-friendly)
+        const html = mdToHtml(content, filename);
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+      } else {
+        const mimeTypes: Record<string, string> = {
+          '.html': 'text/html', '.txt': 'text/plain', '.json': 'application/json',
+          '.yaml': 'text/plain', '.yml': 'text/plain', '.ts': 'text/plain',
+        };
+        res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'text/plain; charset=utf-8' });
+        res.end(content);
       }
       return;
     }

@@ -17,8 +17,9 @@
 import { bus } from '../bus.js';
 import { addComment, createAgentSession, dismissSession, getIssue } from '../linear/client.js';
 import { getSessionForIssue } from '../runtime/health.js';
-import { postToDiscord, addReactions, reactToMessage } from '../channels/discord.js';
+import { postToDiscord, addReactions, replyInDiscord } from '../channels/discord.js';
 import { getRootLink } from '../bridge/mappings.js';
+import { getConfig } from '../linear/types.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('lifecycle');
@@ -35,21 +36,11 @@ export function registerLifecycleHandlers(): void {
   bus.on('agent:spawned', async ({ role, issueKey }) => {
     if (isDutyIssue(issueKey)) return;
 
-    // Only post "started" on FIRST spawn for this issue, not re-spawns
+    // Only post "started" comment on FIRST spawn for this issue, not re-spawns
+    // Discord notification is handled by plan-announce (hook guard ensures it fires)
     if (!startedCommented.has(issueKey)) {
       startedCommented.add(issueKey);
       await addComment(issueKey, `**${role}** picked up this issue.`, role).catch(() => {});
-
-      // Notify Discord — reply in thread if bridge-originated, else post to channel
-      const rootLink = getRootLink(issueKey);
-      if (rootLink) {
-        await reactToMessage(rootLink.discordMessageId, rootLink.discordChannelId, ['🚀']);
-      } else {
-        const issue = await getIssue(issueKey);
-        const title = issue?.title ? `: ${issue.title}` : '';
-        const msg = await postToDiscord(role, `picked up **${issueKey}**${title}`);
-        if (msg) await addReactions(msg, ['🚀']);
-      }
     }
 
     // Create AgentSession → "Working..." badge
@@ -116,13 +107,17 @@ export function registerLifecycleHandlers(): void {
     startedCommented.delete(issueKey);  // allow re-comment if issue is reopened later
     await dismissLinearSession(issueKey, role);
 
-    // Post completion summary to Discord with emoji reactions
-    const summary = handoff.length > 300 ? handoff.substring(0, 300) + '...' : handoff;
-    const msg = await postToDiscord(role, `completed **${issueKey}**\n${summary}`);
+    // Build clean completion message (not raw HANDOFF dump)
+    const summary = formatCompletionSummary(handoff, issueKey);
+    const rootLink = getRootLink(issueKey);
+    const target = rootLink
+      ? async () => replyInDiscord(rootLink.discordMessageId, rootLink.discordChannelId, `**[${role}]** ✅ **${issueKey}** done\n${summary}`)
+      : async () => postToDiscord(role, `✅ **${issueKey}** done\n${summary}`);
+
+    const msg = await target();
     if (msg) {
       const hasWarning = /quality check warnings/i.test(handoff);
-      const emojis = hasWarning ? ['✅', '⚠️'] : ['✅'];
-      await addReactions(msg, emojis);
+      if (hasWarning) await addReactions(msg, ['⚠️']);
     }
   });
 }
@@ -130,6 +125,50 @@ export function registerLifecycleHandlers(): void {
 /** Reset module state (for testing) */
 export function _resetLifecycle(): void {
   startedCommented.clear();
+}
+
+/** Base URL for serving workspace docs (Tailscale-accessible) */
+const DOC_BASE = `http://100.89.67.80:${process.env.ANC_WEBHOOK_PORT || 3849}/docs`;
+
+/** Convert raw HANDOFF.md into a clean Discord-friendly summary with doc links */
+function formatCompletionSummary(handoff: string, issueKey: string): string {
+  const lines = handoff.split('\n');
+  const bullets: string[] = [];
+
+  // Extract summary section (between ## Summary and next ##)
+  let inSummary = false;
+  for (const line of lines) {
+    if (/^##?\s*Summary/i.test(line)) { inSummary = true; continue; }
+    if (inSummary && /^##/.test(line)) break;
+    if (inSummary) {
+      const trimmed = line.trim();
+      if (trimmed.length > 0) bullets.push(trimmed);
+    }
+  }
+
+  // If no summary section, take first meaningful lines
+  if (bullets.length === 0) {
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('#') || trimmed.length === 0) continue;
+      if (trimmed.startsWith('---')) continue;
+      bullets.push(trimmed);
+      if (bullets.length >= 3) break;
+    }
+  }
+
+  // Replace file references with clickable doc links
+  const result = bullets
+    .slice(0, 5)
+    .map(b => {
+      // Convert `filename.md` or filename.md references to hyperlinks
+      return b.replace(/`([^`]+\.(md|html|txt))`/g, (_m, file) =>
+        `[${file}](${DOC_BASE}/${issueKey}/${file})`);
+    })
+    .map(b => b.startsWith('- ') || b.startsWith('• ') ? b : `• ${b}`)
+    .join('\n');
+
+  return result || 'Completed (see Linear for details)';
 }
 
 /** Dismiss the Linear AgentSession (removes "Working..." badge) */

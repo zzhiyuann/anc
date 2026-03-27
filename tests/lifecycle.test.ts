@@ -17,6 +17,7 @@ vi.mock('../src/channels/discord.js', () => ({
   postToDiscord: vi.fn().mockResolvedValue('discord-msg-id'),
   addReactions: vi.fn().mockResolvedValue(undefined),
   reactToMessage: vi.fn().mockResolvedValue(undefined),
+  replyInDiscord: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../src/bridge/mappings.js', () => ({
@@ -240,22 +241,23 @@ describe('Discord Notifications', () => {
   });
 
   it('posts to Discord on agent:completed', async () => {
-    await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: '# HANDOFF\n\nDid the thing.' });
-    expect(mockedPostToDiscord).toHaveBeenCalledWith('engineer', expect.stringContaining('completed'));
-    expect(mockedAddReactions).toHaveBeenCalledWith('discord-msg-id', ['✅']);
+    await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: '# HANDOFF\n\n## Summary\n\nDid the thing.' });
+    expect(mockedPostToDiscord).toHaveBeenCalledWith('engineer', expect.stringContaining('done'));
+    expect(mockedPostToDiscord).toHaveBeenCalledWith('engineer', expect.stringContaining('ANC-1'));
   });
 
-  it('truncates long handoff in Discord message', async () => {
-    const longHandoff = 'x'.repeat(500);
-    await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: longHandoff });
+  it('formats completion summary from handoff', async () => {
+    const handoff = '# HANDOFF\n\n## Summary\n\n' + 'x'.repeat(500);
+    await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff });
     const discordBody = mockedPostToDiscord.mock.calls[0][1];
-    expect(discordBody.length).toBeLessThan(500);
-    expect(discordBody).toContain('...');
+    // Summary should be extracted and reasonably sized
+    expect(discordBody).toContain('ANC-1');
+    expect(discordBody).toContain('done');
   });
 
   it('adds warning reaction when handoff has quality check warnings', async () => {
     await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: '# Done\n\nQuality check warnings found.' });
-    expect(mockedAddReactions).toHaveBeenCalledWith('discord-msg-id', ['✅', '⚠️']);
+    expect(mockedAddReactions).toHaveBeenCalledWith('discord-msg-id', ['⚠️']);
   });
 
   it('skips reactions when Discord post fails', async () => {

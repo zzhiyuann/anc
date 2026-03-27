@@ -201,12 +201,18 @@ export async function createSubIssue(
     };
     const result = await withRateLimit(() => client.createIssue(createInput as Parameters<typeof client.createIssue>[0]));
 
-    // Set delegate separately (createIssue doesn't accept delegateId)
+    // Force Todo state + delegate via updateIssue (createIssue sometimes ignores stateId)
     const created = await result.issue;
-    if (created && delegateId) {
-      try {
-        await withRateLimit(() => client.updateIssue(created.id, { delegateId } as Parameters<typeof client.updateIssue>[1]));
-      } catch { /**/ }
+    if (created) {
+      const forceUpdate: Record<string, unknown> = {};
+      const todoState = await getWorkflowStateId('Todo');
+      if (todoState) forceUpdate.stateId = todoState;
+      if (delegateId) forceUpdate.delegateId = delegateId;
+      if (Object.keys(forceUpdate).length > 0) {
+        try {
+          await withRateLimit(() => client.updateIssue(created.id, forceUpdate as Parameters<typeof client.updateIssue>[1]));
+        } catch { /**/ }
+      }
     }
     return created?.identifier ?? null;
   } catch (err) {

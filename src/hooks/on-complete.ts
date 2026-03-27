@@ -164,20 +164,24 @@ async function processHandoff(
   const newStatus = actions?.status ?? decideStatus(taskType, handoff);
   log.info(`${session.issueKey} → ${newStatus}${actions ? ' (agent-decided)' : ' (system-decided)'}`, { issueKey: session.issueKey });
 
-  // Execute dispatches (if any)
+  // Execute dispatches (if any) — pass previous agent's summary as context
   if (actions?.dispatches && actions.dispatches.length > 0) {
+    const previousContext = summary.length > 500
+      ? summary.substring(0, 500) + '...'
+      : summary;
+
     for (const dispatch of actions.dispatches) {
+      const fullContext = `Previous agent (${session.role}) completed their phase:\n\n${previousContext}\n\nYour task: ${dispatch.context}`;
+
       if (dispatch.newIssue) {
-        // Create sub-issue then dispatch
         const subKey = await createSubIssue(session.issueKey, dispatch.newIssue, dispatch.context, dispatch.priority ?? 3, dispatch.role);
         if (subKey) {
-          log.info(`Created sub-issue ${subKey} → dispatching to ${dispatch.role}`, { issueKey: session.issueKey });
-          resolveSession({ role: dispatch.role, issueKey: subKey, prompt: dispatch.context, priority: dispatch.priority });
+          log.info(`Created sub-issue ${subKey} → ${dispatch.role}`, { issueKey: session.issueKey });
+          resolveSession({ role: dispatch.role, issueKey: subKey, prompt: fullContext, priority: dispatch.priority });
         }
       } else {
-        // Dispatch on same issue
-        log.info(`Dispatching ${dispatch.role} on ${session.issueKey}`, { issueKey: session.issueKey });
-        resolveSession({ role: dispatch.role, issueKey: session.issueKey, prompt: dispatch.context, priority: dispatch.priority });
+        log.info(`Chain dispatch ${dispatch.role} on ${session.issueKey}`, { issueKey: session.issueKey });
+        resolveSession({ role: dispatch.role, issueKey: session.issueKey, prompt: fullContext, priority: dispatch.priority });
       }
     }
   }

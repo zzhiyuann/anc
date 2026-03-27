@@ -24,7 +24,8 @@ export interface HandoffActions {
   parentStatus?: IssueStatus;
 }
 
-const VALID_STATUSES = new Set(['Done', 'In Review', 'In Progress', 'Todo', 'Backlog', 'Canceled']);
+// Agents cannot set Backlog — that's CEO-only for parking/planning
+const VALID_STATUSES = new Set(['Done', 'In Review', 'In Progress', 'Todo', 'Canceled']);
 
 /**
  * Parse the ## Actions block from HANDOFF.md content.
