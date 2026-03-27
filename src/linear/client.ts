@@ -131,6 +131,39 @@ export async function setIssueStatus(issueId: string, status: IssueStatus, asAge
   }
 }
 
+export async function createIssue(
+  title: string,
+  description: string,
+  labelNames?: string[],
+): Promise<{ id: string; identifier: string } | null> {
+  const client = getSystemClient();
+  const config = getConfig();
+  try {
+    const input: Record<string, unknown> = {
+      teamId: config.linearTeamId,
+      title,
+      description,
+    };
+
+    // Resolve label names to IDs
+    if (labelNames?.length) {
+      const labels = await withRateLimit(() => client.issueLabels({ filter: { team: { id: { eq: config.linearTeamId } } } }));
+      const labelIds = labels.nodes
+        .filter(l => labelNames.includes(l.name))
+        .map(l => l.id);
+      if (labelIds.length) input.labelIds = labelIds;
+    }
+
+    const result = await withRateLimit(() => client.createIssue(input as Parameters<typeof client.createIssue>[0]));
+    const created = await result.issue;
+    if (!created) return null;
+    return { id: created.id, identifier: created.identifier };
+  } catch (err) {
+    log.error(`Failed to create issue: ${(err as Error).message}`);
+    return null;
+  }
+}
+
 export async function createSubIssue(
   parentIdentifier: string,
   title: string,

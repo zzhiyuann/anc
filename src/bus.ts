@@ -59,7 +59,7 @@ export interface AncEvents {
   'webhook:session.prompted': { session: import('./linear/types.js').SessionPayload; prompt: string };
 
   // Discord-originated events
-  'discord:message': { content: string; authorId: string; channelId: string; messageId: string };
+  'discord:message': { content: string; authorId: string; channelId: string; messageId: string; isReply: boolean; referencedMessageId?: string };
 
   // Agent lifecycle events
   'agent:spawned': { role: string; issueKey: string; tmuxSession: string };

@@ -12,7 +12,10 @@ const log = createLogger('discord');
 
 export function registerDiscordHandlers(): void {
   bus.on('discord:message', async ({ content, channelId, messageId }) => {
+    // If bridge is enabled, it handles all Discord messages — skip legacy handler
     const config = loadRoutingConfig();
+    if (config.discord_bridge?.enabled) return;
+
     const regex = buildMentionRegex(config);
     const match = content.match(regex);
     if (!match) return;

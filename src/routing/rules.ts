@@ -20,6 +20,12 @@ export interface IssueRule {
   target: AgentRole;
 }
 
+export interface DiscordBridgeConfig {
+  enabled: boolean;
+  label: string;       // label applied to Discord-created issues
+  min_length: number;   // minimum message length to create issue
+}
+
 export interface RoutingConfig {
   comment_routing: CommentRule[];
   comment_default: 'skip' | AgentRole;
@@ -27,6 +33,7 @@ export interface RoutingConfig {
   issue_default: AgentRole;
   self_prefixes: string[];  // e.g. ["self:", "note:"]
   agent_roles: string[];    // known roles for @mention detection
+  discord_bridge?: DiscordBridgeConfig;
 }
 
 let cachedConfig: RoutingConfig | null = null;

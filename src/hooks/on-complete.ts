@@ -152,16 +152,22 @@ async function processHandoff(
   const newStatus = decideStatus(taskType, handoff);
   log.info(`${session.issueKey} → ${newStatus}`, { issueKey: session.issueKey });
 
-  // Apply status transition on Linear
+  // Apply status transition on Linear — MUST succeed before we archive HANDOFF
   const issue = await getIssue(session.issueKey);
+  let statusChanged = false;
   if (issue) {
-    await setIssueStatus(issue.id, newStatus, session.role);
+    statusChanged = await setIssueStatus(issue.id, newStatus, session.role);
   }
 
-  // Mark handoff processed, transition to idle (session stays in registry for follow-ups)
+  if (!statusChanged) {
+    // Status change failed (rate limit?) — DON'T archive HANDOFF.md
+    // Next tick will retry the whole processHandoff flow
+    log.warn(`${session.issueKey}: status change failed, will retry next tick`);
+    return;  // exit without archiving — retry on next tick
+  }
+
+  // Status changed successfully — archive HANDOFF to prevent re-triggering
   session.handoffProcessed = true;
-  // Don't delete HANDOFF.md — it's part of the workspace record
-  // But rename to prevent re-triggering
   try {
     const archivePath = join(workspace, `HANDOFF-${Date.now()}.md`);
     const { renameSync } = await import('fs');

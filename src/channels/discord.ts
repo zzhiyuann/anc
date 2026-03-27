@@ -57,26 +57,22 @@ export async function startDiscordBot(): Promise<boolean> {
     log.info(`Bot connected as ${client!.user?.tag}`);
   });
 
-  // Listen for messages — route @agent-role mentions to the event bus
+  // Listen for messages — emit all messages to the bus (bridge + @mention handlers)
   client.on('messageCreate', async (msg: Message) => {
-    // Ignore bot's own messages
     if (msg.author.bot) return;
-    // Only listen in the configured channel (if set)
     if (channelId && msg.channelId !== channelId) return;
 
-    const config = loadRoutingConfig();
-    const mentionRegex = buildMentionRegex(config);
-    const match = msg.content.match(mentionRegex);
+    const isReply = msg.reference !== null && msg.reference?.messageId !== undefined;
 
-    if (match) {
-      log.info(`@${match[1]} from ${msg.author.username}: ${msg.content.substring(0, 80)}`);
-      bus.emit('discord:message', {
-        content: msg.content,
-        authorId: msg.author.id,
-        channelId: msg.channelId,
-        messageId: msg.id,
-      });
-    }
+    log.info(`${isReply ? 'reply' : 'msg'} from ${msg.author.username}: ${msg.content.substring(0, 80)}`);
+    bus.emit('discord:message', {
+      content: msg.content,
+      authorId: msg.author.id,
+      channelId: msg.channelId,
+      messageId: msg.id,
+      isReply,
+      referencedMessageId: msg.reference?.messageId ?? undefined,
+    });
   });
 
   try {
@@ -126,18 +122,17 @@ export async function addReactions(msg: Message, emojis: string[]): Promise<void
   }
 }
 
-/** Reply to a specific Discord message */
-export async function replyInDiscord(messageId: string, channelIdOverride: string, content: string): Promise<boolean> {
-  if (!client) return false;
+/** Reply to a specific Discord message. Returns the sent Message (or null). */
+export async function replyInDiscord(messageId: string, channelIdOverride: string, content: string): Promise<Message | null> {
+  if (!client) return null;
   try {
     const channel = await client.channels.fetch(channelIdOverride);
     if (channel && 'messages' in channel) {
       const msg = await (channel as { messages: { fetch: (id: string) => Promise<Message> } }).messages.fetch(messageId);
-      await msg.reply(content.substring(0, 1950));
-      return true;
+      return await msg.reply(content.substring(0, 1950));
     }
   } catch {
-    return false;
+    return null;
   }
-  return false;
+  return null;
 }

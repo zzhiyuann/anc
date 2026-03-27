@@ -48,6 +48,7 @@ program
     const { registerTickHandlers } = await import('./hooks/on-tick.js');
     const { registerDutyHandlers } = await import('./hooks/on-duties.js');
     const { registerLifecycleHandlers } = await import('./hooks/on-lifecycle.js');
+    const { registerBridgeHandlers } = await import('./hooks/on-bridge.js');
     const { startDiscordBot } = await import('./channels/discord.js');
     const { bus } = await import('./bus.js');
     const { cleanup } = await import('./routing/queue.js');
@@ -61,6 +62,7 @@ program
     registerSessionHandlers();
     registerCompletionHandlers();
     registerDiscordHandlers();
+    registerBridgeHandlers();
     registerTickHandlers();
     registerDutyHandlers();
     registerLifecycleHandlers();

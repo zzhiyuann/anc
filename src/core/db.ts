@@ -77,9 +77,19 @@ export function getDb(): Database.Database {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS discord_links (
+      discord_message_id TEXT PRIMARY KEY,
+      discord_channel_id TEXT NOT NULL,
+      linear_issue_key TEXT,
+      linear_comment_id TEXT,
+      link_type TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_queue_status ON queue(status);
     CREATE INDEX IF NOT EXISTS idx_sessions_role ON sessions(role);
     CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at);
+    CREATE INDEX IF NOT EXISTS idx_dl_issue ON discord_links(linear_issue_key);
   `);
 
   return db;

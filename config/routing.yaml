@@ -38,3 +38,8 @@ agent_roles:
   - engineer
   - strategist
   - ops
+
+discord_bridge:
+  enabled: true
+  label: "discord"
+  min_length: 10
