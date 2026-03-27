@@ -126,8 +126,9 @@ export function resolveSession(opts: {
     }
   }
 
-  // Spawn fresh
-  const result = spawnClaude({ role, issueKey, prompt, useContinue: false, ceoAssigned, priority, isDuty });
+  // Spawn — auto-detect if workspace has prior conversation (use --continue for free context recovery)
+  const workspaceExists = existsSync(join(getWorkspacePath(issueKey), '.claude'));
+  const result = spawnClaude({ role, issueKey, prompt, useContinue: workspaceExists, ceoAssigned, priority, isDuty });
   if (result.success) {
     recordSuccess(issueKey);
     return { action: 'spawned', tmuxSession: result.tmuxSession };

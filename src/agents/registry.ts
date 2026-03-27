@@ -33,9 +33,9 @@ export function loadAgentRegistry(configDir?: string): AgentConfig[] {
   if (!existsSync(path)) {
     // Default 3-agent roster
     registry = [
-      { name: 'Engineer', role: 'engineer', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 3, dutySlots: 1 },
-      { name: 'Strategist', role: 'strategist', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 2, dutySlots: 1 },
-      { name: 'Ops', role: 'ops', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 2, dutySlots: 1 },
+      { name: 'Engineer', role: 'engineer', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 10, dutySlots: 1 },
+      { name: 'Strategist', role: 'strategist', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 10, dutySlots: 1 },
+      { name: 'Ops', role: 'ops', model: 'claude-code', linearUserId: '', personaFiles: [], maxConcurrency: 10, dutySlots: 1 },
     ];
     return registry;
   }
