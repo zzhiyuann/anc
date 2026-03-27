@@ -51,12 +51,18 @@ export function startGateway(port?: number): void {
 
     // --- Events (audit log) ---
     if (req.method === 'GET' && req.url?.startsWith('/events')) {
-      const { getRecentEvents } = await import('./core/db.js');
-      const url = new URL(req.url, 'http://localhost');
-      const limit = parseInt(url.searchParams.get('limit') || '50');
-      const events = getRecentEvents(limit);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(events));
+      try {
+        const { getRecentEvents } = await import('./core/db.js');
+        const url = new URL(req.url, 'http://localhost');
+        const limit = parseInt(url.searchParams.get('limit') || '50');
+        const events = getRecentEvents(limit);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(events));
+      } catch (err) {
+        console.error(chalk.red(`[gateway] /events error: ${(err as Error).message}`));
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to fetch events' }));
+      }
       return;
     }
 
