@@ -71,6 +71,7 @@ export function startGateway(port?: number): void {
         status: 'ok',
         service: 'anc',
         uptime: Math.round(process.uptime()),
+        lastChecked: new Date().toISOString(),
         rateLimit: getRateLimitStatus(),
         lastWebhookAt,
         webhookCount,
