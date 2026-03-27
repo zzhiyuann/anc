@@ -1,6 +1,8 @@
 # Getting Started with ANC
 
-This tutorial walks you through setting up ANC and running your first AI-powered issue from start to finish. By the end, you'll have three AI agents (Engineer, Strategist, Ops) autonomously picking up Linear issues, writing code, and reporting back.
+You have a Linear backlog full of bugs, features, and research tasks. You're context-switching between all of them. What if you could label an issue and have an AI agent pick it up, write the code, post updates to the issue thread, and notify you when it's ready for review?
+
+That's ANC. This tutorial gets you from zero to your first autonomous issue in about 30 minutes.
 
 **Time**: ~30 minutes
 **Prerequisites**: macOS or Linux, Node.js 20+, a Linear workspace
@@ -11,33 +13,50 @@ This tutorial walks you through setting up ANC and running your first AI-powered
 
 ## Table of Contents
 
-1. [What is ANC?](#what-is-anc)
-2. [Install ANC](#install-anc)
-3. [Set Up Linear Credentials](#set-up-linear-credentials)
-4. [Configure Your Environment](#configure-your-environment)
-5. [Create Agent Identities](#create-agent-identities)
-6. [Set Up the Webhook](#set-up-the-webhook)
-7. [Verify Everything](#verify-everything)
-8. [Start the Gateway](#start-the-gateway)
-9. [Create Your First Issue](#create-your-first-issue)
-10. [What Happens Next](#what-happens-next)
-11. [Day-to-Day Operations](#day-to-day-operations)
-12. [Troubleshooting](#troubleshooting)
+1. [Why ANC?](#why-anc)
+2. [What You'll Build](#what-youll-build)
+3. [Install ANC](#install-anc)
+4. [Set Up Linear Credentials](#set-up-linear-credentials)
+5. [Configure Your Environment](#configure-your-environment)
+6. [Create Agent Identities](#create-agent-identities)
+7. [Set Up the Webhook](#set-up-the-webhook)
+8. [Verify Everything](#verify-everything)
+9. [Start the Gateway](#start-the-gateway)
+10. [Create Your First Issue](#create-your-first-issue)
+11. [What Happens Next](#what-happens-next)
+12. [Real-World Use Cases](#real-world-use-cases)
+13. [Day-to-Day Operations](#day-to-day-operations)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
-## What is ANC?
+## Why ANC?
 
-ANC is a Linear-native orchestration platform that turns Linear issues into autonomous agent sessions. You create an issue, label it, and ANC routes it to the right AI agent — an Engineer for code, a Strategist for planning, or Ops for operational tasks.
+If you're a solo founder or on a small team (1–5 people), you already know the bottleneck isn't ideas — it's execution bandwidth. You triage issues in Linear, but most of them sit in the backlog because there aren't enough hands.
 
-Each agent runs in its own tmux session with a full Claude Code environment, an isolated workspace, and access to your codebase. Agents communicate through Linear comments, write `HANDOFF.md` files when done, and can chain work to each other.
+ANC turns your Linear workspace into a dispatch system for AI agents. Instead of managing agents through chat windows or custom scripts, you work the way you already work — create issues, add labels, write descriptions — and ANC handles the rest.
 
-**Key concepts:**
+**What makes it different from other agent frameworks:**
 
-- **Gateway** — An HTTP server that receives Linear webhooks and emits events
-- **Router** — Matches issues to agents based on labels, title patterns, or assignment
-- **Runtime** — Manages tmux sessions, workspaces, and agent capacity
-- **Session lifecycle** — Active → Idle → Suspended (agents don't hog resources when waiting)
+- **Linear is the UI.** No dashboards to learn, no new tools to adopt. Your project management tool becomes your agent control plane.
+- **Per-issue isolation.** Each agent session gets its own workspace, tmux session, and context. Agents don't step on each other's work.
+- **Session lifecycle.** Agents move through Active → Idle → Suspended states automatically. They don't waste resources sitting idle — and they resume cleanly when you need them.
+- **Agents collaborate through your issue tracker.** Engineer finishes a feature, dispatches to Strategist for docs, who dispatches to Ops for verification. The entire chain lives on one Linear issue thread.
+
+ANC isn't a general-purpose agent framework. It's purpose-built for software engineering teams that use Linear and want to multiply their output without multiplying their headcount.
+
+---
+
+## What You'll Build
+
+By the end of this tutorial, you'll have:
+
+- **Three AI agents** (Engineer, Strategist, Ops) running on your machine
+- **A gateway** that listens for Linear webhooks and routes issues to the right agent
+- **Per-issue workspaces** where agents do their work in isolation
+- **Notifications** in Discord or Telegram when work is done (optional)
+
+The whole system runs on a single machine — no cloud infrastructure, no containers, no Kubernetes. Just your laptop, Linear, and Claude Code.
 
 ---
 
@@ -299,11 +318,12 @@ Leave this running in a terminal (or use `tmux` to background it).
 
 ## Create Your First Issue
 
-Now for the fun part. Go to Linear and create an issue:
+This is the moment it all clicks. Go to Linear and create an issue:
 
-1. **Title**: `Set up project README`
+1. **Title**: `Add input validation to the signup form` (or any real task from your backlog)
 2. **Label**: Add the `agent:cc` label (create it if it doesn't exist)
-3. **Status**: Set to **Todo**
+3. **Description**: Write what you'd write for a teammate — the more context, the better the result
+4. **Status**: Set to **Todo**
 
 ### What happens
 
@@ -328,9 +348,11 @@ anc agent jump engineer
 
 ### When the agent finishes
 
-The agent writes a `HANDOFF.md` file in its workspace. ANC detects this, marks the session complete, and updates the Linear issue status to **In Review**.
+The agent writes a `HANDOFF.md` file in its workspace. ANC detects this, marks the session complete, and moves the Linear issue to **In Review** — the same status transition a human teammate would make.
 
-You'll also get a notification in Discord or Telegram (if configured) with a summary of what was done.
+You get a notification in Discord or Telegram (if configured) with a summary of what was done. Open the Linear issue to see the agent's comments, review the code in the workspace, and either close the issue or leave a comment to send the agent back for revisions.
+
+That's the core loop: **create issue → agent works → you review**. Everything else builds on top of it.
 
 ---
 
@@ -371,6 +393,36 @@ Issues are routed based on your `config/routing.yaml`:
 ### Chain dispatch
 
 Agents can hand off work to each other on the same issue. For example, Engineer writes a technical doc, then dispatches to Strategist for positioning, who dispatches to Ops for final verification — all on the same Linear issue thread.
+
+---
+
+## Real-World Use Cases
+
+Here's how teams actually use ANC day to day.
+
+### Solo founder shipping a SaaS
+
+You're building a product alone. Your morning routine:
+
+1. Triage last night's bug reports — label them `Bug`, agents pick them up
+2. Write a one-paragraph feature description — label it `Feature`, Engineer builds it
+3. Need a landing page rewrite? Create an issue with `[Strategy]` in the title — Strategist drafts it
+
+You review completed work over lunch. What used to be a week's backlog moves in a day.
+
+### Small team (2–5 engineers) with a growing backlog
+
+Your team handles the critical path. ANC handles the rest:
+
+- **Bug triage**: Label incoming bugs → Engineer investigates, writes a fix, posts a PR link in the issue thread
+- **Documentation**: New feature shipped? Create a docs issue → Engineer writes the technical docs → Strategist polishes for users
+- **Research tasks**: Need to evaluate a library or compare approaches? Create a `[Research]` issue → Strategist produces a structured comparison
+
+Your team stays focused on architecture decisions and customer-facing work. The agents handle the tasks that are well-defined but time-consuming.
+
+### Side project acceleration
+
+You have a side project you work on evenings and weekends. Before bed, create 3–4 issues describing what you want built. Wake up to completed work, review it over coffee, and ship.
 
 ---
 
@@ -485,8 +537,11 @@ ANC includes exponential backoff for Linear API rate limits. If you see 429 erro
 
 ## Next Steps
 
-- **Customize routing** — Edit `config/routing.yaml` to match your team's label conventions
-- **Add proactive duties** — Define scheduled tasks in `config/duties.yaml` (health checks, reviews)
-- **Set up Discord** — Get real-time notifications when agents complete work
-- **Read the [CEO Guide](CEO-GUIDE.md)** — Learn how to interact with agents effectively
-- **Check the [Architecture Overview](../README.md)** — Understand the system design in depth
+You have a working ANC setup. Here's where to go from here:
+
+- **Start clearing your backlog.** Create 5–10 issues with good descriptions, label them, and let agents work overnight. Review in the morning.
+- **Customize routing** — Edit `config/routing.yaml` to match your team's label conventions. Route `Bug` to Engineer, `Docs` to Strategist, `Infra` to Ops — whatever fits your workflow.
+- **Add proactive duties** — Define scheduled tasks in `config/duties.yaml`. Agents can run health checks, scan for tech debt, or produce status reports on a cron schedule — without you creating an issue.
+- **Set up Discord or Telegram** — Get real-time notifications when agents complete work. You'll know the moment something is ready for review.
+- **Read the [CEO Guide](CEO-GUIDE.md)** — Best practices for writing issues that agents execute well, interacting with agents via comments, and managing the review flow.
+- **Explore the [Architecture Overview](../README.md)** — Understand the event bus, session lifecycle, and routing engine in depth.
