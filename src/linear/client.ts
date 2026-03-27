@@ -6,6 +6,7 @@
 import { LinearClient, LinearDocument } from '@linear/sdk';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import { getConfig, type LinearIssue, type AgentRole, VALID_STATUSES, type IssueStatus } from './types.js';
 import { createLogger } from '../core/logger.js';
 import { withRateLimit } from './rate-limiter.js';
@@ -213,16 +214,27 @@ async function getWorkflowStateId(name: string): Promise<string | null> {
 // --- Agent Session operations ---
 
 export async function createAgentSession(issueId: string, asAgent: AgentRole): Promise<string | null> {
-  const client = getAgentClient(asAgent);
+  // Use direct fetch instead of SDK _request (SDK may intercept the mutation)
+  const tokenPath = join(homedir(), '.anc', 'agents', asAgent, '.oauth-token');
+  if (!existsSync(tokenPath)) return null;
+  const token = readFileSync(tokenPath, 'utf-8').trim();
+
   try {
-    const data = await withRateLimit(() =>
-      (client as unknown as { _request: (query: string, variables: Record<string, unknown>) => Promise<Record<string, unknown>> })
-        ._request(
-          `mutation($input: AgentSessionCreateOnIssue!) { agentSessionCreateOnIssue(input: $input) { success agentSession { id } } }`,
-          { input: { issueId } },
-        )
-    );
-    return (data as { agentSessionCreateOnIssue: { agentSession: { id: string } } }).agentSessionCreateOnIssue?.agentSession?.id ?? null;
+    const res = await fetch('https://api.linear.app/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        query: `mutation($input: AgentSessionCreateOnIssue!) { agentSessionCreateOnIssue(input: $input) { success agentSession { id } } }`,
+        variables: { input: { issueId } },
+      }),
+    });
+    const json = await res.json() as Record<string, unknown>;
+    if ((json as { errors?: unknown[] }).errors) {
+      log.error(`AgentSession error: ${JSON.stringify((json as { errors: unknown[] }).errors[0])}`);
+      return null;
+    }
+    return ((json as { data: { agentSessionCreateOnIssue: { agentSession: { id: string } } } }).data)
+      .agentSessionCreateOnIssue?.agentSession?.id ?? null;
   } catch (err) {
     log.error(`Failed to create agent session: ${(err as Error).message}`);
     return null;

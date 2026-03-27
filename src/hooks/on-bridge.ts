@@ -3,26 +3,35 @@
  *
  * Flow 1: New Discord message → create Linear issue + optional @agent dispatch
  * Flow 2: Quote-reply to linked message → add comment on Linear issue
+ *         (on-comment.ts handles conversation mode for Done/In Review issues)
  * Flow 3: Agent comment on linked issue → reply in Discord thread
  * Flow 4: Agent completion on linked issue → reply in Discord thread
+ *
+ * Emoji reactions:
+ *   🔗  Issue created from message
+ *   🚀  Agent dispatched
+ *   💬  Comment piped / conversation mode
+ *   ✅  Agent completed
+ *   ❌  Error
  */
 
 import { bus } from '../bus.js';
 import { loadRoutingConfig, buildMentionRegex } from '../routing/rules.js';
 import { resolveSession } from '../runtime/resolve.js';
-import { createIssue, addComment } from '../linear/client.js';
-import { replyInDiscord } from '../channels/discord.js';
+import { createIssue, addComment, getIssue } from '../linear/client.js';
+import { replyInDiscord, reactToMessage } from '../channels/discord.js';
 import { createLink, getLinkByDiscordId, getRootLink, getLatestLink } from '../bridge/mappings.js';
 import { getRegisteredAgents } from '../agents/registry.js';
+import { getSessionForIssue } from '../runtime/health.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('bridge');
 
+const CONVERSATION_STATUSES = ['Done', 'In Review', 'Canceled'];
+
 /** Extract a title from Discord message content (first sentence or first 120 chars) */
 function extractTitle(content: string): string {
-  // Strip @mentions for the title
   const cleaned = content.replace(/@\w+/g, '').trim();
-  // First line or first sentence
   const firstLine = cleaned.split('\n')[0];
   const firstSentence = firstLine.split(/[.!?]/)[0];
   const raw = firstSentence.length > 5 ? firstSentence : firstLine;
@@ -40,18 +49,42 @@ export function registerBridgeHandlers(): void {
 
   // ─── Flow 1 + 2: Discord message → Linear issue or comment ───
   bus.on('discord:message', async ({ content, channelId, messageId, isReply, referencedMessageId }) => {
-    // Skip short messages
     if (content.trim().length < bridgeConfig.min_length) return;
 
-    // ── Flow 2: Quote-reply → Linear comment ──
+    // ── Flow 2: Quote-reply → route to linked issue ──
     if (isReply && referencedMessageId) {
       const parentLink = getLinkByDiscordId(referencedMessageId);
       if (parentLink?.linearIssueKey) {
+        const issueKey = parentLink.linearIssueKey;
+
+        // Check if agent is already active on this issue → pipe directly
+        const session = getSessionForIssue(issueKey);
+        if (session?.state === 'active') {
+          // Pipe to running session via resolveSession (it detects active + pipes)
+          resolveSession({
+            role: session.role,
+            issueKey,
+            prompt: `[Discord] ${content}`,
+            priority: 2,
+          });
+          await reactToMessage(messageId, channelId, ['💬']);
+          log.info(`Piped to active ${session.role} on ${issueKey}`, { issueKey });
+          return;
+        }
+
+        // Check conversation mode (Done/In Review)
+        const issue = await getIssue(issueKey);
+        const isConversation = issue && CONVERSATION_STATUSES.includes(issue.status);
+
+        // Create Linear comment — on-comment.ts will handle routing + conversation mode
         const commentBody = `[Discord] ${content}`;
-        const commentId = await addComment(parentLink.linearIssueKey, commentBody);
+        const commentId = await addComment(issueKey, commentBody);
         if (commentId) {
-          createLink(messageId, channelId, parentLink.linearIssueKey, 'comment', commentId);
-          log.info(`Reply → comment on ${parentLink.linearIssueKey}`, { issueKey: parentLink.linearIssueKey });
+          createLink(messageId, channelId, issueKey, 'comment', commentId);
+          await reactToMessage(messageId, channelId, isConversation ? ['💬'] : ['🚀']);
+          log.info(`Reply → ${isConversation ? 'conversation' : 'comment'} on ${issueKey}`, { issueKey });
+        } else {
+          await reactToMessage(messageId, channelId, ['❌']);
         }
         return;
       }
@@ -66,14 +99,19 @@ export function registerBridgeHandlers(): void {
     const issue = await createIssue(title, description, labelNames);
     if (!issue) {
       log.error('Failed to create issue from Discord message');
+      await reactToMessage(messageId, channelId, ['❌']);
       return;
     }
 
     createLink(messageId, channelId, issue.identifier, 'root');
     log.info(`Created ${issue.identifier} from Discord`, { issueKey: issue.identifier });
+    await reactToMessage(messageId, channelId, ['🔗']);
 
-    // React with issue link
-    await replyInDiscord(messageId, channelId, `Created **${issue.identifier}**: ${title}`);
+    // Reply with issue link
+    const linkReply = await replyInDiscord(messageId, channelId, `**${issue.identifier}**: ${title}`);
+    if (linkReply) {
+      createLink(linkReply.id, channelId, issue.identifier, 'agent_reply');
+    }
 
     // If @agent mentioned, dispatch immediately
     const mentionRegex = buildMentionRegex(config);
@@ -87,6 +125,7 @@ export function registerBridgeHandlers(): void {
         prompt: `[Discord] ${prompt}`,
         priority: 2,
       });
+      await reactToMessage(messageId, channelId, ['🚀']);
       const status = result.action === 'queued' ? `${role} is busy — queued.` : `${role}: ${result.action}.`;
       await replyInDiscord(messageId, channelId, status);
     }
@@ -94,13 +133,12 @@ export function registerBridgeHandlers(): void {
 
   // ─── Flow 3: Agent comment on Linear → reply in Discord ───
   bus.on('webhook:comment.created', async ({ comment, issue }) => {
-    // Only bridge agent-authored comments back to Discord
     const agents = getRegisteredAgents();
     const isAgent = agents.some(a => a.linearUserId === comment.userId);
     if (!isAgent) return;
 
     const link = getLatestLink(issue.identifier);
-    if (!link) return;  // No Discord origin
+    if (!link) return;
 
     const agentRole = agents.find(a => a.linearUserId === comment.userId)?.role ?? 'agent';
     const body = `**[${agentRole}]** ${comment.body}`;
@@ -115,7 +153,7 @@ export function registerBridgeHandlers(): void {
   // ─── Flow 4: Agent completion → reply in Discord thread ───
   bus.on('agent:completed', async ({ role, issueKey, handoff }) => {
     const rootLink = getRootLink(issueKey);
-    if (!rootLink) return;  // Not a Discord-originated issue
+    if (!rootLink) return;
 
     const summary = handoff.length > 300 ? handoff.substring(0, 300) + '...' : handoff;
     const body = `**[${role}]** Completed **${issueKey}**\n${summary}`;
@@ -123,6 +161,7 @@ export function registerBridgeHandlers(): void {
     const reply = await replyInDiscord(rootLink.discordMessageId, rootLink.discordChannelId, body);
     if (reply) {
       createLink(reply.id, rootLink.discordChannelId, issueKey, 'agent_reply');
+      await reactToMessage(rootLink.discordMessageId, rootLink.discordChannelId, ['✅']);
       log.info(`Completion bridged to Discord for ${issueKey}`, { issueKey });
     }
   });

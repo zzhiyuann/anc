@@ -122,6 +122,20 @@ export async function addReactions(msg: Message, emojis: string[]): Promise<void
   }
 }
 
+/** React to a message by ID (doesn't require the Message object) */
+export async function reactToMessage(messageId: string, channelIdOverride: string, emojis: string[]): Promise<void> {
+  if (!client) return;
+  try {
+    const channel = await client.channels.fetch(channelIdOverride);
+    if (channel && 'messages' in channel) {
+      const msg = await (channel as { messages: { fetch: (id: string) => Promise<Message> } }).messages.fetch(messageId);
+      await addReactions(msg, emojis);
+    }
+  } catch {
+    // Best-effort — don't fail the flow for a reaction
+  }
+}
+
 /** Reply to a specific Discord message. Returns the sent Message (or null). */
 export async function replyInDiscord(messageId: string, channelIdOverride: string, content: string): Promise<Message | null> {
   if (!client) return null;
