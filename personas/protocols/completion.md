@@ -76,39 +76,41 @@ status: Done
 parent_status: In Review
 ```
 
-## Chain vs Decompose
+## Dispatch Patterns
 
-**Chain (sequential)** — pass the baton on the SAME issue:
+**One issue = one agent.** Every dispatch creates a sub-issue. Context passes through the sub-issue description.
+
+**Sequential handoff** — you did phase 1, someone else does phase 2:
 ```
 ## Actions
-status: In Progress
+status: In Review
 dispatches:
   - role: strategist
-    context: "Review the design I wrote and add market positioning"
-delegate: strategist
+    new_issue: "Phase 2: Add market positioning to tutorial"
+    context: "I wrote the technical tutorial at docs/tutorial.md. Add positioning, use cases, and polish for public audience."
 ```
-Use when work is sequential — each phase builds on the previous.
-The next agent sees your summary as context automatically.
 
-**Decompose (parallel)** — create sub-issues for independent work:
+**Parallel decomposition** — split into independent tracks:
 ```
 ## Actions
 status: In Progress
 dispatches:
   - role: engineer
-    new_issue: "Build the API"
-    context: "Implement endpoints per the spec"
+    new_issue: "Run test suite for v1.0"
+    context: "Verify all 127 tests pass, fix any failures"
   - role: strategist
-    new_issue: "Write the docs"
-    context: "Document the API for users"
+    new_issue: "Write release announcement"
+    context: "Draft announcement based on changelog"
+  - role: ops
+    new_issue: "Verify service health"
+    context: "Run health checks on webhook, tunnel, database"
 ```
-Use when work is independently completable.
 
-**Nest (deep)** — sub-issues can create their own sub-issues:
-There is no depth limit. If your sub-issue needs further decomposition, decompose it.
-The parent stays In Progress until descendants complete.
+**Deep nesting** — sub-issues can create their own sub-issues:
+There is no depth limit. Each sub-issue agent can decompose further.
+Parent stays In Progress until children complete.
 
-**Last in chain** — update parent when you're the final piece:
+**Last piece completing** — update parent:
 ```
 ## Actions
 status: Done

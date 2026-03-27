@@ -172,31 +172,21 @@ async function processHandoff(
   const newStatus = actions?.status ?? decideStatus(taskType, handoff);
   log.info(`${session.issueKey} → ${newStatus}${actions ? ' (agent-decided)' : ' (system-decided)'}`, { issueKey: session.issueKey });
 
-  // Execute dispatches (if any) — pass previous agent's summary as context
+  // Execute dispatches — each creates a sub-issue (one issue = one agent)
   if (actions?.dispatches && actions.dispatches.length > 0) {
-    // For same-issue chain dispatches: untrack current session first
-    // so resolveSession creates a fresh session for the next agent
-    const hasSameIssueDispatch = actions.dispatches.some(d => !d.newIssue);
-    if (hasSameIssueDispatch) {
-      untrackSession(session.issueKey);
-    }
-
     const previousContext = summary.length > 500
       ? summary.substring(0, 500) + '...'
       : summary;
 
     for (const dispatch of actions.dispatches) {
-      const fullContext = `Previous agent (${session.role}) completed their phase:\n\n${previousContext}\n\nYour task: ${dispatch.context}`;
+      // Every dispatch creates a sub-issue — context passes through the description
+      const subTitle = dispatch.newIssue || `${dispatch.role}: follow-up on ${session.issueKey}`;
+      const subDesc = `Previous agent (${session.role}) completed their phase:\n\n${previousContext}\n\n---\n\n${dispatch.context}`;
 
-      if (dispatch.newIssue) {
-        const subKey = await createSubIssue(session.issueKey, dispatch.newIssue, dispatch.context, dispatch.priority ?? 3, dispatch.role);
-        if (subKey) {
-          log.info(`Created sub-issue ${subKey} → ${dispatch.role}`, { issueKey: session.issueKey });
-          resolveSession({ role: dispatch.role, issueKey: subKey, prompt: fullContext, priority: dispatch.priority });
-        }
-      } else {
-        log.info(`Chain dispatch ${dispatch.role} on ${session.issueKey}`, { issueKey: session.issueKey });
-        resolveSession({ role: dispatch.role, issueKey: session.issueKey, prompt: fullContext, priority: dispatch.priority });
+      const subKey = await createSubIssue(session.issueKey, subTitle, subDesc, dispatch.priority ?? 3, dispatch.role);
+      if (subKey) {
+        log.info(`Created sub-issue ${subKey} → ${dispatch.role}`, { issueKey: session.issueKey });
+        resolveSession({ role: dispatch.role, issueKey: subKey, prompt: dispatch.context, priority: dispatch.priority });
       }
     }
   }
