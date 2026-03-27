@@ -14,6 +14,14 @@ const log = createLogger('gateway');
 import { getConfig } from './linear/types.js';
 import { verifySignature, classifyWebhook } from './linear/webhooks.js';
 
+let lastWebhookAt: string | null = null;
+let webhookCount = 0;
+
+/** Returns last webhook timestamp and count for health checks. */
+export function getWebhookStats() {
+  return { lastWebhookAt, webhookCount };
+}
+
 async function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve) => {
     let body = '';
@@ -36,7 +44,14 @@ export function startGateway(port?: number): void {
     if (req.method === 'GET' && req.url === '/health') {
       const { getRateLimitStatus } = await import('./linear/rate-limiter.js');
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', service: 'anc', uptime: Math.round(process.uptime()), rateLimit: getRateLimitStatus() }));
+      res.end(JSON.stringify({
+        status: 'ok',
+        service: 'anc',
+        uptime: Math.round(process.uptime()),
+        rateLimit: getRateLimitStatus(),
+        lastWebhookAt,
+        webhookCount,
+      }));
       return;
     }
 
@@ -81,6 +96,10 @@ export function startGateway(port?: number): void {
         res.end(JSON.stringify({ error: 'Invalid signature' }));
         return;
       }
+
+      // Track webhook receipt for health checks
+      lastWebhookAt = new Date().toISOString();
+      webhookCount++;
 
       // Respond immediately (Linear expects fast 200)
       res.writeHead(200, { 'Content-Type': 'application/json' });

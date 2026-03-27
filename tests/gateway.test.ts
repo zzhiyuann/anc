@@ -99,7 +99,7 @@ describe('Gateway integration', () => {
 
       if (req.method === 'GET' && req.url === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok', service: 'anc' }));
+        res.end(JSON.stringify({ status: 'ok', service: 'anc', lastWebhookAt: null, webhookCount: 0 }));
         return;
       }
 
@@ -134,11 +134,15 @@ describe('Gateway integration', () => {
     server?.close();
   });
 
-  it('GET /health returns 200', async () => {
+  it('GET /health returns 200 with webhook stats', async () => {
     const res = await fetch(`http://localhost:${port}/health`);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.status).toBe('ok');
+    expect(body).toHaveProperty('lastWebhookAt');
+    expect(body).toHaveProperty('webhookCount');
+    expect(body.lastWebhookAt).toBeNull();
+    expect(body.webhookCount).toBe(0);
   });
 
   it('GET /events returns 200 with events array', async () => {
