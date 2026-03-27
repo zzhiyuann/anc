@@ -165,7 +165,7 @@ Duties use a separate capacity pool (`dutySlots`) so they never starve reactive 
 ### Install
 
 ```bash
-git clone https://github.com/ryanwang/anc.git
+git clone https://github.com/zzhiyuann/anc.git
 cd anc
 npm install
 npm run build
@@ -187,7 +187,7 @@ Required variables:
 | `ANC_LINEAR_API_KEY` | Linear API key |
 | `ANC_LINEAR_TEAM_ID` | Linear team UUID |
 | `ANC_LINEAR_TEAM_KEY` | Team key prefix (e.g., `ANC`) |
-| `ANC_LINEAR_WEBHOOK_SECRET` | Webhook signing secret |
+| `ANC_WEBHOOK_SECRET` | Webhook signing secret |
 | `ANC_WORKSPACE_BASE` | Where workspaces are created (default: `~/anc-workspaces`) |
 
 Optional: `ANC_DISCORD_BOT_TOKEN`, `ANC_TELEGRAM_BOT_TOKEN`, `ANC_WEBHOOK_PORT`
@@ -213,7 +213,7 @@ Point your Linear webhook to `http://your-server:3849/webhook` (use [cloudflared
 
 ```bash
 npx tsx src/index.ts serve   # run without building
-npx vitest run               # run tests (43 tests)
+npx vitest run               # run tests (127 tests)
 npx vitest                   # watch mode
 ```
 
@@ -229,7 +229,8 @@ src/
     rules.ts            # YAML rule loader
     queue.ts            # Priority queue with dedup
   runtime/
-    runner.ts           # Session resolution (spawn/resume/reactivate)
+    resolve.ts          # Session resolution (dedup/resume/reactivate/spawn)
+    runner.ts           # tmux process management (spawn/suspend/kill/capture)
     health.ts           # Session state machine + capacity
     workspace.ts        # Per-issue workspace creation
     circuit-breaker.ts  # Failure tracking + backoff
