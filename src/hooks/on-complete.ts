@@ -17,7 +17,9 @@ import {
   getTrackedSessions, untrackSession, markIdle, markSuspended,
 } from '../runtime/health.js';
 import { getWorkspacePath } from '../runtime/workspace.js';
-import { addComment, getIssue, setIssueStatus } from '../linear/client.js';
+import { addComment, getIssue, setIssueStatus, createSubIssue } from '../linear/client.js';
+import { parseActions, extractSummary, type HandoffActions } from './actions-parser.js';
+import { resolveSession } from '../runtime/runner.js';
 import { sessionExists } from '../runtime/runner.js';
 import type { TaskType, IssueStatus } from '../linear/types.js';
 import { createLogger } from '../core/logger.js';
@@ -147,23 +149,66 @@ async function processHandoff(
   if (warnings.length > 0) {
     body += `\n\n**Quality check warnings:**\n${warnings.map(w => `- ${w}`).join('\n')}`;
   }
-  await addComment(session.issueKey, body, session.role);
+  // Parse structured Actions block (agent-decided)
+  const actions = parseActions(handoff);
+  const summary = extractSummary(handoff);
 
-  const newStatus = decideStatus(taskType, handoff);
-  log.info(`${session.issueKey} → ${newStatus}`, { issueKey: session.issueKey });
+  // Post summary as comment (without the Actions block)
+  let commentBody = summary.length > 2000 ? summary.substring(0, 2000) + '\n\n...(truncated)' : summary;
+  if (warnings.length > 0) {
+    commentBody += `\n\n**Quality check warnings:**\n${warnings.map(w => `- ${w}`).join('\n')}`;
+  }
+  await addComment(session.issueKey, commentBody, session.role);
 
-  // Apply status transition on Linear — MUST succeed before we archive HANDOFF
+  // Determine status: agent-decided (from Actions) or system-decided (fallback)
+  const newStatus = actions?.status ?? decideStatus(taskType, handoff);
+  log.info(`${session.issueKey} → ${newStatus}${actions ? ' (agent-decided)' : ' (system-decided)'}`, { issueKey: session.issueKey });
+
+  // Execute dispatches (if any)
+  if (actions?.dispatches && actions.dispatches.length > 0) {
+    for (const dispatch of actions.dispatches) {
+      if (dispatch.newIssue) {
+        // Create sub-issue then dispatch
+        const subKey = await createSubIssue(session.issueKey, dispatch.newIssue, dispatch.context, dispatch.priority ?? 3, dispatch.role);
+        if (subKey) {
+          log.info(`Created sub-issue ${subKey} → dispatching to ${dispatch.role}`, { issueKey: session.issueKey });
+          resolveSession({ role: dispatch.role, issueKey: subKey, prompt: dispatch.context, priority: dispatch.priority });
+        }
+      } else {
+        // Dispatch on same issue
+        log.info(`Dispatching ${dispatch.role} on ${session.issueKey}`, { issueKey: session.issueKey });
+        resolveSession({ role: dispatch.role, issueKey: session.issueKey, prompt: dispatch.context, priority: dispatch.priority });
+      }
+    }
+  }
+
+  // Set status on Linear
   const issue = await getIssue(session.issueKey);
   let statusChanged = false;
   if (issue) {
     statusChanged = await setIssueStatus(issue.id, newStatus, session.role);
+
+    // Set delegate if specified
+    if (actions?.delegate && statusChanged) {
+      // Delegate is set by dispatching — the resolveSession already handles this
+      log.debug(`Delegate → ${actions.delegate}`, { issueKey: session.issueKey });
+    }
+  }
+
+  // Set parent status if specified
+  if (actions?.parentStatus && statusChanged) {
+    try {
+      const parentIssue = issue?.parentId ? await getIssue(issue.parentId) : null;
+      if (parentIssue) {
+        await setIssueStatus(parentIssue.id, actions.parentStatus, session.role);
+        log.info(`Parent ${parentIssue.identifier} → ${actions.parentStatus}`, { issueKey: session.issueKey });
+      }
+    } catch { /**/ }
   }
 
   if (!statusChanged) {
-    // Status change failed (rate limit?) — DON'T archive HANDOFF.md
-    // Next tick will retry the whole processHandoff flow
     log.warn(`${session.issueKey}: status change failed, will retry next tick`);
-    return;  // exit without archiving — retry on next tick
+    return;
   }
 
   // Status changed successfully — archive HANDOFF to prevent re-triggering
