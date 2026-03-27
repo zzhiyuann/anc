@@ -1,6 +1,27 @@
 # Quick-Start Guide
 
-Get ANC running and process your first issue in under 15 minutes.
+You're a solo founder or small team shipping software. You use Linear to track work. What if every issue you created just... got done?
+
+ANC turns your Linear workspace into an autonomous engineering team. Create an issue, add a label, and an AI agent picks it up — reads the requirements, writes the code, runs the tests, and posts the results back to Linear. No babysitting. No prompt engineering. You review the output like you'd review any engineer's pull request.
+
+This guide gets you from zero to processing your first issue in about 15 minutes.
+
+## What You'll Have When You're Done
+
+- **Three AI agents** (Engineer, Strategist, Ops) that pick up Linear issues automatically
+- **Per-issue isolation** — each task gets its own workspace. Agents can't step on each other
+- **A dashboard you already know** — Linear is the UI. No new tools to learn
+- **Full visibility** — watch agents work in real-time, read their handoff notes, attach to their terminal
+
+## Use Cases
+
+**Solo founder**: You write product specs as Linear issues in the morning. By lunch, your Engineer agent has implementations ready for review. Your Strategist agent has drafted the positioning doc you described in a one-liner.
+
+**Small team (2-5)**: Your human engineers focus on architecture and code review. ANC handles bug fixes, test coverage, routine features, and research tasks. Ops agent monitors system health and triages failures automatically.
+
+**Side project acceleration**: You commit 2 hours on weekends. ANC works the rest of the week — fixing bugs you file from your phone, writing docs, researching libraries.
+
+---
 
 ## Prerequisites
 
@@ -12,6 +33,8 @@ Get ANC running and process your first issue in under 15 minutes.
 | **git** | any | `git --version` |
 
 You also need a [Linear](https://linear.app) workspace where you have admin access.
+
+> **Don't have tmux?** `brew install tmux` (macOS) or `apt install tmux` (Linux).
 
 ## Step 1: Install
 
@@ -29,17 +52,11 @@ Verify: `anc --help` should show available commands.
 
 You need three values from Linear:
 
-**API Key**
-1. Go to [linear.app/settings/api](https://linear.app/settings/api)
-2. Create a new personal API key
-3. Copy it — it starts with `lin_api_`
-
-**Team ID**
-1. Go to your team's settings page
-2. Find the team UUID (a long string like `570e7df2-77ba-4985-843b-5b7718eb7618`)
-
-**Team Key**
-1. This is the short prefix on your issues (e.g., if your issues are `ANC-1`, `ANC-2`, the team key is `ANC`)
+| What | Where to find it |
+|------|-----------------|
+| **API Key** | [linear.app/settings/api](https://linear.app/settings/api) — create a personal key (starts with `lin_api_`) |
+| **Team ID** | Your team's settings page — a UUID like `570e7df2-77ba-4985-843b-5b7718eb7618` |
+| **Team Key** | The prefix on your issues (e.g., if issues are `ANC-1`, `ANC-2`, the key is `ANC`) |
 
 ## Step 3: Configure Environment
 
@@ -50,25 +67,23 @@ cp config/env.example .env
 Edit `.env` with your values:
 
 ```bash
-# Required
+# Required — the three values from Step 2
 ANC_LINEAR_API_KEY=lin_api_your_key_here
 ANC_LINEAR_TEAM_ID=your-team-uuid-here
 ANC_LINEAR_TEAM_KEY=ANC
 
-# Optional — defaults shown
+# Optional — sensible defaults
 ANC_WEBHOOK_PORT=3849
 ANC_WORKSPACE_BASE=~/anc-workspaces
 ```
 
-Optional integrations:
+Optional integrations (add these later if you want):
 
-| Variable | Purpose |
-|----------|---------|
-| `ANC_WEBHOOK_SECRET` | HMAC secret for verifying Linear webhook signatures |
-| `ANC_DISCORD_BOT_TOKEN` | Discord bot for bidirectional agent updates |
-| `ANC_DISCORD_CHANNEL_ID` | Discord channel to post to |
-| `ANC_TELEGRAM_BOT_TOKEN` | Telegram bot for outbound alerts |
-| `ANC_TELEGRAM_CHAT_ID` | Telegram chat to send alerts to |
+| Variable | What it does |
+|----------|-------------|
+| `ANC_WEBHOOK_SECRET` | Verifies webhook payloads are really from Linear (recommended for production) |
+| `ANC_DISCORD_BOT_TOKEN` + `ANC_DISCORD_CHANNEL_ID` | Agents post status updates to a Discord channel |
+| `ANC_TELEGRAM_BOT_TOKEN` + `ANC_TELEGRAM_CHAT_ID` | Get mobile alerts when agents finish or fail |
 
 ## Step 4: Run Setup
 
@@ -76,28 +91,28 @@ Optional integrations:
 anc setup
 ```
 
-This creates the directory structure:
+This validates your Linear credentials and creates the state directory:
 
 ```
 ~/.anc/
   agents/
-    engineer/memory/
+    engineer/memory/      # each agent accumulates knowledge across sessions
     strategist/memory/
     ops/memory/
-  shared-memory/
+  shared-memory/          # cross-agent knowledge base
   logs/
-  state.db              # created on first `anc serve`
+  state.db                # created on first `anc serve`
 ```
 
-Setup validates your Linear API key and team ID. If either fails, double-check your `.env` values.
+If setup reports errors, double-check the API key and team ID in your `.env`.
 
 ## Step 5: Create Agent Identities in Linear
 
-Each ANC agent needs its own Linear user account and OAuth token. This is how agents post comments and update issues under their own identity.
+Each agent needs its own Linear account so it can post comments and update issues under its own name. This is what makes the Linear experience feel like working with real teammates — each agent has a face and a voice.
 
-For each agent role (`engineer`, `strategist`, `ops`):
+For each role (`engineer`, `strategist`, `ops`):
 
-1. Create a Linear account for the agent (e.g., "Engineer" with email `engineer@yourdomain.com`)
+1. Create a Linear account (e.g., "Engineer" with email `engineer@yourdomain.com`)
 2. Log in as that account and create a personal API key
 3. Store the token:
 
@@ -112,52 +127,49 @@ mkdir -p ~/.anc/agents/ops
 echo "lin_api_ops_token_here" > ~/.anc/agents/ops/.oauth-token
 ```
 
-4. Update `config/agents.yaml` with each agent's `linearUserId` (found in Linear workspace member settings)
+4. Update `config/agents.yaml` with each agent's `linearUserId` (found in workspace member settings)
 
-## Step 6: Set Up Linear Webhook
+> **Tip**: Start with just the Engineer agent. You can add Strategist and Ops later.
 
-ANC needs to receive Linear events. You have two options:
+## Step 6: Set Up the Linear Webhook
 
-### Option A: Cloudflare Tunnel (recommended for local dev)
+ANC reacts to Linear events in real time. You need to expose port 3849 to the internet so Linear can reach it.
+
+### Option A: Cloudflare Tunnel (recommended for getting started)
 
 ```bash
-# Install cloudflared
 brew install cloudflared    # macOS
-
-# Start a tunnel
 cloudflared tunnel --url http://localhost:3849
 ```
 
-Use the generated URL (e.g., `https://abc123.trycloudflare.com`) as your webhook endpoint.
+Cloudflared prints a public URL like `https://abc123.trycloudflare.com`. Copy it.
 
-### Option B: Direct (if server is publicly accessible)
+### Option B: Direct (server with a public IP)
 
 Use `http://your-server:3849/webhook` directly.
 
 ### Create the webhook in Linear
 
-1. Go to your Linear workspace settings > Integrations > Webhooks
+1. Go to workspace settings > Integrations > Webhooks
 2. Create a new webhook
-3. Set the URL to `https://your-tunnel-url/webhook` (or `http://your-server:3849/webhook`)
-4. Select events: **Issues**, **Comments**, **Issue Labels**
-5. If you set `ANC_WEBHOOK_SECRET`, enter the same value as the signing secret
+3. URL: `https://your-tunnel-url/webhook`
+4. Events: **Issues**, **Comments**, **Issue Labels**
+5. Signing secret: same as `ANC_WEBHOOK_SECRET` in your `.env` (if set)
 
-## Step 7: Verify Setup
+## Step 7: Verify Everything
 
 ```bash
 anc doctor
 ```
 
-You should see green checks for:
-- Directories exist
+Doctor runs 9 diagnostic checks. You want green across the board:
+- Directories and config files
 - Environment variables loaded
-- Config files parse correctly
 - Agent tokens present
-- Dependencies (tmux, claude, node, git) found
+- Dependencies found (tmux, claude, node, git)
 - Linear API connectivity
-- (Gateway check passes after `anc serve` is running)
 
-Fix any red items before continuing.
+Fix any red items before continuing. The most common issue is a typo in `.env`.
 
 ## Step 8: Start the Gateway
 
@@ -165,88 +177,102 @@ Fix any red items before continuing.
 anc serve
 ```
 
-The gateway starts on port 3849 (or your configured `ANC_WEBHOOK_PORT`). It:
-- Receives Linear webhooks
-- Routes issues to agents
-- Manages agent sessions and capacity
-- Runs proactive duties on schedule
-- Ticks every 30 seconds for queue management
+The gateway is the brain of the system. It:
+- Receives Linear webhooks and routes issues to the right agent
+- Manages agent sessions, capacity, and lifecycle
+- Runs proactive duties on schedule (health checks, failure postmortems)
+- Ticks every 30 seconds to drain the work queue
 
-Keep this running — it's the brain of the system.
-
-Verify it's healthy:
+Keep it running. Verify it's healthy:
 
 ```bash
 curl http://localhost:3849/health
 # {"status":"ok","service":"anc","uptime":5,...}
 ```
 
-## Step 9: Process Your First Issue
+## Step 9: Create Your First Issue
 
-1. Create a new issue in your Linear team
-2. Add a label: **Bug** or **Feature** (routes to Engineer)
+This is the moment. Go to Linear and:
+
+1. Create a new issue in your team
+2. Add the label **Bug** or **Feature**
 3. Set status to **Todo**
 
-Within 30 seconds, ANC will:
-- Receive the webhook
-- Route the issue to the Engineer agent
-- Create an isolated workspace at `~/anc-workspaces/ANC-1/`
-- Spawn Claude Code in a tmux session
-- The agent reads the issue, plans, implements, and writes `HANDOFF.md`
+Within 30 seconds, ANC:
+- Receives the webhook
+- Routes the issue to the Engineer agent
+- Creates an isolated workspace at `~/anc-workspaces/ANC-1/`
+- Spawns Claude Code in a tmux session
+- The agent reads the issue, plans its approach, implements, tests, and writes a `HANDOFF.md`
 - ANC posts the handoff as a Linear comment and updates the issue status
 
-Watch it happen:
+**Watch it happen:**
 
 ```bash
-# See system overview
-anc status
-
-# See active sessions
-anc agent list
-
-# Attach to an agent's terminal (read-only)
-anc agent jump engineer
-# Then: tmux attach -t anc-ANC-1 -r
+anc status                  # system overview
+anc agent list              # see who's working on what
+anc agent jump engineer     # get the tmux attach command
 ```
 
-## Common Operations
+When the agent finishes, you'll see a detailed comment on the Linear issue with what was done, how to verify it, and any follow-up actions.
+
+---
+
+## Day-to-Day Operations
+
+### Routing Cheat Sheet
+
+| Label | Agent | Use for |
+|-------|-------|---------|
+| **Bug** | Engineer | Bug fixes, error investigation |
+| **Feature** | Engineer | New features, refactors, tests |
+| **Plan** | Strategist | Strategy docs, research, analysis |
+| *(no label)* | Ops | Triage, health checks, monitoring |
+| `@engineer` in comment | Engineer | Direct mention in any issue |
+
+### Fleet Management
 
 ```bash
-# Fleet management
-anc status                          # overview of all agents
+anc status                          # who's doing what
 anc agent list                      # roster + capacity
-anc agent start engineer ANC-42     # manually spawn on specific issue
+anc agent start engineer ANC-42     # manually assign an issue
 anc agent stop engineer             # stop all engineer sessions
-anc agent suspend ANC-42            # preserve workspace, free capacity
-anc agent resume ANC-42             # resume suspended session
+anc agent suspend ANC-42            # pause — free capacity, keep workspace
+anc agent resume ANC-42             # resume paused session
 
-# Start/stop all agents
-anc company start                   # activate all agents on Todo backlog
+anc company start                   # start all agents on the Todo backlog
 anc company stop                    # gracefully stop everything
-
-# Health
-anc doctor                          # full diagnostic check
-curl localhost:3849/events?limit=10 # recent event log
 ```
+
+### Health & Debugging
+
+```bash
+anc doctor                          # full diagnostic check
+curl localhost:3849/events?limit=10 # recent event log (JSON)
+tmux attach -t anc-ANC-42 -r       # watch an agent work (read-only)
+```
+
+---
 
 ## Customization
 
-### Agent Roster
+ANC is configured entirely through YAML. No code changes needed.
 
-Edit `config/agents.yaml` to adjust capacity or add agents:
+### Agent Capacity
+
+In `config/agents.yaml`, control how many tasks each agent handles concurrently:
 
 ```yaml
 agents:
   engineer:
     name: "Engineer"
-    maxConcurrency: 5      # max active sessions
+    maxConcurrency: 5      # max parallel tasks
     dutySlots: 1           # separate pool for proactive duties
-    # ...
 ```
 
 ### Routing Rules
 
-Edit `config/routing.yaml` to change how issues are assigned:
+In `config/routing.yaml`, control which agent gets which issues:
 
 ```yaml
 issue_routing:
@@ -259,7 +285,7 @@ issue_default: ops
 
 ### Proactive Duties
 
-Edit `config/duties.yaml` to schedule recurring tasks:
+In `config/duties.yaml`, schedule recurring tasks that agents run on their own:
 
 ```yaml
 duties:
@@ -270,6 +296,10 @@ duties:
     prompt: "Run system health check, report anomalies"
 ```
 
+Duties use a separate capacity pool so they never block reactive work.
+
+---
+
 ## Troubleshooting
 
 **`anc doctor` shows red for Linear connectivity**
@@ -278,36 +308,41 @@ duties:
 - Ensure your network can reach `api.linear.app`
 
 **Agent spawns but exits immediately**
-- Check `claude --version` works — Claude Code CLI must be installed and authenticated
-- Look at tmux session output: `tmux attach -t anc-ANC-<number>`
-- Check `~/.anc/logs/` for error details
+- Check `claude --version` — Claude Code CLI must be installed and authenticated
+- Attach to the session: `tmux attach -t anc-ANC-<number>`
+- Check `~/.anc/logs/` for error output
 
 **Webhook not received**
-- Verify your tunnel is running (`cloudflared` or public URL)
-- Check Linear webhook settings — the URL should end in `/webhook`
-- Test manually: `curl -X POST http://localhost:3849/health`
+- Is your tunnel running? (`cloudflared` process alive?)
+- Does the Linear webhook URL end in `/webhook`?
+- Quick test: `curl -X POST http://localhost:3849/health`
 
 **"No capacity" in logs**
-- Agents have `maxConcurrency` limits. Check `anc agent list` for current usage
-- Suspend or stop idle sessions: `anc agent suspend ANC-<number>`
+- Each agent has a `maxConcurrency` limit. Check with `anc agent list`
+- Free capacity: `anc agent suspend ANC-<number>` or `anc agent stop <role>`
 
 **tmux not found**
 - Install: `brew install tmux` (macOS) or `apt install tmux` (Linux)
-- ANC looks for tmux at: PATH, `/opt/homebrew/bin/tmux`, `/usr/local/bin/tmux`, `/usr/bin/tmux`
+- ANC checks: PATH, `/opt/homebrew/bin/tmux`, `/usr/local/bin/tmux`, `/usr/bin/tmux`
+
+---
 
 ## Development Mode
 
-Run without building:
+Hack on ANC itself without a full build:
 
 ```bash
-npx tsx src/index.ts serve     # start gateway
-npx tsx src/index.ts doctor    # run diagnostics
+npx tsx src/index.ts serve     # run gateway from source
+npx tsx src/index.ts doctor    # run diagnostics from source
 npx vitest run                 # run tests (115 tests)
 npx vitest                     # watch mode
 ```
 
+---
+
 ## What's Next
 
-- Read the [CEO Guide](CEO-GUIDE.md) for day-to-day operations (creating issues, reviewing work, managing agents)
-- Explore `config/` to customize routing, agents, and duties
-- Check `personas/` to understand how agent instructions are composed
+- **[CEO Guide](CEO-GUIDE.md)** — day-to-day operations: creating issues, reviewing work, interacting with agents
+- **`config/`** — customize routing, agent roster, and proactive duties
+- **`personas/`** — understand how agent instructions are composed from reusable fragments
+- **README** — architecture overview, design decisions, and project structure
