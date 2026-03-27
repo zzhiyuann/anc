@@ -135,18 +135,32 @@ export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSe
   }
 }
 
-/** Move issue to In Progress on Linear when agent starts working */
+/** Move issue to In Progress + set agent as delegate on Linear */
 async function setIssueInProgress(role: string, issueKey: string): Promise<void> {
-  // Skip duty sessions (pulse, postmortem — they don't have real Linear issues)
   if (issueKey.startsWith('pulse-') || issueKey.startsWith('postmortem-')) return;
 
   try {
     const { getIssue, setIssueStatus } = await import('../linear/client.js');
+    const { getAgent } = await import('../agents/registry.js');
     const issue = await getIssue(issueKey);
     if (!issue) return;
 
+    // Set status to In Progress
     await setIssueStatus(issue.id, 'In Progress', role);
-    log.debug(`${issueKey} → In Progress (as ${role})`, { issueKey });
+
+    // Set agent as delegate — shows who's working on it in Linear UI
+    const agent = getAgent(role);
+    if (agent?.linearUserId) {
+      const { getAgentClient } = await import('../linear/client.js');
+      const client = getAgentClient(role);
+      try {
+        await (client as unknown as { updateIssue: (id: string, input: Record<string, unknown>) => Promise<unknown> })
+          .updateIssue(issue.id, { assigneeId: agent.linearUserId });
+        log.debug(`${issueKey} → In Progress, delegate=${role}`, { issueKey });
+      } catch {
+        log.debug(`${issueKey} → In Progress (delegate failed)`, { issueKey });
+      }
+    }
   } catch (err) {
     log.error(`Failed to set In Progress: ${(err as Error).message}`, { issueKey });
   }

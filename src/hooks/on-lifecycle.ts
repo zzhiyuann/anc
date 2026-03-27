@@ -17,7 +17,8 @@
 import { bus } from '../bus.js';
 import { addComment, createAgentSession, dismissSession, getIssue } from '../linear/client.js';
 import { getSessionForIssue } from '../runtime/health.js';
-import { postToDiscord, addReactions } from '../channels/discord.js';
+import { postToDiscord, addReactions, reactToMessage } from '../channels/discord.js';
+import { getRootLink } from '../bridge/mappings.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('lifecycle');
@@ -34,10 +35,21 @@ export function registerLifecycleHandlers(): void {
   bus.on('agent:spawned', async ({ role, issueKey }) => {
     if (isDutyIssue(issueKey)) return;
 
-    // Only post "started" comment on FIRST spawn for this issue, not re-spawns
+    // Only post "started" on FIRST spawn for this issue, not re-spawns
     if (!startedCommented.has(issueKey)) {
       startedCommented.add(issueKey);
       await addComment(issueKey, `**${role}** picked up this issue.`, role).catch(() => {});
+
+      // Notify Discord — reply in thread if bridge-originated, else post to channel
+      const rootLink = getRootLink(issueKey);
+      if (rootLink) {
+        await reactToMessage(rootLink.discordMessageId, rootLink.discordChannelId, ['🚀']);
+      } else {
+        const issue = await getIssue(issueKey);
+        const title = issue?.title ? `: ${issue.title}` : '';
+        const msg = await postToDiscord(role, `picked up **${issueKey}**${title}`);
+        if (msg) await addReactions(msg, ['🚀']);
+      }
     }
 
     // Create AgentSession → "Working..." badge
