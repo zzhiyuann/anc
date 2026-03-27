@@ -21,7 +21,7 @@ vi.mock('../src/channels/discord.js', () => ({
 import { addComment, getIssue, createAgentSession, dismissSession } from '../src/linear/client.js';
 import { getSessionForIssue } from '../src/runtime/health.js';
 import { postToDiscord, addReactions } from '../src/channels/discord.js';
-import { registerLifecycleHandlers } from '../src/hooks/on-lifecycle.js';
+import { registerLifecycleHandlers, _resetLifecycle } from '../src/hooks/on-lifecycle.js';
 
 const mockedAddComment = vi.mocked(addComment);
 const mockedGetIssue = vi.mocked(getIssue);
@@ -33,6 +33,7 @@ const mockedAddReactions = vi.mocked(addReactions);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  _resetLifecycle();  // clear startedCommented set
   // Reset defaults
   mockedGetIssue.mockResolvedValue({ id: 'issue-uuid-1', identifier: 'ANC-1' } as any);
   mockedCreateAgentSession.mockResolvedValue('session-uuid-1');
@@ -79,6 +80,23 @@ describe('Lifecycle Comments', () => {
   it('does NOT post comment on agent:idle', async () => {
     await bus.emit('agent:idle', { role: 'engineer', issueKey: 'ANC-1' });
     expect(mockedAddComment).not.toHaveBeenCalled();
+  });
+
+  it('skips spawned comment on re-spawn (dedup)', async () => {
+    await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
+    expect(mockedAddComment).toHaveBeenCalledOnce();
+    vi.clearAllMocks();
+    await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't2' });
+    expect(mockedAddComment).not.toHaveBeenCalled();
+  });
+
+  it('re-allows spawned comment after completed (issue reopened)', async () => {
+    await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
+    vi.clearAllMocks();
+    await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: 'done' });
+    vi.clearAllMocks();
+    await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't3' });
+    expect(mockedAddComment).toHaveBeenCalledWith('ANC-1', expect.stringContaining('picked up'), 'engineer');
   });
 
   it('uses agent role as comment identity (third arg)', async () => {
