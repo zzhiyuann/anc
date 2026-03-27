@@ -65,10 +65,24 @@ export function loadRoutingConfig(configDir?: string): RoutingConfig {
   return cachedConfig;
 }
 
-/** Build a regex matching all known agent roles for @mention detection */
+/** Build a regex matching all known agent roles for @mention detection.
+ *  Matches both plain text (@Engineer) and Linear's format. */
 export function buildMentionRegex(config: RoutingConfig): RegExp {
   const escaped = config.agent_roles.map(r => r.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   return new RegExp(`@(${escaped.join('|')})\\b`, 'i');
+}
+
+/** Detect @mention by Linear user ID — Linear embeds mentions as user IDs in webhook payload.
+ *  Returns the agent role if a known agent is mentioned, null otherwise. */
+export function detectMentionByUserId(body: string, agents: Array<{ role: string; linearUserId: string }>): string | null {
+  for (const agent of agents) {
+    if (!agent.linearUserId) continue;
+    // Linear formats mentions as links or embedded user references containing the user ID
+    if (body.includes(agent.linearUserId)) {
+      return agent.role;
+    }
+  }
+  return null;
 }
 
 /** Check if comment is a self-note (should not trigger agent) */
