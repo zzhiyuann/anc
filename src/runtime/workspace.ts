@@ -4,9 +4,14 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync, readFileSync, symlinkSync, rmSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { getConfig, type AgentRole } from '../linear/types.js';
+
+// Resolve ANC project root from this file's location (src/runtime/ → project root)
+const __filename = fileURLToPath(import.meta.url);
+const ANC_ROOT = join(dirname(__filename), '..', '..');
 
 export interface WorkspaceInfo {
   root: string;         // ~/anc-workspaces/RYA-232/
@@ -78,6 +83,9 @@ export function writePersonaToWorkspace(workspace: WorkspaceInfo, persona: strin
  *  NO Linear MCP — agents must use `anc` CLI for all Linear operations.
  *  This prevents identity leaks (MCP uses CEO's global token). */
 export function writeAutoModeSettings(workspace: WorkspaceInfo, _agentToken?: string): void {
+  // Resolve hook script path from project root (deterministic, not cwd-dependent)
+  const hookScript = join(ANC_ROOT, 'hooks', 'plan-guard.sh');
+
   const settings: Record<string, unknown> = {
     permissions: {
       allow: [
@@ -89,9 +97,13 @@ export function writeAutoModeSettings(workspace: WorkspaceInfo, _agentToken?: st
         'mcp__claude_ai_Linear__*',
       ],
     },
+    hooks: {
+      PostToolUse: [{
+        matcher: 'Bash',
+        hooks: [{ type: 'command', command: hookScript }],
+      }],
+    },
   };
-  {
-  }
 
   writeFileSync(
     join(workspace.claudeDir, 'settings.local.json'),

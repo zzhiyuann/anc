@@ -155,7 +155,7 @@ async function setIssueInProgress(role: string, issueKey: string): Promise<void>
       const client = getAgentClient(role);
       try {
         await (client as unknown as { updateIssue: (id: string, input: Record<string, unknown>) => Promise<unknown> })
-          .updateIssue(issue.id, { assigneeId: agent.linearUserId });
+          .updateIssue(issue.id, { delegateId: agent.linearUserId });
         log.debug(`${issueKey} → In Progress, delegate=${role}`, { issueKey });
       } catch {
         log.debug(`${issueKey} → In Progress (delegate failed)`, { issueKey });
@@ -286,6 +286,7 @@ unset CLAUDE_CODE CLAUDECODE CLAUDE_CODE_ENTRYPOINT
 
 export AGENT_ROLE="${role}"
 export ANC_ISSUE_KEY="${issueKey}"
+export ANC_WORKSPACE_ROOT="${workDir}"
 export ANC_SERVER_URL="http://localhost:${process.env.ANC_WEBHOOK_PORT || 3849}"
 ${tokenLine}
 claude --permission-mode auto${continueFlag} -p "$(cat ${promptFile})"

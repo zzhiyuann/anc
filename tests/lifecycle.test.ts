@@ -16,6 +16,11 @@ vi.mock('../src/runtime/health.js', () => ({
 vi.mock('../src/channels/discord.js', () => ({
   postToDiscord: vi.fn().mockResolvedValue('discord-msg-id'),
   addReactions: vi.fn().mockResolvedValue(undefined),
+  reactToMessage: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../src/bridge/mappings.js', () => ({
+  getRootLink: vi.fn().mockReturnValue(null),
 }));
 
 import { addComment, getIssue, createAgentSession, dismissSession } from '../src/linear/client.js';

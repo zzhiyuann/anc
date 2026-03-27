@@ -179,27 +179,35 @@ export async function createSubIssue(
   const config = getConfig();
 
   // Resolve target agent's Linear user ID for delegate assignment
-  let assigneeId: string | undefined;
+  let delegateId: string | undefined;
   if (asAgent) {
     const { getAgent } = await import('../agents/registry.js');
     const agent = getAgent(asAgent);
-    assigneeId = agent?.linearUserId;
+    delegateId = agent?.linearUserId;
   }
 
   // Get Todo state so sub-issues start ready for pickup (not Backlog)
   const todoStateId = await getWorkflowStateId('Todo');
 
   try {
-    const result = await withRateLimit(() => client.createIssue({
+    // Note: use delegateId (not assigneeId) — Linear's assigneeId doesn't work for app users
+    const createInput: Record<string, unknown> = {
       teamId: config.linearTeamId,
       title,
       description,
       priority,
       parentId: parent.id,
-      ...(assigneeId ? { assigneeId } : {}),
       ...(todoStateId ? { stateId: todoStateId } : {}),
-    }));
+    };
+    const result = await withRateLimit(() => client.createIssue(createInput as Parameters<typeof client.createIssue>[0]));
+
+    // Set delegate separately (createIssue doesn't accept delegateId)
     const created = await result.issue;
+    if (created && delegateId) {
+      try {
+        await withRateLimit(() => client.updateIssue(created.id, { delegateId } as Parameters<typeof client.updateIssue>[1]));
+      } catch { /**/ }
+    }
     return created?.identifier ?? null;
   } catch (err) {
     log.error(`Failed to create sub-issue: ${(err as Error).message}`);
