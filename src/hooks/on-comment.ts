@@ -10,7 +10,9 @@ import { resolveSession } from '../runtime/runner.js';
 import { getIssue } from '../linear/client.js';
 import { downloadCommentImages } from '../linear/images.js';
 import { getWorkspacePath } from '../runtime/workspace.js';
-import chalk from 'chalk';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('comment');
 
 const CONVERSATION_STATUSES = ['Done', 'In Review', 'Canceled'];
 
@@ -42,11 +44,11 @@ export function registerCommentHandlers(): void {
 
     const decision = routeComment(ctx);
     if (decision.target === 'skip') {
-      console.log(chalk.dim(`[comment] ${issue.identifier}: skipped (${decision.reason})`));
+      log.debug(`${issue.identifier}: skipped (${decision.reason})`, { issueKey: issue.identifier });
       return;
     }
 
-    console.log(chalk.cyan(`[comment] ${issue.identifier} → ${decision.target} (${decision.reason})`));
+    log.info(`${issue.identifier} → ${decision.target} (${decision.reason})`, { issueKey: issue.identifier });
 
     // Download images from comment body
     const workspace = getWorkspacePath(issue.identifier);

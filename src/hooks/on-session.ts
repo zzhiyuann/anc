@@ -9,23 +9,25 @@ import { resolveSession } from '../runtime/runner.js';
 import { getIssue } from '../linear/client.js';
 import { getSessionForIssue } from '../runtime/health.js';
 import { sendToAgent, sessionExists } from '../runtime/runner.js';
-import chalk from 'chalk';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('session');
 
 export function registerSessionHandlers(): void {
   bus.on('webhook:session.created', async ({ session }) => {
     const agent = getAgentByLinearUserId(session.agentId);
     if (!agent) {
-      console.log(chalk.dim(`[session] Unknown agent ID: ${session.agentId}`));
+      log.debug(`Unknown agent ID: ${session.agentId}`);
       return;
     }
 
     const issue = await getIssue(session.issueId);
     if (!issue) {
-      console.log(chalk.dim(`[session] Issue not found: ${session.issueId}`));
+      log.warn(`Issue not found: ${session.issueId}`);
       return;
     }
 
-    console.log(chalk.cyan(`[session] Delegation: ${issue.identifier} → ${agent.role}`));
+    log.info(`Delegation: ${issue.identifier} → ${agent.role}`, { issueKey: issue.identifier, role: agent.role });
 
     resolveSession({
       role: agent.role,

@@ -171,7 +171,7 @@ function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: 
 
   // Write script
   const scriptPath = `/tmp/anc-spawn-${tmuxSession}.sh`;
-  writeFileSync(scriptPath, buildSpawnScript(workspace.root, fullPrompt, role, issueKey, useContinue), { mode: 0o755 });
+  writeFileSync(scriptPath, _buildSpawnScript(workspace.root, fullPrompt, role, issueKey, useContinue), { mode: 0o755 });
 
   // Kill stale tmux
   try { execSync(`tmux kill-session -t "${tmuxSession}" 2>/dev/null`, { stdio: 'pipe' }); } catch { /**/ }
@@ -195,8 +195,8 @@ function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: 
 
     bus.emit('agent:spawned', { role, issueKey, tmuxSession });
 
-    // Set delegate on Linear (async, non-blocking)
-    setDelegateOnLinear(role, issueKey).catch(() => {});
+    // Set status to In Progress + assign delegate on Linear (async, non-blocking)
+    setIssueInProgress(role, issueKey).catch(() => {});
 
     return { success: true, tmuxSession };
   } catch (err) {
@@ -207,22 +207,20 @@ function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: 
   }
 }
 
-/** Set the Linear issue delegate to the agent — shows who's working on it in Linear UI */
-async function setDelegateOnLinear(role: string, issueKey: string): Promise<void> {
-  try {
-    const { getAgent } = await import('../agents/registry.js');
-    const { getSystemClient, getIssue } = await import('../linear/client.js');
-    const agent = getAgent(role);
-    if (!agent?.linearUserId) return;
+/** Move issue to In Progress on Linear when agent starts working */
+async function setIssueInProgress(role: string, issueKey: string): Promise<void> {
+  // Skip duty sessions (pulse, postmortem — they don't have real Linear issues)
+  if (issueKey.startsWith('pulse-') || issueKey.startsWith('postmortem-')) return;
 
+  try {
+    const { getIssue, setIssueStatus } = await import('../linear/client.js');
     const issue = await getIssue(issueKey);
     if (!issue) return;
 
-    const client = getSystemClient();
-    await client.updateIssue(issue.id, { assigneeId: agent.linearUserId });
-    console.log(chalk.dim(`[runner] Delegated ${issueKey} → ${role} on Linear`));
+    await setIssueStatus(issue.id, 'In Progress');
+    console.log(chalk.dim(`[runner] ${issueKey} → In Progress`));
   } catch (err) {
-    console.error(chalk.dim(`[runner] Failed to set delegate: ${(err as Error).message}`));
+    console.error(chalk.dim(`[runner] Failed to set In Progress: ${(err as Error).message}`));
   }
 }
 
@@ -316,7 +314,8 @@ function buildDefaultPrompt(issueKey: string): string {
   ].join('\n');
 }
 
-function buildSpawnScript(workDir: string, prompt: string, role: string, issueKey: string, useContinue: boolean): string {
+/** @internal Exported for testing */
+export function _buildSpawnScript(workDir: string, prompt: string, role: string, issueKey: string, useContinue: boolean): string {
   const promptFile = `/tmp/anc-prompt-${role}-${issueKey}.txt`;
   writeFileSync(promptFile, prompt, 'utf-8');
   const continueFlag = useContinue ? ' --continue' : '';

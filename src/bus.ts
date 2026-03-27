@@ -4,6 +4,10 @@
  * Handlers run concurrently — no single handler blocks others.
  */
 
+import { createLogger } from './core/logger.js';
+
+const log = createLogger('bus');
+
 type Listener<T> = (data: T) => void | Promise<void>;
 
 class TypedEventBus<Events> {
@@ -30,7 +34,7 @@ class TypedEventBus<Events> {
 
     for (const r of results) {
       if (r.status === 'rejected') {
-        console.error(`[bus] Handler error on "${event}":`, r.reason);
+        log.error(`Handler error on "${event}": ${r.reason}`);
       }
     }
   }

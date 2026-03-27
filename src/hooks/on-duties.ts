@@ -14,7 +14,9 @@ import { parse as parseYaml } from 'yaml';
 import { bus } from '../bus.js';
 import { resolveSession } from '../runtime/runner.js';
 import { hasDutyCapacity } from '../runtime/health.js';
-import chalk from 'chalk';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('duties');
 
 // --- Types ---
 
@@ -47,7 +49,7 @@ function loadDuties(configDir?: string): DutyConfig[] {
     const raw = parseYaml(readFileSync(path, 'utf-8')) as { duties: DutyConfig[] };
     return (raw.duties ?? []).filter(d => d.id && d.role && d.prompt);
   } catch (err) {
-    console.error(chalk.red(`[duties] Failed to load duties.yaml: ${(err as Error).message}`));
+    log.error(`Failed to load duties.yaml: ${(err as Error).message}`);
     return [];
   }
 }
@@ -72,7 +74,7 @@ function renderPrompt(template: string, vars: Record<string, string>): string {
 
 function executeDuty(duty: DutyConfig, vars: Record<string, string> = {}): void {
   if (!hasDutyCapacity(duty.role)) {
-    console.log(chalk.dim(`[duties] ${duty.id}: ${duty.role} duty slots full, skipping`));
+    log.debug(`${duty.id}: ${duty.role} duty slots full, skipping`, { role: duty.role });
     return;
   }
 
@@ -80,7 +82,7 @@ function executeDuty(duty: DutyConfig, vars: Record<string, string> = {}): void 
   const issueKey = `${duty.issuePrefix}-${timestamp}`;
   const prompt = renderPrompt(duty.prompt, { timestamp, ...vars });
 
-  console.log(chalk.magenta(`[duties] Executing: ${duty.id} → ${duty.role}`));
+  log.info(`Executing: ${duty.id} → ${duty.role}`, { role: duty.role });
 
   resolveSession({
     role: duty.role,
@@ -96,11 +98,11 @@ function executeDuty(duty: DutyConfig, vars: Record<string, string> = {}): void 
 export function registerDutyHandlers(): void {
   duties = loadDuties();
   if (duties.length === 0) {
-    console.log(chalk.dim('[duties] No duties configured'));
+    log.debug('No duties configured');
     return;
   }
 
-  console.log(chalk.magenta(`[duties] Loaded ${duties.length} standing duties`));
+  log.info(`Loaded ${duties.length} standing duties`);
 
   // --- Cron-based duties: check on each tick ---
   const cronDuties = duties.filter(d => d.trigger.cron);

@@ -5,8 +5,10 @@
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
-import chalk from 'chalk';
 import { bus } from './bus.js';
+import { createLogger } from './core/logger.js';
+
+const log = createLogger('gateway');
 import { getConfig } from './linear/types.js';
 import { verifySignature, classifyWebhook } from './linear/webhooks.js';
 
@@ -59,7 +61,7 @@ export function startGateway(port?: number): void {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(events));
       } catch (err) {
-        console.error(chalk.red(`[gateway] /events error: ${(err as Error).message}`));
+        log.error(`/events error: ${(err as Error).message}`);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Failed to fetch events' }));
       }
@@ -89,11 +91,11 @@ export function startGateway(port?: number): void {
         const classified = classifyWebhook(event, payload);
 
         if (classified.type === 'ignored') {
-          console.log(chalk.dim(`[${ts}] ignored: ${classified.reason}`));
+          log.debug(`ignored: ${classified.reason}`);
           return;
         }
 
-        console.log(chalk.bold(`[${ts}] ${classified.type}`));
+        log.info(`webhook: ${classified.type}`);
 
         switch (classified.type) {
           case 'issue.created':
@@ -113,7 +115,7 @@ export function startGateway(port?: number): void {
             break;
         }
       } catch (err) {
-        console.error(chalk.red(`[gateway] Parse error: ${(err as Error).message}`));
+        log.error(`Parse error: ${(err as Error).message}`);
       }
       return;
     }
@@ -154,6 +156,6 @@ export function startGateway(port?: number): void {
   });
 
   server.listen(listenPort, () => {
-    console.log(chalk.bold(`ANC Gateway listening on http://localhost:${listenPort}`));
+    log.info(`ANC Gateway listening on http://localhost:${listenPort}`);
   });
 }

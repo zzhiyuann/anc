@@ -20,7 +20,9 @@ import { getWorkspacePath } from '../runtime/workspace.js';
 import { addComment } from '../linear/client.js';
 import { sessionExists } from '../runtime/runner.js';
 import type { TaskType, IssueStatus } from '../linear/types.js';
-import chalk from 'chalk';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('complete');
 
 // --- Task type detection ---
 
@@ -90,7 +92,7 @@ export function registerCompletionHandlers(): void {
 
       // SUSPEND.md exists → suspended (capacity eviction)
       if (existsSync(suspendPath)) {
-        console.log(chalk.yellow(`[complete] ${session.role}/${session.issueKey}: SUSPEND.md → suspended`));
+        log.info(`${session.role}/${session.issueKey}: SUSPEND.md → suspended`, { role: session.role, issueKey: session.issueKey });
         markSuspended(session.issueKey);
         bus.emit('agent:suspended', { role: session.role, issueKey: session.issueKey, reason: 'SUSPEND.md' });
         continue;
@@ -98,7 +100,7 @@ export function registerCompletionHandlers(): void {
 
       // Nothing → lightweight completion (conversation ended, or task with no HANDOFF)
       // Mark idle — session can be reactivated via --continue if needed
-      console.log(chalk.dim(`[complete] ${session.role}/${session.issueKey}: session ended → idle`));
+      log.debug(`${session.role}/${session.issueKey}: session ended → idle`, { role: session.role, issueKey: session.issueKey });
       markIdle(session.issueKey);
       bus.emit('agent:idle', { role: session.role, issueKey: session.issueKey });
     }
@@ -113,7 +115,7 @@ async function processHandoff(
   const handoff = readFileSync(handoffPath, 'utf-8');
   if (!handoff || handoff.trim().length === 0) return;
 
-  console.log(chalk.green(`[complete] ${session.role}/${session.issueKey}: HANDOFF.md → processing`));
+  log.info(`${session.role}/${session.issueKey}: HANDOFF.md → processing`, { role: session.role, issueKey: session.issueKey });
 
   // Quality gates
   const taskType = detectTaskType(session.issueKey, []);
@@ -148,7 +150,7 @@ async function processHandoff(
   await addComment(session.issueKey, body, session.role);
 
   const newStatus = decideStatus(taskType, handoff);
-  console.log(chalk.green(`[complete] ${session.issueKey} → ${newStatus}`));
+  log.info(`${session.issueKey} → ${newStatus}`, { issueKey: session.issueKey });
 
   // Mark handoff processed, transition to idle (session stays in registry for follow-ups)
   session.handoffProcessed = true;
@@ -191,11 +193,11 @@ async function processRetro(role: string, issueKey: string, workspace: string): 
       : updated;
 
     writeSharedMemory(filename, trimmed);
-    console.log(chalk.green(`[complete] ${role}/${issueKey}: retrospective saved to shared memory`));
+    log.info(`${role}/${issueKey}: retrospective saved to shared memory`, { role, issueKey });
 
     // Archive RETRO.md
     try { unlinkSync(retroPath); } catch { /**/ }
   } catch (err) {
-    console.error(chalk.dim(`[complete] Failed to process retro: ${(err as Error).message}`));
+    log.error(`Failed to process retro: ${(err as Error).message}`, { role, issueKey });
   }
 }
