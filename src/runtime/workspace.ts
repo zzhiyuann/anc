@@ -73,17 +73,37 @@ export function writePersonaToWorkspace(workspace: WorkspaceInfo, persona: strin
   writeFileSync(join(workspace.claudeDir, 'CLAUDE.md'), persona, 'utf-8');
 }
 
-/** Write Claude Code auto-mode settings */
-export function writeAutoModeSettings(workspace: WorkspaceInfo): void {
-  const settings = {
+/** Write Claude Code auto-mode settings + Linear MCP */
+export function writeAutoModeSettings(workspace: WorkspaceInfo, agentToken?: string): void {
+  const settings: Record<string, unknown> = {
     permissions: {
       allow: [
         'Bash(*)','Read(*)','Write(*)','Edit(*)','Glob(*)','Grep(*)',
         'WebFetch(*)','WebSearch(*)','Agent(*)','Skill(*)',
+        'mcp__claude_ai_Linear__list_issues(*)',
+        'mcp__claude_ai_Linear__get_issue(*)',
+        'mcp__claude_ai_Linear__list_comments(*)',
+        'mcp__claude_ai_Linear__save_comment(*)',
+        'mcp__claude_ai_Linear__save_issue(*)',
+        'mcp__claude_ai_Linear__search_documentation(*)',
       ],
       deny: [],
     },
   };
+
+  // Add Linear MCP server config if agent has a token
+  if (agentToken) {
+    settings.mcpServers = {
+      linear: {
+        command: 'npx',
+        args: ['-y', 'mcp-remote', 'https://mcp.linear.app/mcp'],
+        env: {
+          LINEAR_API_KEY: agentToken.replace('Bearer ', ''),
+        },
+      },
+    };
+  }
+
   writeFileSync(
     join(workspace.claudeDir, 'settings.local.json'),
     JSON.stringify(settings, null, 2),

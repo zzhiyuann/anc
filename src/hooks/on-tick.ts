@@ -8,23 +8,23 @@ import { bus } from '../bus.js';
 import { getRegisteredAgents } from '../agents/registry.js';
 import { hasCapacity, getTrackedSessions, getSessionForIssue } from '../runtime/health.js';
 import { resolveSession, sessionExists } from '../runtime/runner.js';
-import { getIssuesByRole, getUnassignedTodoIssues, getIssuesByStatus, setIssueStatus } from '../linear/client.js';
+import { getIssuesByRole, getUnassignedTodoIssues, getIssuesByStatus, setIssueStatus, getIssue } from '../linear/client.js';
+import { routeIssue } from '../routing/router.js';
 import { cleanupBreakers } from '../runtime/circuit-breaker.js';
 import chalk from 'chalk';
 
 let tickCount = 0;
 const HEARTBEAT_EVERY = 10;     // every 10 ticks = 5 min
-const MAX_DISPATCHES_PER_TICK = 2;  // prevent burst
+const MAX_DISPATCHES_PER_TICK = 5;  // dispatch up to 5 per tick
 
 export function registerTickHandlers(): void {
   bus.on('system:tick', async () => {
     tickCount++;
 
     try {
-      // Every tick: auto-dispatch from backlog
       await autoDispatchFromBacklog();
     } catch (err) {
-      console.error(chalk.dim(`[scheduler] autoDispatch error: ${(err as Error).message}`));
+      console.error(chalk.red(`[scheduler] autoDispatch error: ${(err as Error).message}`));
     }
 
     // Every 5 min: periodic maintenance
@@ -43,35 +43,67 @@ export function registerTickHandlers(): void {
   });
 }
 
-/** Auto-dispatch: for each role with capacity, pick up assigned Todo issues from Linear. */
+/** Auto-dispatch: pick up Todo issues from Linear (both assigned and unassigned). */
 async function autoDispatchFromBacklog(): Promise<void> {
-  const agents = getRegisteredAgents();
   let dispatched = 0;
+  const agents = getRegisteredAgents();
 
+  // Phase 1: Issues assigned to specific agents
   for (const agent of agents) {
     if (dispatched >= MAX_DISPATCHES_PER_TICK) break;
     if (!hasCapacity(agent.role)) continue;
-    if (!agent.linearUserId) continue;  // no Linear identity → can't query assigned issues
+    if (!agent.linearUserId) continue;
 
     try {
       const todoIssues = await getIssuesByRole(agent.role, 'Todo');
       for (const issue of todoIssues) {
         if (dispatched >= MAX_DISPATCHES_PER_TICK) break;
-        if (getSessionForIssue(issue.identifier)) continue;  // already tracked
+        if (getSessionForIssue(issue.identifier)) continue;
 
-        const result = resolveSession({
-          role: agent.role,
-          issueKey: issue.identifier,
-          priority: issue.priority,
-        });
-
+        const result = resolveSession({ role: agent.role, issueKey: issue.identifier, priority: issue.priority });
         if (result.action === 'spawned' || result.action === 'resumed') {
-          console.log(chalk.cyan(`[scheduler] Auto-dispatched ${agent.role} on ${issue.identifier}`));
+          console.log(chalk.cyan(`[scheduler] Auto-dispatched ${agent.role} on ${issue.identifier} (assigned)`));
           dispatched++;
         }
       }
-    } catch {
-      // Linear API might fail — non-fatal
+    } catch (err) {
+      console.error(chalk.dim(`[scheduler] assigned dispatch error: ${(err as Error).message}`));
+    }
+  }
+
+  // Phase 2: Unassigned Todo issues — route them to the right agent
+  if (dispatched < MAX_DISPATCHES_PER_TICK) {
+    try {
+      const unassigned = await getUnassignedTodoIssues();
+      console.log(chalk.dim(`[scheduler] Found ${unassigned.length} unassigned Todo issues`));
+      for (const issue of unassigned) {
+        if (dispatched >= MAX_DISPATCHES_PER_TICK) break;
+        if (getSessionForIssue(issue.identifier)) continue;
+
+        // Get full issue details for routing (labels, etc.)
+        const full = await getIssue(issue.identifier);
+        if (!full) continue;
+
+        const decision = routeIssue({
+          id: full.id,
+          identifier: full.identifier,
+          title: full.title,
+          priority: full.priority,
+          labels: full.labels,
+          project: full.project,
+        });
+
+        if (decision.target === 'skip') continue;
+        if (!hasCapacity(decision.target)) continue;
+
+        const result = resolveSession({ role: decision.target, issueKey: issue.identifier, priority: issue.priority });
+        if (result.action === 'spawned' || result.action === 'resumed') {
+          console.log(chalk.cyan(`[scheduler] Auto-dispatched ${decision.target} on ${issue.identifier} (routed)`));
+          dispatched++;
+        }
+      }
+    } catch (err) {
+      console.error(chalk.dim(`[scheduler] unassigned dispatch error: ${(err as Error).message}`));
     }
   }
 }

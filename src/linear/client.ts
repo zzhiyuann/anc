@@ -3,7 +3,7 @@
  * Single source of truth: Linear API. Local cache is disposable.
  */
 
-import { LinearClient } from '@linear/sdk';
+import { LinearClient, LinearDocument } from '@linear/sdk';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { getConfig, type LinearIssue, type AgentRole, VALID_STATUSES, type IssueStatus } from './types.js';
@@ -254,13 +254,14 @@ export async function getUnassignedTodoIssues(): Promise<LinearIssue[]> {
   if (!stateId) return [];
 
   try {
+    // Get ALL Todo issues for the team (the scheduler will route them)
     const issues = await client.issues({
       filter: {
         team: { id: { eq: config.linearTeamId } },
         state: { id: { eq: stateId } },
-        assignee: { null: true },
       },
       first: 10,
+      orderBy: LinearDocument.PaginationOrderBy.UpdatedAt,
     });
 
     return issues.nodes.map(i => ({

@@ -157,12 +157,14 @@ function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: 
 
   // Prepare workspace + persona
   const workspace = ensureWorkspace(issueKey, role);
+  const tokenPath = join(homedir(), '.anc', 'agents', role, '.oauth-token');
+  const agentToken = existsSync(tokenPath) ? readFileSync(tokenPath, 'utf-8').trim() : undefined;
   if (!useContinue) {
-    // Only write persona on first spawn (--continue sessions already have it)
     const persona = buildPersona(role);
     writePersonaToWorkspace(workspace, persona);
-    writeAutoModeSettings(workspace);
   }
+  // Always write settings (may have updated MCP config)
+  writeAutoModeSettings(workspace, agentToken);
 
   // Build prompt
   const fullPrompt = prompt ?? buildDefaultPrompt(issueKey);
