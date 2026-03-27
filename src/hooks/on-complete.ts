@@ -17,7 +17,7 @@ import {
   getTrackedSessions, untrackSession, markIdle, markSuspended,
 } from '../runtime/health.js';
 import { getWorkspacePath } from '../runtime/workspace.js';
-import { addComment } from '../linear/client.js';
+import { addComment, getIssue, setIssueStatus } from '../linear/client.js';
 import { sessionExists } from '../runtime/runner.js';
 import type { TaskType, IssueStatus } from '../linear/types.js';
 import { createLogger } from '../core/logger.js';
@@ -151,6 +151,12 @@ async function processHandoff(
 
   const newStatus = decideStatus(taskType, handoff);
   log.info(`${session.issueKey} → ${newStatus}`, { issueKey: session.issueKey });
+
+  // Apply status transition on Linear
+  const issue = await getIssue(session.issueKey);
+  if (issue) {
+    await setIssueStatus(issue.id, newStatus);
+  }
 
   // Mark handoff processed, transition to idle (session stays in registry for follow-ups)
   session.handoffProcessed = true;

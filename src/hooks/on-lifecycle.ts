@@ -26,13 +26,19 @@ function isDutyIssue(issueKey: string): boolean {
   return issueKey.startsWith('pulse-') || issueKey.startsWith('postmortem-');
 }
 
+// Track which issues have had their "started" comment posted — prevents spam on re-spawns
+const startedCommented = new Set<string>();
+
 export function registerLifecycleHandlers(): void {
-  // --- SPAWNED: comment + create AgentSession ("Working...") ---
+  // --- SPAWNED: comment (once only) + create AgentSession ("Working...") ---
   bus.on('agent:spawned', async ({ role, issueKey }) => {
     if (isDutyIssue(issueKey)) return;
 
-    // Post lifecycle comment
-    await addComment(issueKey, `**${role}** started working on this issue.`, role).catch(() => {});
+    // Only post "started" comment on FIRST spawn for this issue, not re-spawns
+    if (!startedCommented.has(issueKey)) {
+      startedCommented.add(issueKey);
+      await addComment(issueKey, `**${role}** picked up this issue.`, role).catch(() => {});
+    }
 
     // Create AgentSession → "Working..." badge
     try {
@@ -95,6 +101,7 @@ export function registerLifecycleHandlers(): void {
   // --- COMPLETED: dismiss AgentSession + notify Discord ---
   bus.on('agent:completed', async ({ role, issueKey, handoff }) => {
     if (isDutyIssue(issueKey)) return;
+    startedCommented.delete(issueKey);  // allow re-comment if issue is reopened later
     await dismissLinearSession(issueKey, role);
 
     // Post completion summary to Discord with emoji reactions
@@ -106,6 +113,11 @@ export function registerLifecycleHandlers(): void {
       await addReactions(msg, emojis);
     }
   });
+}
+
+/** Reset module state (for testing) */
+export function _resetLifecycle(): void {
+  startedCommented.clear();
 }
 
 /** Dismiss the Linear AgentSession (removes "Working..." badge) */

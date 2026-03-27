@@ -179,18 +179,16 @@ async function getWorkflowStateId(name: string): Promise<string | null> {
 // --- Agent Session operations ---
 
 export async function createAgentSession(issueId: string, asAgent: AgentRole): Promise<string | null> {
-  const { getAgent } = await import('../agents/registry.js');
-  const agent = getAgent(asAgent);
-  if (!agent?.linearUserId) return null;
-
   const client = getAgentClient(asAgent);
   try {
-    const data = await (client as unknown as { _request: (query: string, variables: Record<string, unknown>) => Promise<Record<string, unknown>> })
-      ._request(
-        `mutation($input: AgentSessionCreateInput!) { agentSessionCreate(input: $input) { agentSession { id } } }`,
-        { input: { issueId, appUserId: agent.linearUserId } },
-      );
-    return (data as { agentSessionCreate: { agentSession: { id: string } } }).agentSessionCreate?.agentSession?.id ?? null;
+    const data = await withRateLimit(() =>
+      (client as unknown as { _request: (query: string, variables: Record<string, unknown>) => Promise<Record<string, unknown>> })
+        ._request(
+          `mutation($input: AgentSessionCreateOnIssue!) { agentSessionCreateOnIssue(input: $input) { success agentSession { id } } }`,
+          { input: { issueId } },
+        )
+    );
+    return (data as { agentSessionCreateOnIssue: { agentSession: { id: string } } }).agentSessionCreateOnIssue?.agentSession?.id ?? null;
   } catch (err) {
     log.error(`Failed to create agent session: ${(err as Error).message}`);
     return null;
