@@ -11,7 +11,7 @@ import chalk from 'chalk';
 
 export function registerIssueHandlers(): void {
   bus.on('webhook:issue.created', async ({ issue }) => {
-    const status = issue.state?.toLowerCase() ?? '';
+    const status = (typeof issue.state === 'string' ? issue.state : '').toLowerCase();
     if (status === 'backlog' || status === 'canceled' || status === 'done') return;
 
     const decision = routeIssue(issue);

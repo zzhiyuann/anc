@@ -77,9 +77,15 @@ export function classifyWebhook(event: string, payload: WebhookPayload): Classif
       title: data.title as string,
       description: data.description as string | undefined,
       priority: (data.priority ?? 3) as number,
-      labels: (data.labels as string[]) ?? [],
-      state: data.state as string | undefined,
-      project: data.project as string | undefined,
+      labels: Array.isArray(data.labels)
+        ? (data.labels as Array<Record<string, unknown>>).map(l => (l.name ?? l) as string)
+        : [],
+      state: typeof data.state === 'object' && data.state !== null
+        ? (data.state as Record<string, unknown>).name as string
+        : data.state as string | undefined,
+      project: typeof data.project === 'object' && data.project !== null
+        ? (data.project as Record<string, unknown>).name as string
+        : data.project as string | undefined,
       assigneeId: data.assigneeId as string | undefined,
       delegateId: data.delegateId as string | undefined,
       parentId: data.parentId as string | undefined,

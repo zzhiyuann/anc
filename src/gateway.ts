@@ -23,6 +23,11 @@ export function startGateway(port?: number): void {
   const listenPort = port ?? config.webhookPort;
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    // Strip /anc prefix (cloudflared path-based routing preserves it)
+    if (req.url?.startsWith('/anc')) {
+      req.url = req.url.slice(4) || '/';
+    }
+
     // --- Health ---
     if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
