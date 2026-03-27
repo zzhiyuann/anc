@@ -327,6 +327,10 @@ function buildSpawnScript(workDir: string, prompt: string, role: string, issueKe
 
   return `#!/bin/bash
 cd "${workDir}" || exit 1
+
+# Prevent Claude nesting detection
+unset CLAUDE_CODE CLAUDECODE CLAUDE_CODE_ENTRYPOINT
+
 export AGENT_ROLE="${role}"
 export ANC_ISSUE_KEY="${issueKey}"
 export ANC_SERVER_URL="http://localhost:${process.env.ANC_WEBHOOK_PORT || 3849}"

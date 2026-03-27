@@ -47,7 +47,20 @@ function getAgentToken(role: AgentRole): string | null {
 export async function getIssue(identifier: string): Promise<LinearIssue | null> {
   const client = getSystemClient();
   try {
-    const issue = await client.issue(identifier);
+    // Linear SDK's issue() takes UUID. For identifiers (ANC-13), parse and use number filter.
+    let issue;
+    if (identifier.match(/^[A-Z]+-\d+$/)) {
+      const [teamKey, numStr] = identifier.split('-');
+      const num = parseInt(numStr, 10);
+      const config = getConfig();
+      const results = await client.issues({
+        filter: { team: { key: { eq: teamKey } }, number: { eq: num } },
+        first: 1,
+      });
+      issue = results.nodes[0];
+    } else {
+      issue = await client.issue(identifier);
+    }
     if (!issue) return null;
     const state = await issue.state;
     const labels = await issue.labels();
@@ -75,14 +88,24 @@ export async function getIssue(identifier: string): Promise<LinearIssue | null> 
   }
 }
 
-export async function addComment(issueId: string, body: string, asAgent?: AgentRole): Promise<string | null> {
+export async function addComment(issueIdOrKey: string, body: string, asAgent?: AgentRole): Promise<string | null> {
   const client = asAgent ? getAgentClient(asAgent) : getSystemClient();
   try {
+    // Resolve identifier (ANC-4) to UUID if needed
+    let issueId = issueIdOrKey;
+    if (issueIdOrKey.match(/^[A-Z]+-\d+$/)) {
+      const issue = await getIssue(issueIdOrKey);
+      if (!issue) {
+        console.error(`[linear] Issue not found: ${issueIdOrKey}`);
+        return null;
+      }
+      issueId = issue.id;
+    }
     const comment = await client.createComment({ issueId, body });
     const created = await comment.comment;
     return created?.id ?? null;
   } catch (err) {
-    console.error(`[linear] Failed to add comment:`, (err as Error).message);
+    console.error(`[linear] Failed to add comment on ${issueIdOrKey}:`, (err as Error).message);
     return null;
   }
 }

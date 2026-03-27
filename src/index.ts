@@ -36,6 +36,7 @@ program
     const { registerDiscordHandlers } = await import('./hooks/on-discord.js');
     const { registerTickHandlers } = await import('./hooks/on-tick.js');
     const { registerDutyHandlers } = await import('./hooks/on-duties.js');
+    const { registerLifecycleHandlers } = await import('./hooks/on-lifecycle.js');
     const { startDiscordBot } = await import('./channels/discord.js');
     const { bus } = await import('./bus.js');
     const { cleanup } = await import('./routing/queue.js');
@@ -49,6 +50,7 @@ program
     registerDiscordHandlers();
     registerTickHandlers();
     registerDutyHandlers();
+    registerLifecycleHandlers();
 
     // Recover sessions from existing tmux (after restart)
     const recovered = recoverSessionsFromTmux();
