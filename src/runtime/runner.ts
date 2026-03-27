@@ -145,8 +145,8 @@ async function setIssueInProgress(role: string, issueKey: string): Promise<void>
     const issue = await getIssue(issueKey);
     if (!issue) return;
 
-    await setIssueStatus(issue.id, 'In Progress');
-    log.debug(`${issueKey} → In Progress`, { issueKey });
+    await setIssueStatus(issue.id, 'In Progress', role);
+    log.debug(`${issueKey} → In Progress (as ${role})`, { issueKey });
   } catch (err) {
     log.error(`Failed to set In Progress: ${(err as Error).message}`, { issueKey });
   }

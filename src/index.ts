@@ -3,8 +3,19 @@
  * ANC CLI — Agent Native Company
  */
 
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { existsSync } from 'fs';
 import { Command } from 'commander';
 import chalk from 'chalk';
+
+// Load .env from project root (no dotenv dependency needed — Node 20.12+)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envFile = join(__dirname, '..', '.env');
+if (existsSync(envFile)) {
+  process.loadEnvFile(envFile);
+}
 
 const program = new Command();
 

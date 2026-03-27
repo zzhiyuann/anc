@@ -74,35 +74,23 @@ export function writePersonaToWorkspace(workspace: WorkspaceInfo, persona: strin
   writeFileSync(join(workspace.claudeDir, 'CLAUDE.md'), persona, 'utf-8');
 }
 
-/** Write Claude Code auto-mode settings + Linear MCP */
-export function writeAutoModeSettings(workspace: WorkspaceInfo, agentToken?: string): void {
+/** Write Claude Code auto-mode settings.
+ *  NO Linear MCP — agents must use `anc` CLI for all Linear operations.
+ *  This prevents identity leaks (MCP uses CEO's global token). */
+export function writeAutoModeSettings(workspace: WorkspaceInfo, _agentToken?: string): void {
   const settings: Record<string, unknown> = {
     permissions: {
       allow: [
         'Bash(*)','Read(*)','Write(*)','Edit(*)','Glob(*)','Grep(*)',
         'WebFetch(*)','WebSearch(*)','Agent(*)','Skill(*)',
-        'mcp__claude_ai_Linear__list_issues(*)',
-        'mcp__claude_ai_Linear__get_issue(*)',
-        'mcp__claude_ai_Linear__list_comments(*)',
-        'mcp__claude_ai_Linear__save_comment(*)',
-        'mcp__claude_ai_Linear__save_issue(*)',
-        'mcp__claude_ai_Linear__search_documentation(*)',
       ],
-      deny: [],
+      deny: [
+        // Block Linear MCP tools — forces agents to use `anc` CLI which has correct identity
+        'mcp__claude_ai_Linear__*',
+      ],
     },
   };
-
-  // Add Linear MCP server config if agent has a token
-  if (agentToken) {
-    settings.mcpServers = {
-      linear: {
-        command: 'npx',
-        args: ['-y', 'mcp-remote', 'https://mcp.linear.app/mcp'],
-        env: {
-          LINEAR_API_KEY: agentToken.replace('Bearer ', ''),
-        },
-      },
-    };
+  {
   }
 
   writeFileSync(

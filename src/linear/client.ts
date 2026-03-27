@@ -114,11 +114,12 @@ export async function addComment(issueIdOrKey: string, body: string, asAgent?: A
   }
 }
 
-export async function setIssueStatus(issueId: string, status: IssueStatus): Promise<boolean> {
+export async function setIssueStatus(issueId: string, status: IssueStatus, asAgent?: AgentRole): Promise<boolean> {
   if (!VALID_STATUSES.includes(status)) {
     throw new Error(`Invalid status: "${status}". Valid: ${VALID_STATUSES.join(', ')}`);
   }
-  const client = getSystemClient();
+  // Use agent client if available — status change shows as "Engineer moved..." instead of "Zhiyuan Wang moved..."
+  const client = asAgent ? getAgentClient(asAgent) : getSystemClient();
   try {
     const stateId = await getWorkflowStateId(status);
     if (!stateId) return false;

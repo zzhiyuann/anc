@@ -155,7 +155,7 @@ async function processHandoff(
   // Apply status transition on Linear
   const issue = await getIssue(session.issueKey);
   if (issue) {
-    await setIssueStatus(issue.id, newStatus);
+    await setIssueStatus(issue.id, newStatus, session.role);
   }
 
   // Mark handoff processed, transition to idle (session stays in registry for follow-ups)
