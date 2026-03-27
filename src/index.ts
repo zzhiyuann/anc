@@ -95,6 +95,15 @@ program
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));
 
+    // Global error handlers — log and continue (don't crash the server)
+    process.on('uncaughtException', (err) => {
+      log.error(`Uncaught exception: ${err.message}\n${err.stack ?? ''}`);
+    });
+    process.on('unhandledRejection', (reason) => {
+      const msg = reason instanceof Error ? reason.message : String(reason);
+      log.error(`Unhandled rejection: ${msg}`);
+    });
+
     log.info('Event handlers registered. System ready.');
   });
 
@@ -189,6 +198,33 @@ agent
         console.log(`  tmux attach-session -t "${s.tmuxSession}"  # ${s.issueKey}`);
       }
     }
+  });
+
+// --- Company ---
+const company = program.command('company').description('Fleet-level management');
+
+company
+  .command('start')
+  .description('Start all agents on their Todo backlog')
+  .action(async () => {
+    const { companyStart } = await import('./commands/company.js');
+    await companyStart();
+  });
+
+company
+  .command('stop')
+  .description('Gracefully stop all active sessions')
+  .action(async () => {
+    const { companyStop } = await import('./commands/company.js');
+    companyStop();
+  });
+
+company
+  .command('status')
+  .description('Fleet overview — all agents, sessions, capacity')
+  .action(async () => {
+    const { companyStatus } = await import('./commands/company.js');
+    companyStatus();
   });
 
 // --- Doctor ---

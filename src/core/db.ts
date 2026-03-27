@@ -13,6 +13,9 @@ import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
+import { createLogger } from './logger.js';
+
+const log = createLogger('db');
 import type { QueueItem } from '../linear/types.js';
 import type { TrackedSession, SessionState } from '../runtime/health.js';
 
@@ -212,7 +215,9 @@ export function closeDb(): void {
     try {
       db.pragma('wal_checkpoint(TRUNCATE)');
       db.close();
-    } catch { /**/ }
+    } catch (err) {
+      log.warn(`DB close error: ${(err as Error).message}`);
+    }
     db = null;
   }
 }
@@ -222,5 +227,7 @@ export function backupDb(): void {
   try {
     const backupPath = DB_PATH + '.bak';
     db.backup(backupPath);
-  } catch { /**/ }
+  } catch (err) {
+    log.warn(`DB backup error: ${(err as Error).message}`);
+  }
 }

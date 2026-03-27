@@ -32,8 +32,9 @@ export function startGateway(port?: number): void {
 
     // --- Health ---
     if (req.method === 'GET' && req.url === '/health') {
+      const { getRateLimitStatus } = await import('./linear/rate-limiter.js');
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', service: 'anc', uptime: Math.round(process.uptime()) }));
+      res.end(JSON.stringify({ status: 'ok', service: 'anc', uptime: Math.round(process.uptime()), rateLimit: getRateLimitStatus() }));
       return;
     }
 

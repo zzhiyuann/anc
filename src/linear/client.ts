@@ -8,6 +8,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { getConfig, type LinearIssue, type AgentRole, VALID_STATUSES, type IssueStatus } from './types.js';
 import { createLogger } from '../core/logger.js';
+import { withRateLimit } from './rate-limiter.js';
 
 const log = createLogger('linear');
 
@@ -56,13 +57,13 @@ export async function getIssue(identifier: string): Promise<LinearIssue | null> 
       const [teamKey, numStr] = identifier.split('-');
       const num = parseInt(numStr, 10);
       const config = getConfig();
-      const results = await client.issues({
+      const results = await withRateLimit(() => client.issues({
         filter: { team: { key: { eq: teamKey } }, number: { eq: num } },
         first: 1,
-      });
+      }));
       issue = results.nodes[0];
     } else {
-      issue = await client.issue(identifier);
+      issue = await withRateLimit(() => client.issue(identifier));
     }
     if (!issue) return null;
     const state = await issue.state;
@@ -104,7 +105,7 @@ export async function addComment(issueIdOrKey: string, body: string, asAgent?: A
       }
       issueId = issue.id;
     }
-    const comment = await client.createComment({ issueId, body });
+    const comment = await withRateLimit(() => client.createComment({ issueId, body }));
     const created = await comment.comment;
     return created?.id ?? null;
   } catch (err) {
@@ -121,7 +122,7 @@ export async function setIssueStatus(issueId: string, status: IssueStatus): Prom
   try {
     const stateId = await getWorkflowStateId(status);
     if (!stateId) return false;
-    await client.updateIssue(issueId, { stateId });
+    await withRateLimit(() => client.updateIssue(issueId, { stateId }));
     return true;
   } catch (err) {
     log.error(`Failed to set status: ${(err as Error).message}`);
@@ -142,13 +143,13 @@ export async function createSubIssue(
   const client = asAgent ? getAgentClient(asAgent) : getSystemClient();
   const config = getConfig();
   try {
-    const result = await client.createIssue({
+    const result = await withRateLimit(() => client.createIssue({
       teamId: config.linearTeamId,
       title,
       description,
       priority,
       parentId: parent.id,
-    });
+    }));
     const created = await result.issue;
     return created?.identifier ?? null;
   } catch (err) {
@@ -236,13 +237,13 @@ export async function getIssuesByRole(role: AgentRole, status: IssueStatus): Pro
   if (!stateId) return [];
 
   try {
-    const issues = await client.issues({
+    const issues = await withRateLimit(() => client.issues({
       filter: {
         assignee: { id: { eq: agent.linearUserId } },
         state: { id: { eq: stateId } },
       },
       first: 10,
-    });
+    }));
 
     return issues.nodes.map(i => ({
       id: i.id,
@@ -264,14 +265,14 @@ export async function getUnassignedTodoIssues(): Promise<LinearIssue[]> {
 
   try {
     // Get ALL Todo issues for the team (the scheduler will route them)
-    const issues = await client.issues({
+    const issues = await withRateLimit(() => client.issues({
       filter: {
         team: { id: { eq: config.linearTeamId } },
         state: { id: { eq: stateId } },
       },
       first: 10,
       orderBy: LinearDocument.PaginationOrderBy.UpdatedAt,
-    });
+    }));
 
     return issues.nodes.map(i => ({
       id: i.id,
@@ -292,13 +293,13 @@ export async function getIssuesByStatus(status: IssueStatus): Promise<LinearIssu
   if (!stateId) return [];
 
   try {
-    const issues = await client.issues({
+    const issues = await withRateLimit(() => client.issues({
       filter: {
         team: { id: { eq: config.linearTeamId } },
         state: { id: { eq: stateId } },
       },
       first: 50,
-    });
+    }));
 
     return issues.nodes.map(i => ({
       id: i.id,
