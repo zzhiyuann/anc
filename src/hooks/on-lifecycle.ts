@@ -17,6 +17,7 @@
 import { bus } from '../bus.js';
 import { addComment, createAgentSession, dismissSession, getIssue } from '../linear/client.js';
 import { getSessionForIssue } from '../runtime/health.js';
+import { postToDiscord, addReactions } from '../channels/discord.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('lifecycle');
@@ -50,11 +51,14 @@ export function registerLifecycleHandlers(): void {
     }
   });
 
-  // --- FAILED: comment + dismiss AgentSession ---
+  // --- FAILED: comment + dismiss AgentSession + notify Discord ---
   bus.on('agent:failed', async ({ role, issueKey, error }) => {
     if (isDutyIssue(issueKey)) return;
     await addComment(issueKey, `**${role}** encountered an error:\n\n\`${error}\`\n\nCircuit breaker may delay retry.`, role).catch(() => {});
     await dismissLinearSession(issueKey, role);
+
+    const msg = await postToDiscord(role, `failed on **${issueKey}**: \`${error.substring(0, 200)}\``);
+    if (msg) await addReactions(msg, ['❌']);
   });
 
   // --- SUSPENDED: comment + dismiss AgentSession ---
@@ -88,10 +92,19 @@ export function registerLifecycleHandlers(): void {
     await dismissLinearSession(issueKey, role);
   });
 
-  // --- COMPLETED: dismiss AgentSession ---
-  bus.on('agent:completed', async ({ role, issueKey }) => {
+  // --- COMPLETED: dismiss AgentSession + notify Discord ---
+  bus.on('agent:completed', async ({ role, issueKey, handoff }) => {
     if (isDutyIssue(issueKey)) return;
     await dismissLinearSession(issueKey, role);
+
+    // Post completion summary to Discord with emoji reactions
+    const summary = handoff.length > 300 ? handoff.substring(0, 300) + '...' : handoff;
+    const msg = await postToDiscord(role, `completed **${issueKey}**\n${summary}`);
+    if (msg) {
+      const hasWarning = /quality check warnings/i.test(handoff);
+      const emojis = hasWarning ? ['✅', '⚠️'] : ['✅'];
+      await addReactions(msg, emojis);
+    }
   });
 }
 

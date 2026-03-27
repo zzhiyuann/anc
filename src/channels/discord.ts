@@ -97,22 +97,33 @@ export function stopDiscordBot(): void {
 
 // --- Outbound posting ---
 
-export async function postToDiscord(role: string, message: string): Promise<boolean> {
-  if (!client || !channelId) return false;
+export async function postToDiscord(role: string, message: string): Promise<Message | null> {
+  if (!client || !channelId) return null;
 
   const truncated = message.length > 1950 ? message.substring(0, 1950) + '...' : message;
-  if (isDuplicate(truncated)) return false;
+  if (isDuplicate(truncated)) return null;
 
   try {
     const channel = await client.channels.fetch(channelId);
     if (channel && 'send' in channel) {
-      await channel.send(`**[${role}]** ${truncated}`);
-      return true;
+      const sent = await channel.send(`**[${role}]** ${truncated}`);
+      return sent;
     }
   } catch (err) {
     log.error(`Post failed: ${(err as Error).message}`);
   }
-  return false;
+  return null;
+}
+
+/** Add emoji reactions to a Discord message */
+export async function addReactions(msg: Message, emojis: string[]): Promise<void> {
+  for (const emoji of emojis) {
+    try {
+      await msg.react(emoji);
+    } catch (err) {
+      log.error(`React failed (${emoji}): ${(err as Error).message}`);
+    }
+  }
 }
 
 /** Reply to a specific Discord message */
