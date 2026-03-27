@@ -57,7 +57,8 @@ export function setupCodeWorktree(workspace: WorkspaceInfo, repoPath: string, br
     });
     return true;
   } catch (err) {
-    console.error(`[workspace] Failed to create worktree:`, (err as Error).message);
+    // Worktree creation failed — will fall back to symlink
+
     // Fallback: symlink to repo
     try {
       symlinkSync(repoPath, workspace.codeDir);

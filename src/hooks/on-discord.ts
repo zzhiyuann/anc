@@ -6,7 +6,9 @@ import { bus } from '../bus.js';
 import { loadRoutingConfig, buildMentionRegex } from '../routing/rules.js';
 import { resolveSession } from '../runtime/runner.js';
 import { replyInDiscord } from '../channels/discord.js';
-import chalk from 'chalk';
+import { createLogger } from '../core/logger.js';
+
+const log = createLogger('discord');
 
 export function registerDiscordHandlers(): void {
   bus.on('discord:message', async ({ content, channelId, messageId }) => {
@@ -20,7 +22,7 @@ export function registerDiscordHandlers(): void {
     const issueKey = issueMatch ? issueMatch[1] : 'discord-adhoc';
     const prompt = content.replace(regex, '').trim();
 
-    console.log(chalk.cyan(`[discord] @${role}: ${content.substring(0, 80)}`));
+    log.info(`@${role}: ${content.substring(0, 80)}`);
 
     const result = resolveSession({
       role,

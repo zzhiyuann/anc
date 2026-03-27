@@ -41,6 +41,8 @@ program
     const { bus } = await import('./bus.js');
     const { cleanup } = await import('./routing/queue.js');
     const { recoverSessionsFromTmux } = await import('./runtime/runner.js');
+    const { createLogger } = await import('./core/logger.js');
+    const log = createLogger('system');
 
     // Register all event handlers
     registerIssueHandlers();
@@ -55,7 +57,7 @@ program
     // Recover sessions from existing tmux (after restart)
     const recovered = recoverSessionsFromTmux();
     if (recovered > 0) {
-      console.log(chalk.yellow(`Recovered ${recovered} sessions from existing tmux`));
+      log.info(`Recovered ${recovered} sessions from existing tmux`);
     }
 
     // Start Discord bot
@@ -84,7 +86,7 @@ program
 
     // Graceful shutdown
     const shutdown = (signal: string) => {
-      console.log(chalk.dim(`\n[${signal}] Shutting down...`));
+      log.info(`[${signal}] Shutting down...`);
       const { stopDiscordBot } = require('./channels/discord.js');
       try { stopDiscordBot(); } catch { /**/ }
       closeDb();
@@ -93,7 +95,7 @@ program
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-    console.log(chalk.bold('Event handlers registered. System ready.'));
+    log.info('Event handlers registered. System ready.');
   });
 
 // --- Agent commands ---
@@ -187,6 +189,15 @@ agent
         console.log(`  tmux attach-session -t "${s.tmuxSession}"  # ${s.issueKey}`);
       }
     }
+  });
+
+// --- Doctor ---
+program
+  .command('doctor')
+  .description('Run diagnostic checks on the ANC system')
+  .action(async () => {
+    const { doctorCommand } = await import('./commands/doctor.js');
+    await doctorCommand();
   });
 
 // --- Status ---

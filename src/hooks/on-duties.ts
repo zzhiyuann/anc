@@ -109,7 +109,7 @@ export function registerDutyHandlers(): void {
   for (const duty of cronDuties) {
     const intervalMs = parseCronInterval(duty.trigger.cron!);
     if (intervalMs === 0) {
-      console.error(chalk.red(`[duties] Invalid cron: ${duty.trigger.cron} for ${duty.id}`));
+      log.error(`Invalid cron: ${duty.trigger.cron} for ${duty.id}`);
       continue;
     }
     dutyStates.set(duty.id, { lastRun: 0, intervalMs });
