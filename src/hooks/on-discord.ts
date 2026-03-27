@@ -4,7 +4,7 @@
 
 import { bus } from '../bus.js';
 import { loadRoutingConfig, buildMentionRegex } from '../routing/rules.js';
-import { resolveSession } from '../runtime/runner.js';
+import { resolveSession } from '../runtime/resolve.js';
 import { replyInDiscord } from '../channels/discord.js';
 import { createLogger } from '../core/logger.js';
 

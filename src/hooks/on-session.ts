@@ -5,7 +5,7 @@
 
 import { bus } from '../bus.js';
 import { getAgentByLinearUserId } from '../agents/registry.js';
-import { resolveSession } from '../runtime/runner.js';
+import { resolveSession } from '../runtime/resolve.js';
 import { getIssue } from '../linear/client.js';
 import { getSessionForIssue } from '../runtime/health.js';
 import { sendToAgent, sessionExists } from '../runtime/runner.js';

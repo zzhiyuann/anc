@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml } from 'yaml';
 import { bus } from '../bus.js';
-import { resolveSession } from '../runtime/runner.js';
+import { resolveSession } from '../runtime/resolve.js';
 import { hasDutyCapacity } from '../runtime/health.js';
 import { createLogger } from '../core/logger.js';
 

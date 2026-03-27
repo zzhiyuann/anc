@@ -6,7 +6,7 @@
 import { bus } from '../bus.js';
 import { routeComment, type CommentContext } from '../routing/router.js';
 import { getSessionForIssue } from '../runtime/health.js';
-import { resolveSession } from '../runtime/runner.js';
+import { resolveSession } from '../runtime/resolve.js';
 import { getIssue } from '../linear/client.js';
 import { downloadCommentImages } from '../linear/images.js';
 import { getWorkspacePath } from '../runtime/workspace.js';

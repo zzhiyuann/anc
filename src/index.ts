@@ -124,7 +124,7 @@ agent
   .description('Start an agent on an issue')
   .option('--prompt <prompt>', 'Custom prompt')
   .action(async (role: string, issueKey?: string, opts?: { prompt?: string }) => {
-    const { resolveSession } = await import('./runtime/runner.js');
+    const { resolveSession } = await import('./runtime/resolve.js');
     const key = issueKey ?? 'adhoc';
     const result = resolveSession({ role, issueKey: key, prompt: opts?.prompt });
     console.log(chalk.green(`${role} on ${key}: ${result.action}${result.tmuxSession ? ` (${result.tmuxSession})` : ''}`));
@@ -162,7 +162,7 @@ agent
   .description('Resume a suspended session')
   .option('--prompt <prompt>', 'Additional context for the agent')
   .action(async (issueKey: string, opts?: { prompt?: string }) => {
-    const { resolveSession: resolve } = await import('./runtime/runner.js');
+    const { resolveSession: resolve } = await import('./runtime/resolve.js');
     const { getSessionForIssue } = await import('./runtime/health.js');
     const session = getSessionForIssue(issueKey);
     if (!session) { console.log(chalk.dim(`${issueKey} not tracked`)); return; }

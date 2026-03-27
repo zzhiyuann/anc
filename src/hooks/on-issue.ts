@@ -4,7 +4,7 @@
 
 import { bus } from '../bus.js';
 import { routeIssue } from '../routing/router.js';
-import { resolveSession } from '../runtime/runner.js';
+import { resolveSession } from '../runtime/resolve.js';
 import { hasCapacity } from '../runtime/health.js';
 import { dequeue, completeItem } from '../routing/queue.js';
 import { createLogger } from '../core/logger.js';

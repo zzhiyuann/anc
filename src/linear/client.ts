@@ -178,11 +178,17 @@ async function getWorkflowStateId(name: string): Promise<string | null> {
 // --- Agent Session operations ---
 
 export async function createAgentSession(issueId: string, asAgent: AgentRole): Promise<string | null> {
+  const { getAgent } = await import('../agents/registry.js');
+  const agent = getAgent(asAgent);
+  if (!agent?.linearUserId) return null;
+
   const client = getAgentClient(asAgent);
   try {
-    // Linear SDK's agent session API — use raw GraphQL
     const data = await (client as unknown as { _request: (query: string, variables: Record<string, unknown>) => Promise<Record<string, unknown>> })
-      ._request(`mutation($input: AgentSessionCreateInput!) { agentSessionCreate(input: $input) { agentSession { id } } }`, { input: { issueId } });
+      ._request(
+        `mutation($input: AgentSessionCreateInput!) { agentSessionCreate(input: $input) { agentSession { id } } }`,
+        { input: { issueId, appUserId: agent.linearUserId } },
+      );
     return (data as { agentSessionCreate: { agentSession: { id: string } } }).agentSessionCreate?.agentSession?.id ?? null;
   } catch (err) {
     log.error(`Failed to create agent session: ${(err as Error).message}`);
