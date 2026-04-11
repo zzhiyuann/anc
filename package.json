@@ -15,8 +15,24 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "keywords": [
+    "ai",
+    "agents",
+    "orchestration",
+    "linear",
+    "autonomous",
+    "coding-agents"
+  ],
   "author": "Zhiyuan Wang",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zzhiyuann/anc.git"
+  },
+  "homepage": "https://github.com/zzhiyuann/anc#readme",
+  "bugs": {
+    "url": "https://github.com/zzhiyuann/anc/issues"
+  },
   "dependencies": {
     "@linear/sdk": "^78.0.0",
     "better-sqlite3": "^12.8.0",
