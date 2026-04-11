@@ -30,20 +30,9 @@ export type ClassifiedEvent =
 export function classifyWebhook(event: string, payload: WebhookPayload): ClassifiedEvent {
   const { action, data } = payload;
 
-  // Agent session events
+  // Agent session events — ignored (comment-based sync replaces AgentSession API)
   if (event === 'AgentSession' || data.type === 'AgentSession') {
-    const session: SessionPayload = {
-      id: data.id as string,
-      issueId: (data.issueId ?? (data.issue as Record<string, unknown>)?.id) as string,
-      agentId: data.agentId as string,
-      status: data.status as string,
-      prompt: data.prompt as string | undefined,
-    };
-    if (!session.issueId) return { type: 'ignored', reason: 'session without issue' };
-
-    if (action === 'created') return { type: 'session.created', session };
-    if (action === 'prompted') return { type: 'session.prompted', session, prompt: session.prompt ?? '' };
-    return { type: 'ignored', reason: `session:${action}` };
+    return { type: 'ignored', reason: `AgentSession events disabled (using comment-based sync)` };
   }
 
   // Comment events

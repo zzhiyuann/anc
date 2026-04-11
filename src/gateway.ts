@@ -242,11 +242,11 @@ export function startGateway(port?: number): void {
           case 'comment.created':
             await bus.emit('webhook:comment.created', { comment: classified.comment, issue: classified.issue });
             break;
+          // AgentSession events are intentionally ignored.
+          // Agent work is triggered via issue.created and comment.created instead.
           case 'session.created':
-            await bus.emit('webhook:session.created', { session: classified.session });
-            break;
           case 'session.prompted':
-            await bus.emit('webhook:session.prompted', { session: classified.session, prompt: classified.prompt });
+            log.debug(`Ignoring AgentSession event: ${classified.type}`);
             break;
         }
       } catch (err) {

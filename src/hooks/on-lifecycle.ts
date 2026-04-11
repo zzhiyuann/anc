@@ -14,15 +14,10 @@
  *   suspended → dismiss
  */
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
 import { bus } from '../bus.js';
-import { addComment, createAgentSession, dismissSession, getIssue } from '../linear/client.js';
-import { getSessionForIssue } from '../runtime/health.js';
+import { addComment } from '../linear/client.js';
 import { postToDiscord, addReactions, replyInDiscord } from '../channels/discord.js';
 import { getRootLink } from '../bridge/mappings.js';
-import { getConfig } from '../linear/types.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('lifecycle');
@@ -52,41 +47,37 @@ export function registerLifecycleHandlers(): void {
     // We only handle DISMISSING sessions (in completion/fail/idle handlers).
   });
 
-  // --- FAILED: comment + dismiss AgentSession + notify Discord ---
+  // --- FAILED: comment + notify Discord ---
   bus.on('agent:failed', async ({ role, issueKey, error }) => {
     if (isDutyIssue(issueKey)) return;
     await addComment(issueKey, `**${role}** encountered an error:\n\n\`${error}\`\n\nCircuit breaker may delay retry.`, role).catch(() => {});
-    await dismissLinearSession(issueKey, role);
 
     const msg = await postToDiscord(role, `failed on **${issueKey}**: \`${error.substring(0, 200)}\``);
     if (msg) await addReactions(msg, ['❌']);
   });
 
-  // --- SUSPENDED: comment + dismiss AgentSession ---
+  // --- SUSPENDED: comment ---
   bus.on('agent:suspended', async ({ role, issueKey, reason }) => {
     if (isDutyIssue(issueKey)) return;
     await addComment(issueKey, `**${role}** suspended (${reason}). Will resume when a slot opens.`, role).catch(() => {});
-    await dismissLinearSession(issueKey, role);
   });
 
-  // --- RESUMED: comment only (Linear auto-creates AgentSession from delegate) ---
+  // --- RESUMED: comment ---
   bus.on('agent:resumed', async ({ role, issueKey }) => {
     if (isDutyIssue(issueKey)) return;
     await addComment(issueKey, `**${role}** resumed working.`, role).catch(() => {});
   });
 
-  // --- IDLE: dismiss AgentSession (no comment — on-complete handles that) ---
+  // --- IDLE: no-op (on-complete handles the completion comment) ---
   bus.on('agent:idle', async ({ role, issueKey }) => {
     if (isDutyIssue(issueKey)) return;
     log.debug(`${role}/${issueKey} → idle`);
-    await dismissLinearSession(issueKey, role);
   });
 
-  // --- COMPLETED: dismiss AgentSession + notify Discord ---
+  // --- COMPLETED: notify Discord ---
   bus.on('agent:completed', async ({ role, issueKey, handoff }) => {
     if (isDutyIssue(issueKey)) return;
     startedCommented.delete(issueKey);  // allow re-comment if issue is reopened later
-    await dismissLinearSession(issueKey, role);
 
     // Build clean completion message (not raw HANDOFF dump)
     const summary = formatCompletionSummary(handoff, issueKey);
@@ -158,45 +149,3 @@ function formatCompletionSummary(handoff: string, issueKey: string): string {
   return result || 'Completed (see Linear for details)';
 }
 
-/** Dismiss ALL active AgentSessions for this issue (not just tracked one).
- *  Linear can create multiple sessions per issue (webhook + our createAgentSession).
- *  We must dismiss ALL of them to prevent orphaned "Working..." badges. */
-async function dismissLinearSession(issueKey: string, role: string): Promise<void> {
-  // 1. Dismiss the tracked session
-  const tracked = getSessionForIssue(issueKey);
-  if (tracked?.linearSessionId) {
-    try {
-      await dismissSession(tracked.linearSessionId, role);
-      tracked.linearSessionId = undefined;
-    } catch { /**/ }
-  }
-
-  // 2. Query and dismiss ALL active sessions for this issue
-  try {
-    const issue = await getIssue(issueKey);
-    if (!issue) return;
-
-    const token = readFileSync(join(homedir(), '.anc', 'agents', role, '.oauth-token'), 'utf-8').trim();
-    const res = await fetch('https://api.linear.app/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        query: `{ agentSessions(filter: { issue: { id: { eq: "${issue.id}" } }, status: { in: ["active", "pending"] } }, first: 10) { nodes { id status } } }`,
-      }),
-    });
-    const json = await res.json() as { data?: { agentSessions?: { nodes: Array<{ id: string }> } } };
-    const sessions = json.data?.agentSessions?.nodes ?? [];
-
-    for (const s of sessions) {
-      try {
-        await dismissSession(s.id, role);
-      } catch { /**/ }
-    }
-
-    if (sessions.length > 0) {
-      log.debug(`Dismissed ${sessions.length} AgentSession(s) for ${issueKey}`);
-    }
-  } catch (err) {
-    log.debug(`Failed to dismiss all sessions: ${(err as Error).message}`);
-  }
-}

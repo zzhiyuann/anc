@@ -32,7 +32,7 @@ export interface TrackedSession {
   handoffProcessed: boolean;  // HANDOFF.md already handled for this session cycle
   useContinue: boolean;       // has prior context → use --continue on next spawn
   isDuty: boolean;            // proactive duty session (uses separate capacity pool)
-  linearSessionId?: string;   // Linear AgentSession ID (shows "Working..." badge)
+  // linearSessionId removed — AgentSession API no longer used
 }
 
 // All tracked sessions (active + idle + suspended)

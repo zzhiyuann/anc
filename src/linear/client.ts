@@ -6,7 +6,6 @@
 import { LinearClient, LinearDocument } from '@linear/sdk';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 import { getConfig, type LinearIssue, type AgentRole, VALID_STATUSES, type IssueStatus } from './types.js';
 import { createLogger } from '../core/logger.js';
 import { withRateLimit } from './rate-limiter.js';
@@ -239,80 +238,11 @@ async function getWorkflowStateId(name: string): Promise<string | null> {
   return stateCache.get(name) ?? null;
 }
 
-// --- Agent Session operations ---
-
-export async function createAgentSession(issueId: string, asAgent: AgentRole): Promise<string | null> {
-  // Use direct fetch instead of SDK _request (SDK may intercept the mutation)
-  const tokenPath = join(homedir(), '.anc', 'agents', asAgent, '.oauth-token');
-  if (!existsSync(tokenPath)) return null;
-  const token = readFileSync(tokenPath, 'utf-8').trim();
-
-  try {
-    const res = await fetch('https://api.linear.app/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        query: `mutation($input: AgentSessionCreateOnIssue!) { agentSessionCreateOnIssue(input: $input) { success agentSession { id } } }`,
-        variables: { input: { issueId } },
-      }),
-    });
-    const json = await res.json() as Record<string, unknown>;
-    if ((json as { errors?: unknown[] }).errors) {
-      log.error(`AgentSession error: ${JSON.stringify((json as { errors: unknown[] }).errors[0])}`);
-      return null;
-    }
-    return ((json as { data: { agentSessionCreateOnIssue: { agentSession: { id: string } } } }).data)
-      .agentSessionCreateOnIssue?.agentSession?.id ?? null;
-  } catch (err) {
-    log.error(`Failed to create agent session: ${(err as Error).message}`);
-    return null;
-  }
-}
-
-export async function emitActivity(
-  sessionId: string,
-  body: string,
-  type: 'thought' | 'response' = 'thought',
-  ephemeral: boolean = true,
-  asAgent?: AgentRole,
-): Promise<boolean> {
-  // Use direct fetch — SDK's createAgentActivity may not be available in all versions
-  const role = asAgent ?? 'ops';
-  const tokenPath = join(homedir(), '.anc', 'agents', role, '.oauth-token');
-  if (!existsSync(tokenPath)) return false;
-  const token = readFileSync(tokenPath, 'utf-8').trim();
-
-  try {
-    const res = await fetch('https://api.linear.app/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        query: `mutation($input: AgentActivityCreateInput!) { agentActivityCreate(input: $input) { success } }`,
-        variables: { input: { agentSessionId: sessionId, type: type.toUpperCase(), body, ephemeral } },
-      }),
-    });
-    const json = await res.json() as { data?: { agentActivityCreate?: { success: boolean } }; errors?: unknown[] };
-    if (json.errors) {
-      log.debug(`emitActivity error: ${JSON.stringify(json.errors)}`);
-      return false;
-    }
-    return json.data?.agentActivityCreate?.success ?? false;
-  } catch (err) {
-    log.debug(`emitActivity failed: ${(err as Error).message}`);
-    return false;
-  }
-}
-
-export async function dismissSession(sessionId: string, asAgent?: AgentRole): Promise<boolean> {
-  const client = asAgent ? getAgentClient(asAgent) : getSystemClient();
-  try {
-    await (client as unknown as { completeAgentSession: (id: string, input: Record<string, unknown>) => Promise<unknown> })
-      .completeAgentSession(sessionId, { type: 'response', body: '–' });
-    return true;
-  } catch {
-    return false;
-  }
-}
+// --- AgentSession operations REMOVED ---
+// Linear's AgentSession API has fundamental limitations (10s timeout,
+// dismissedAt is internal-only, state is read-only). After 6 fix attempts,
+// we switched to comment-based sync which is 100% reliable.
+// Agent status is communicated via comments + issue status updates.
 
 // --- Scheduler queries ---
 

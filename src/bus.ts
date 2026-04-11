@@ -55,9 +55,6 @@ export interface AncEvents {
   'webhook:issue.created': { issue: import('./linear/types.js').IssuePayload };
   'webhook:issue.updated': { issue: import('./linear/types.js').IssuePayload; changes: Record<string, unknown> };
   'webhook:comment.created': { comment: import('./linear/types.js').CommentPayload; issue: import('./linear/types.js').IssuePayload };
-  'webhook:session.created': { session: import('./linear/types.js').SessionPayload };
-  'webhook:session.prompted': { session: import('./linear/types.js').SessionPayload; prompt: string };
-
   // Discord-originated events
   'discord:message': { content: string; authorId: string; channelId: string; messageId: string; isReply: boolean; referencedMessageId?: string };
 
