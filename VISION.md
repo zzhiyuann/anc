@@ -1510,40 +1510,47 @@ anc/
 
 ## 13. 路线图
 
-### Phase 1 — Core Stabilization（本周）
-- [ ] Monorepo 重构（pnpm + turborepo）
-- [ ] Port AgentOS 全部功能到 core（queue, budget, persona, batch, watch, resume）
-- [ ] Runtime adapter 接口 + Claude Code / Aider / Gemini 三个 adapter
-- [ ] Linear 降级为 comment-based sync（移除 AgentSession 依赖）
-- [ ] API layer（REST + WebSocket + 完整 CRUD）
-- [ ] Fix 所有现有 Linear 交互 bugs
-- [ ] CEO Office Agent persona + duties
-- [ ] ANC 自身 task/issue 系统（不依赖 Linear 也能创建管理任务）
+### Phase 1 — Core Stabilization ✅ DONE
+- [x] Port AgentOS 全部功能到 core（queue, budget, persona, batch）
+- [x] Linear 降级为 comment-based sync（移除 AgentSession 依赖）
+- [x] API layer（REST + WebSocket + 完整 CRUD）
+- [x] Fix 所�� Linear 交互 bugs（-231 行 AgentSession 代码删除）
+- [x] CEO Office Agent persona + duties
+- [x] 116 tests passing
+- [x] README 重写 + GitHub CI
 
-### Phase 2 — Native App MVP（2 周内）
-- [ ] Swift SDK (`ANCKit`)：REST client + WebSocket + Observable store
-- [ ] macOS App：Command Center + Task Board (Kanban/List) + Agent Profiles
-- [ ] macOS App：Menu Bar widget（agent 状态一览）
+### Phase 2 — Web Dashboard + Native Mac App（并行开发）
+
+**两个前端，同一个 API 后端。**
+
+Web Dashboard：
+- [ ] 连接真实 API（去掉 mock data）
+- [ ] WebSocket 实时连通
+- [ ] Command Center + Tasks + Agents + Memory 四个核心页面
+
+Native Mac App（Swift + SwiftUI）：
+- [ ] ANCKit Swift Package：REST client + WebSocket + @Observable store
+- [ ] macOS App：Sidebar + Command Center（第一个可见画面）
+- [ ] macOS App：Task Board（Kanban + List）
+- [ ] macOS App：Agent Detail + live terminal
+- [ ] macOS App：Menu Bar widget（常驻状态栏）
 - [ ] macOS App：⌘K command palette + 键盘导航
-- [ ] Web 版同步开发（Next.js，功能对齐 Mac）
-- [ ] 实时 WebSocket 全链路：core → API → app
-- [ ] Agent live terminal output streaming
+- [ ] Agent live terminal output streaming（WebSocket → 终端视图）
 
-### Phase 3 — Feature Complete（1 个月内）
-- [ ] macOS App：Memory Explorer + Settings + CEO Briefing 面板
+### Phase 3 — Polish & Ship
+- [ ] macOS App：Memory Explorer + Settings + CEO Briefing
 - [ ] macOS App：桌面 Widgets (WidgetKit)
-- [ ] iOS App MVP：Pulse + Task List + Agent Chat + Briefing Reader
-- [ ] iOS Widgets（WidgetKit）
-- [ ] Budget & Analytics 可视化（图表）
-- [ ] 多 runtime 智能降级（Claude → Aider → Gemini 自动切换）
-- [ ] GitHub 集成（PR tracking, code review dispatch）
-- [ ] Landing page + docs site
-- [ ] README 重写 + 开源发布
+- [ ] Web 功能对齐 Mac app
+- [ ] Landing page（含 Mac app 截图）
+- [ ] Documentation site
+- [ ] Demo 视频
+- [ ] GitHub 公开发布 + HN / ProductHunt
 
-### Phase 4 — Growth & Polish（持续）
-- [ ] Memory 向量搜索 + knowledge graph 可视化
-- [ ] macOS Spotlight 集成
-- [ ] iOS Shortcuts / Siri 集成
+### Phase 4 — Growth（持续）
+- [ ] iOS App MVP（SwiftUI，共享 ANCKit）
+- [ ] Mac App Store 上架
+- [ ] Multi-runtime adapters（Aider, Gemini）
+- [ ] Memory 向量搜索 + knowledge graph
 - [ ] Multi-user / team 支持
 - [ ] Cloud hosted 版本
 - [ ] Agent marketplace（社区贡献 persona + duty 模板）

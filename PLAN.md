@@ -134,86 +134,103 @@ Store briefings in SQLite (add `briefings` table to db.ts).
 
 ---
 
-## Phase 2: Web Dashboard
+## Phase 2: GUI — Web + Native Mac App (Parallel)
 
-**Separate Next.js app at `apps/web/`. Connects to core via HTTP + WebSocket.**
+**Two frontends, same API backend. Built in parallel.**
 
-### Setup
+The web dashboard is the quick path — already scaffolded, connects to core API.
+The Mac app is the product differentiator — Linear/Multica-level native experience.
+
+### 2A: Web Dashboard (apps/web/)
+
+Already scaffolded (Next.js + Tailwind + shadcn/ui).
+Connect to real API, remove mock data, verify WebSocket real-time.
+
+Pages: Command Center → Tasks → Agents → Memory → Settings
+
+### 2B: Native Mac App (apps/macos/)
+
+**This is not optional. A web-only product doesn't compete with Linear.**
+
+Tech stack:
 ```
-apps/
-└── web/
-    ├── app/
-    ├── package.json     # standalone Next.js, no monorepo dependency
-    └── next.config.ts   # proxy /api/* to localhost:3848
+Swift 6 + SwiftUI
+ANCKit (Swift Package) — shared API client + WebSocket + state store
+Target: macOS 14+ (Sonoma)
 ```
 
-No shared packages. Dashboard imports nothing from core.
-Communicates only via REST API + WebSocket.
+Architecture:
+```
+apps/macos/ANC.app
+├── ANCKit/                  # Swift Package (shared with iOS later)
+│   ├── ANCClient.swift      # REST client (URLSession + async/await)
+│   ├── ANCWebSocket.swift   # WebSocket (URLSessionWebSocketTask)
+│   ├── Models.swift          # Codable types matching API responses
+│   └── ANCStore.swift        # @Observable state store
+│
+├── Views/
+│   ├── Sidebar.swift         # NSToolbar sidebar: Command Center, Tasks, Agents, Memory
+│   ├── CommandCenter/        # KPI cards + agent status + activity feed
+│   ├── TaskBoard/            # Kanban (LazyVGrid) + List toggle
+│   ├── AgentDetail/          # Profile + live terminal (Text + monospace) + talk input
+│   ├── MemoryExplorer/       # File browser + markdown preview
+│   └── Settings/             # Form-based config editor
+│
+├── MenuBar/
+│   ├── StatusBarItem.swift   # 🟢3 🟡1 🔴0 — always visible in menu bar
+│   └── QuickMenu.swift       # Click → agent status dropdown
+│
+└── Features/
+    ├── CommandPalette.swift   # ⌘K — search tasks, execute commands
+    ├── Notifications.swift    # UNUserNotificationCenter for briefings/alerts
+    └── KeyboardNav.swift      # j/k navigation, ⌘1-5 view switch
+```
 
-### Pages (in build order)
+Build order:
+1. ANCKit (API client + WebSocket + store) — foundation
+2. Sidebar + Command Center — first visible screen
+3. TaskBoard (Kanban) — core PM functionality
+4. Agent Detail + live terminal — key differentiator
+5. Menu Bar widget — always-on visibility
+6. ⌘K command palette — power user feature
+7. Memory Explorer + Settings — completeness
 
-1. **Command Center** (home page)
-   - 4 KPI cards (running / idle / queued / daily cost)
-   - Agent status list (real-time via WebSocket)
-   - Activity feed (recent events)
-   - CEO briefing panel (latest from CEO Office)
-
-2. **Tasks**
-   - Kanban board (Backlog → Todo → In Progress → In Review → Done)
-   - List view toggle
-   - Create task (Cmd+N)
-   - Assign to agent (dropdown or drag)
-
-3. **Agents**
-   - Agent profile cards
-   - Live terminal output (WebSocket stream)
-   - Talk to agent (input box)
-   - Memory file list
-   - Session history
-
-4. **Memory Explorer**
-   - Browse by agent / shared
-   - Search
-   - Preview (markdown rendered)
-
-5. **Settings**
-   - Config editor (agents.yaml, routing.yaml, duties.yaml)
-   - Budget settings
-   - Integration toggles
-
-### Tech
-- Next.js 15 + Tailwind + shadcn/ui
-- TanStack Query for API state
-- Zustand for UI state (sidebar, filters)
-- Native WebSocket (not socket.io)
-- Dark theme first
+Design principles:
+- Native macOS look: NSToolbar, sidebar, vibrancy, SF fonts
+- No web tech smell: no loading spinners, no skeleton screens
+- Instant feel: optimistic updates, local state, WebSocket push
+- Keyboard-first: ⌘K, j/k, ⌘N, ⌘1-5
+- Dark/light follow system appearance
 
 ---
 
 ## Phase 3: Polish & Ship
 
-- Landing page (single page, Vercel)
+- Mac app: Memory Explorer, Settings, Widgets (WidgetKit)
+- Web: feature parity with Mac app
+- Landing page (single page, Vercel) with Mac app screenshots
 - Documentation site (Fumadocs or Nextra)
-- README rewrite (30-second pitch, 3-command quickstart, screenshots)
-- GitHub Actions CI (build + test)
-- Public launch: HN, Reddit, ProductHunt
+- Demo video showing Mac app + agent working in Linear
+- GitHub public release
+- Public launch: HN ("Show HN: Native Mac app for managing AI agent teams"), Reddit, ProductHunt
 
 ---
 
-## Phase 4+: Native Apps & Growth (Future)
+## Phase 4+: Growth
 
-- macOS app (Swift + SwiftUI) — only after web dashboard is proven
-- iOS app — only after Mac app
-- Multi-runtime adapters (Aider, Gemini) — only when needed
-- Monorepo restructure — only when >15000 LOC
-- Vector search for memory — only when keyword search isn't enough
+- iOS app (SwiftUI, shares ANCKit with Mac app)
+- Mac App Store distribution
+- Multi-runtime adapters (Aider, Gemini) — when needed
+- Vector search for memory
+- Team/multi-user support
+- Cloud hosted version
 
 ---
 
 ## What NOT To Do
 
 - Don't rewrite existing working code (bus, resolve gate, circuit breaker, hooks)
-- Don't add monorepo infrastructure
+- Don't add monorepo infrastructure until >15000 LOC
 - Don't implement adapters for runtimes we're not using
-- Don't build native apps before web dashboard is solid
 - Don't over-spec — code that works beats documentation that's perfect
+- Don't use Electron/Tauri — if we're doing Mac, do it properly with Swift
