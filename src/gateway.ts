@@ -9,6 +9,8 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { join, dirname, extname } from 'path';
 import { bus } from './bus.js';
 import { createLogger } from './core/logger.js';
+import { handleApiRequest } from './api/routes.js';
+import { setupWebSocket } from './api/ws.js';
 
 const log = createLogger('gateway');
 import { getConfig } from './linear/types.js';
@@ -61,6 +63,25 @@ export function startGateway(port?: number): void {
     // Strip /anc prefix (cloudflared path-based routing preserves it)
     if (req.url?.startsWith('/anc')) {
       req.url = req.url.slice(4) || '/';
+    }
+
+    // CORS headers for dashboard
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    // --- API v1 routes (dashboard) ---
+    if (req.url?.startsWith('/api/v1/')) {
+      const handled = await handleApiRequest(req, res);
+      if (handled) return;
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unknown API endpoint' }));
+      return;
     }
 
     // --- Health ---
@@ -383,6 +404,9 @@ export function startGateway(port?: number): void {
     res.writeHead(404);
     res.end('Not found');
   });
+
+  // Set up WebSocket upgrade on the same server
+  setupWebSocket(server);
 
   server.listen(listenPort, () => {
     log.info(`ANC Gateway listening on http://localhost:${listenPort}`);
