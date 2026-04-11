@@ -73,6 +73,7 @@ export interface AncEvents {
 
   // System events
   'system:tick': { timestamp: number };  // periodic health check
+  'system:budget-alert': { agentRole?: string; spent: number; limit: number; percent: number };
 }
 
 // Singleton bus instance

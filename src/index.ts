@@ -289,6 +289,15 @@ company
     companyStatus();
   });
 
+// --- Batch spawn ---
+program
+  .command('batch <role> [issue-keys...]')
+  .description('Spawn agent on multiple issues sequentially (3s delay between each)')
+  .action(async (role: string, issueKeys: string[]) => {
+    const { batchCommand } = await import('./commands/batch.js');
+    await batchCommand(issueKeys, role);
+  });
+
 // --- Doctor ---
 program
   .command('doctor')

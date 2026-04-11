@@ -58,7 +58,17 @@ export function getDb(): Database.Database {
       priority INTEGER NOT NULL DEFAULT 3,
       context TEXT,
       created_at TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'queued'
+      status TEXT NOT NULL DEFAULT 'queued',
+      delay_until TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS budget_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_role TEXT NOT NULL,
+      issue_key TEXT NOT NULL,
+      tokens INTEGER NOT NULL DEFAULT 0,
+      cost_usd REAL NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS breakers (
@@ -86,10 +96,12 @@ export function getDb(): Database.Database {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE INDEX IF NOT EXISTS idx_queue_status ON queue(status);
+    CREATE INDEX IF NOT EXISTS idx_queue_dispatch ON queue(status, priority ASC, created_at ASC);
     CREATE INDEX IF NOT EXISTS idx_sessions_role ON sessions(role);
     CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at);
     CREATE INDEX IF NOT EXISTS idx_dl_issue ON discord_links(linear_issue_key);
+    CREATE INDEX IF NOT EXISTS idx_budget_date ON budget_log(created_at);
+    CREATE INDEX IF NOT EXISTS idx_budget_role ON budget_log(agent_role);
   `);
 
   return db;
