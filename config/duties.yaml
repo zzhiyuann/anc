@@ -54,6 +54,48 @@ duties:
       Write findings to shared memory: `~/.anc/shared-memory/postmortem-{issueKey}.md`
       No HANDOFF needed.
 
+  # --- CEO Office: Health Monitor ---
+  - id: health-monitor
+    role: ceo-office
+    trigger:
+      cron: "30m"
+    issuePrefix: "healthcheck"
+    prompt: |
+      [Health Monitor] Check system health and report to CEO.
+
+      1. Run `anc team-status` to get current agent states, queue depth, and circuit breakers.
+      2. Check for stuck agents: any active session > 30min with no output change.
+      3. Check queue depth: if > 5 items queued for any role, flag it.
+      4. Check circuit breakers: any tripped breakers are a concern.
+
+      Actions:
+      - All clear → write findings to `.agent-memory/health-{timestamp}.md`, no notification
+      - Problems found → post brief summary to Discord via `anc group`
+      - Critical (agent stuck 1h+, queue > 10, multiple breakers) → create sub-issue for the relevant agent
+
+      Keep it brief. CEO doesn't want noise.
+      No HANDOFF needed — this is a standing duty.
+
+  # --- CEO Office: Agent Recovery Coordinator ---
+  - id: agent-recovery
+    role: ceo-office
+    trigger:
+      event: "agent:failed"
+    issuePrefix: "recovery"
+    prompt: |
+      [Agent Recovery] Agent {role} failed on {issueKey}.
+      Error: {error}
+
+      This is a coordination check, NOT a technical investigation (Ops handles that).
+
+      1. Check if this is a first-time failure → log it, no action needed (circuit breaker handles retry).
+      2. Check shared memory for prior failures on this same issue.
+      3. If 3+ failures on same issue: post alert to Discord via `anc group` recommending CEO intervention.
+
+      Do NOT attempt to fix anything. Just track and escalate when needed.
+      Write findings to `.agent-memory/recovery-{issueKey}-{timestamp}.md`.
+      No HANDOFF needed — this is a standing duty.
+
   # --- Strategist: Weekly Strategy Review ---
   # Uncomment when ready:
   # - id: strategy-review

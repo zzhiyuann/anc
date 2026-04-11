@@ -1,17 +1,8 @@
 /**
- * Lifecycle commentator + AgentSession manager.
+ * Lifecycle commentator — post status comments to Linear for traceability.
  *
- * Two responsibilities:
- * 1. Post status comments to Linear for traceability
- * 2. Create/dismiss AgentSessions for "Working..." badge
- *
- * AgentSession lifecycle:
- *   spawned  → create AgentSession  → Linear shows "Working..."
- *   idle     → dismiss AgentSession → "Working..." disappears
- *   resumed  → create new AgentSession → "Working..." reappears
- *   completed → dismiss (handled here, not on-complete)
- *   failed   → dismiss
- *   suspended → dismiss
+ * AgentSession API has been removed. Agent status is communicated via
+ * comments and issue status updates only.
  */
 
 import { bus } from '../bus.js';
@@ -23,28 +14,22 @@ import { createLogger } from '../core/logger.js';
 const log = createLogger('lifecycle');
 
 function isDutyIssue(issueKey: string): boolean {
-  return issueKey.startsWith('pulse-') || issueKey.startsWith('postmortem-');
+  return issueKey.startsWith('pulse-') || issueKey.startsWith('postmortem-')
+    || issueKey.startsWith('healthcheck-') || issueKey.startsWith('recovery-');
 }
 
 // Track which issues have had their "started" comment posted — prevents spam on re-spawns
 const startedCommented = new Set<string>();
 
 export function registerLifecycleHandlers(): void {
-  // --- SPAWNED: comment (once only) + create AgentSession ("Working...") ---
+  // --- SPAWNED: comment (once only) ---
   bus.on('agent:spawned', async ({ role, issueKey }) => {
     if (isDutyIssue(issueKey)) return;
 
-    // Only post "started" comment on FIRST spawn for this issue, not re-spawns
-    // Discord notification is handled by plan-announce (hook guard ensures it fires)
     if (!startedCommented.has(issueKey)) {
       startedCommented.add(issueKey);
       await addComment(issueKey, `**${role}** picked up this issue.`, role).catch(() => {});
     }
-
-    // NOTE: We do NOT create AgentSession here.
-    // Linear auto-creates one when we set delegateId in setIssueInProgress().
-    // Creating a second one causes duplicate "Working..." badges.
-    // We only handle DISMISSING sessions (in completion/fail/idle handlers).
   });
 
   // --- FAILED: comment + notify Discord ---
@@ -148,4 +133,3 @@ function formatCompletionSummary(handoff: string, issueKey: string): string {
 
   return result || 'Completed (see Linear for details)';
 }
-
