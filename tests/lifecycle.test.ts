@@ -177,19 +177,13 @@ describe('Comment Content Format', () => {
 });
 
 // ---- AgentSession Management ----
+// Note: AgentSession creation on spawned/resumed was removed.
+// Linear auto-creates sessions via delegateId. We only dismiss them.
 
 describe('AgentSession Management', () => {
-  it('creates AgentSession on spawned', async () => {
+  it('does NOT create AgentSession on spawned (Linear handles via delegate)', async () => {
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
-    expect(mockedGetIssue).toHaveBeenCalledWith('ANC-1');
-    expect(mockedCreateAgentSession).toHaveBeenCalledWith('issue-uuid-1', 'engineer');
-  });
-
-  it('stores linearSessionId on tracked session after spawn', async () => {
-    const tracked: any = {};
-    mockedGetSession.mockReturnValue(tracked);
-    await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
-    expect(tracked.linearSessionId).toBe('session-uuid-1');
+    expect(mockedCreateAgentSession).not.toHaveBeenCalled();
   });
 
   it('dismisses AgentSession on failed', async () => {
@@ -212,9 +206,9 @@ describe('AgentSession Management', () => {
     expect(mockedDismissSession).toHaveBeenCalledWith('session-uuid-1', 'engineer');
   });
 
-  it('creates new AgentSession on resumed', async () => {
+  it('does NOT create AgentSession on resumed (Linear handles via delegate)', async () => {
     await bus.emit('agent:resumed', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
-    expect(mockedCreateAgentSession).toHaveBeenCalledWith('issue-uuid-1', 'engineer');
+    expect(mockedCreateAgentSession).not.toHaveBeenCalled();
   });
 
   it('skips dismiss when no linearSessionId', async () => {

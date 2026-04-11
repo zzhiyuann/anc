@@ -37,3 +37,16 @@ agents:
       - personas/protocols/completion.md
       - personas/protocols/communication.md
       - personas/protocols/memory.md
+
+  ceo-office:
+    name: "CEO Office"
+    model: claude-code
+    linearUserId: ""  # No Linear user — coordination-only agent
+    maxConcurrency: 1
+    dutySlots: 1
+    base: personas/base.md
+    role: personas/roles/ceo-office.md
+    protocols:
+      - personas/protocols/completion.md
+      - personas/protocols/communication.md
+      - personas/protocols/memory.md

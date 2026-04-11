@@ -1,24 +1,19 @@
 /**
- * Lifecycle commentator + AgentSession manager.
+ * Lifecycle commentator + AgentSession dismisser.
  *
  * Two responsibilities:
  * 1. Post status comments to Linear for traceability
- * 2. Create/dismiss AgentSessions for "Working..." badge
+ * 2. Dismiss AgentSessions on completion/failure/idle (cleanup only)
  *
- * AgentSession lifecycle:
- *   spawned  → create AgentSession  → Linear shows "Working..."
- *   idle     → dismiss AgentSession → "Working..." disappears
- *   resumed  → create new AgentSession → "Working..." reappears
- *   completed → dismiss (handled here, not on-complete)
- *   failed   → dismiss
- *   suspended → dismiss
+ * Note: AgentSession CREATION is handled by Linear via delegateId.
+ * We only dismiss sessions to remove the "Working..." badge.
  */
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { bus } from '../bus.js';
-import { addComment, createAgentSession, dismissSession, getIssue } from '../linear/client.js';
+import { addComment, dismissSession, getIssue } from '../linear/client.js';
 import { getSessionForIssue } from '../runtime/health.js';
 import { postToDiscord, addReactions, replyInDiscord } from '../channels/discord.js';
 import { getRootLink } from '../bridge/mappings.js';
@@ -28,7 +23,8 @@ import { createLogger } from '../core/logger.js';
 const log = createLogger('lifecycle');
 
 function isDutyIssue(issueKey: string): boolean {
-  return issueKey.startsWith('pulse-') || issueKey.startsWith('postmortem-');
+  return issueKey.startsWith('pulse-') || issueKey.startsWith('postmortem-')
+    || issueKey.startsWith('healthcheck-') || issueKey.startsWith('recovery-');
 }
 
 // Track which issues have had their "started" comment posted — prevents spam on re-spawns
@@ -159,7 +155,7 @@ function formatCompletionSummary(handoff: string, issueKey: string): string {
 }
 
 /** Dismiss ALL active AgentSessions for this issue (not just tracked one).
- *  Linear can create multiple sessions per issue (webhook + our createAgentSession).
+ *  Linear can create multiple sessions per issue (e.g. via webhook delegation).
  *  We must dismiss ALL of them to prevent orphaned "Working..." badges. */
 async function dismissLinearSession(issueKey: string, role: string): Promise<void> {
   // 1. Dismiss the tracked session
