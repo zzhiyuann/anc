@@ -62,6 +62,8 @@ import { bus } from '../bus.js';
 import {
   trackSession, getSessionForIssue, markSuspended,
 } from './health.js';
+import { ensureHookToken } from '../api/hook-handler.js';
+import { resolveTaskIdFromIssueKey } from '../core/tasks.js';
 
 // Re-export resolveSession + ResolveResult from their new home for backwards compat
 export { resolveSession, type ResolveResult } from './resolve.js';
@@ -76,10 +78,11 @@ export interface SpawnInternalOpts {
   ceoAssigned?: boolean;
   priority?: number;
   isDuty?: boolean;
+  taskId?: string;
 }
 
 export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: string; error?: string } {
-  const { role, issueKey, prompt, useContinue, ceoAssigned, priority, isDuty } = opts;
+  const { role, issueKey, prompt, useContinue, ceoAssigned, priority, isDuty, taskId } = opts;
   const tmuxSession = `anc-${role}-${issueKey}`;
 
   // Prepare workspace + persona
@@ -94,15 +97,14 @@ export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSe
   // Hook URL points to the local gateway; token is shared across sessions.
   let hookConfig: { taskId: string; role: string; hookUrl: string; hookToken: string } | undefined;
   try {
-    // Lazy-import to avoid pulling api/* into pure-runtime tests.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { ensureHookToken } = require('../api/hook-handler.js');
     const token = ensureHookToken();
     const port = process.env.ANC_WEBHOOK_PORT || '3849';
+    // Prefer the real task UUID for hook attribution; fall back to issueKey for legacy paths.
+    const hookTaskId = opts.taskId ?? issueKey;
     hookConfig = {
-      taskId: issueKey, // no separate task_id table yet — issueKey is canonical
+      taskId: hookTaskId,
       role,
-      hookUrl: `http://localhost:${port}/api/v1/hooks/${issueKey}/event`,
+      hookUrl: `http://localhost:${port}/api/v1/hooks/${hookTaskId}/event`,
       hookToken: token,
     };
   } catch (err) {
@@ -132,12 +134,19 @@ export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSe
 
     log.info(`${useContinue ? 'Resumed' : 'Spawned'} ${role} on ${issueKey}`, { role, issueKey });
 
+    // Resolve taskId for tracking: explicit > resolveTaskIdFromIssueKey > undefined.
+    let resolvedTaskId = taskId;
+    if (!resolvedTaskId) {
+      try { resolvedTaskId = resolveTaskIdFromIssueKey(issueKey) ?? undefined; } catch { /* ignore */ }
+    }
+
     trackSession({
       role, issueKey, tmuxSession, spawnedAt: Date.now(),
       priority: priority ?? 3,
       ceoAssigned: ceoAssigned ?? false,
       useContinue,
       isDuty: isDuty ?? false,
+      taskId: resolvedTaskId,
     });
 
     bus.emit('agent:spawned', { role, issueKey, tmuxSession });

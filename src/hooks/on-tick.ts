@@ -46,8 +46,19 @@ export function registerTickHandlers(): void {
   });
 }
 
+/** True if we have a usable Linear API key. Treats blank or obvious dummies as missing. */
+function hasUsableLinearKey(): boolean {
+  const k = process.env.ANC_LINEAR_API_KEY;
+  if (!k) return false;
+  const lower = k.toLowerCase();
+  if (lower === 'dummy' || lower === 'test' || lower === 'fake' || lower.startsWith('dummy')) return false;
+  return true;
+}
+
 /** Auto-dispatch: pick up Todo issues from Linear (both assigned and unassigned). */
 async function autoDispatchFromBacklog(): Promise<void> {
+  // Skip cleanly when Linear is not configured (test envs, fresh installs).
+  if (!hasUsableLinearKey()) return;
   let dispatched = 0;
   const agents = getRegisteredAgents();
 
@@ -113,6 +124,7 @@ async function autoDispatchFromBacklog(): Promise<void> {
 
 /** Heartbeat: find unassigned Todo issues, dispatch Ops to triage them. */
 async function heartbeatTriage(): Promise<void> {
+  if (!hasUsableLinearKey()) return;
   if (!hasCapacity('ops')) return;
 
   try {

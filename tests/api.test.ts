@@ -177,6 +177,7 @@ vi.mock('../src/core/tasks.js', () => ({
     return updated;
   }),
   resolveTaskIdFromIssueKey: vi.fn((key: string) => key),
+  deleteTask: vi.fn((id: string) => tasksStore.delete(id)),
 }));
 
 const projectsStore = new Map<string, Record<string, unknown>>();
@@ -919,5 +920,121 @@ describe('Wave 2A — Notifications API', () => {
     const res = createRes();
     await handleApiRequest(req, res);
     expect(res._status).toBe(400);
+  });
+});
+
+// =========================================================================
+// Wave 2 critical bug fixes
+// =========================================================================
+
+describe('Wave 2 fixes — task sessions merge', () => {
+  it('GET /tasks/:id returns sessions array (in-memory merge path is wired)', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'Has session' }) as { id: string };
+    const req = createReq('GET', `/api/v1/tasks/${task.id}`);
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { sessions: unknown[] };
+    expect(Array.isArray(data.sessions)).toBe(true);
+  });
+
+  it('POST /tasks then GET /tasks/:id returns the created task with sessions field', async () => {
+    const reqC = createReq('POST', '/api/v1/tasks', { title: 'Create + read', agent: 'engineer' });
+    const resC = createRes();
+    await handleApiRequest(reqC, resC);
+    expect(resC._status).toBe(201);
+    const created = resC._parsed() as { task: { id: string } };
+
+    const req = createReq('GET', `/api/v1/tasks/${created.task.id}`);
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { task: { id: string }; sessions: unknown[] };
+    expect(data.task.id).toBe(created.task.id);
+    expect(Array.isArray(data.sessions)).toBe(true);
+  });
+});
+
+describe('Wave 2 fixes — DELETE /tasks/:id removes the row', () => {
+  it('hard-deletes a task row via deleteTask()', async () => {
+    const { createTask, getTask, deleteTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'Delete me' }) as { id: string };
+    expect(getTask(task.id)).not.toBeNull();
+
+    const req = createReq('DELETE', `/api/v1/tasks/${task.id}`);
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { ok: boolean; deleted: boolean };
+    expect(data.ok).toBe(true);
+    expect(data.deleted).toBe(true);
+    expect(deleteTask).toHaveBeenCalledWith(task.id);
+    expect(getTask(task.id)).toBeNull();
+  });
+});
+
+describe('Wave 2 fixes — PATCH /tasks/:id', () => {
+  it('updates allowed fields', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'Old title' }) as { id: string };
+
+    const req = createReq('PATCH', `/api/v1/tasks/${task.id}`, { title: 'New title', priority: 1 });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { task: { title: string; priority: number } };
+    expect(data.task.title).toBe('New title');
+    expect(data.task.priority).toBe(1);
+  });
+
+  it('rejects unknown projectId on PATCH', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'P' }) as { id: string };
+    const req = createReq('PATCH', `/api/v1/tasks/${task.id}`, { projectId: 'proj-missing' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(404);
+  });
+
+  it('returns 404 for missing task', async () => {
+    const req = createReq('PATCH', '/api/v1/tasks/task-not-real', { title: 'x' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(404);
+  });
+});
+
+describe('Wave 2 fixes — POST /tasks/:id/dispatch surfaces both sessions', () => {
+  it('returns success when dispatching a second role on the same task', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'Dispatch surf' }) as { id: string };
+    const req = createReq('POST', `/api/v1/tasks/${task.id}/dispatch`, { role: 'strategist' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(201);
+    // resolveSession is called with explicit taskId so trackedSession can be merged.
+    expect(mockedResolveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'strategist', taskId: task.id })
+    );
+  });
+});
+
+describe('Wave 2 fixes — GET /projects defaults to active only', () => {
+  it('omits archived projects unless includeArchived=true', async () => {
+    const { listProjects } = await import('../src/core/projects.js');
+    const mocked = vi.mocked(listProjects);
+    mocked.mockClear();
+
+    const req = createReq('GET', '/api/v1/projects');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    expect(mocked).toHaveBeenCalledWith({ includeArchived: false });
+
+    const req2 = createReq('GET', '/api/v1/projects?includeArchived=true');
+    const res2 = createRes();
+    await handleApiRequest(req2, res2);
+    expect(mocked).toHaveBeenLastCalledWith({ includeArchived: true });
   });
 });

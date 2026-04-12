@@ -42,8 +42,9 @@ export function resolveSession(opts: {
   priority?: number;
   ceoAssigned?: boolean;
   isDuty?: boolean;
+  taskId?: string;
 }): ResolveResult {
-  const { role, issueKey, prompt, priority, ceoAssigned, isDuty } = opts;
+  const { role, issueKey, prompt, priority, ceoAssigned, isDuty, taskId } = opts;
 
   // 1. Circuit breaker
   const tripped = isBreakerTripped(issueKey);
@@ -63,7 +64,7 @@ export function resolveSession(opts: {
   // 3. IDLE session → reactivate with --continue
   if (existing?.state === 'idle') {
     const tmux = `anc-${role}-${issueKey}`;
-    const result = spawnClaude({ role, issueKey, prompt, useContinue: true, ceoAssigned, priority });
+    const result = spawnClaude({ role, issueKey, prompt, useContinue: true, ceoAssigned, priority, taskId });
     if (result.success) {
       markActiveFromIdle(issueKey, tmux);
       bus.emit('agent:resumed', { role, issueKey, tmuxSession: tmux });
@@ -85,7 +86,7 @@ export function resolveSession(opts: {
       try { unlinkSync(suspendPath); } catch { /**/ }  // clean up after reading
     }
     const tmux = `anc-${role}-${issueKey}`;
-    const result = spawnClaude({ role, issueKey, prompt: resumePrompt, useContinue: true, ceoAssigned, priority });
+    const result = spawnClaude({ role, issueKey, prompt: resumePrompt, useContinue: true, ceoAssigned, priority, taskId });
     if (result.success) {
       markResumed(issueKey, tmux);
       bus.emit('agent:resumed', { role, issueKey, tmuxSession: tmux });
@@ -128,7 +129,7 @@ export function resolveSession(opts: {
 
   // Spawn — auto-detect if workspace has prior conversation (use --continue for free context recovery)
   const workspaceExists = existsSync(join(getWorkspacePath(issueKey), '.claude'));
-  const result = spawnClaude({ role, issueKey, prompt, useContinue: workspaceExists, ceoAssigned, priority, isDuty });
+  const result = spawnClaude({ role, issueKey, prompt, useContinue: workspaceExists, ceoAssigned, priority, isDuty, taskId });
   if (result.success) {
     recordSuccess(issueKey);
     return { action: 'spawned', tmuxSession: result.tmuxSession };

@@ -72,16 +72,17 @@ export function getProject(id: string): Project | null {
   return row ? rowToProject(row) : null;
 }
 
-export function listProjects(filter: { state?: ProjectState } = {}): Project[] {
+export function listProjects(filter: { state?: ProjectState; includeArchived?: boolean } = {}): Project[] {
   if (filter.state) {
     const rows = getDb().prepare(
       'SELECT * FROM projects WHERE state = ? ORDER BY created_at DESC'
     ).all(filter.state) as Array<Record<string, unknown>>;
     return rows.map(rowToProject);
   }
-  const rows = getDb().prepare(
-    'SELECT * FROM projects ORDER BY created_at DESC'
-  ).all() as Array<Record<string, unknown>>;
+  const sql = filter.includeArchived
+    ? 'SELECT * FROM projects ORDER BY created_at DESC'
+    : "SELECT * FROM projects WHERE state != 'archived' ORDER BY created_at DESC";
+  const rows = getDb().prepare(sql).all() as Array<Record<string, unknown>>;
   return rows.map(rowToProject);
 }
 

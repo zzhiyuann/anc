@@ -21,7 +21,7 @@ import { getDb, getRecentEvents } from '../core/db.js';
 import { createLogger } from '../core/logger.js';
 import type { AgentRole } from '../linear/types.js';
 import {
-  getTask, listTasks, createTask, getTaskChildren,
+  getTask, listTasks, createTask, getTaskChildren, updateTask, deleteTask,
 } from '../core/tasks.js';
 import {
   createProject, getProject, listProjects, updateProject,
@@ -312,6 +312,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         issueKey: task.id,
         prompt,
         priority: task.priority,
+        taskId: task.id,
       });
       json(
         res,
@@ -475,12 +476,18 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         issueKey,
         prompt,
         priority: task.priority,
-      });
-      void bus.emit('task:dispatched', {
         taskId: task.id,
-        role: agent.role,
-        parentTaskId: task.parentTaskId,
       });
+      // Only fire dispatch notification when the spawn actually succeeded.
+      // resolveSession returns 'spawned' | 'piped' | 'resumed' | 'queued' | 'blocked' —
+      // 'blocked' (budget, circuit breaker, capacity-with-no-evict) must NOT notify.
+      if (result.action !== 'blocked') {
+        void bus.emit('task:dispatched', {
+          taskId: task.id,
+          role: agent.role,
+          parentTaskId: task.parentTaskId,
+        });
+      }
       json(
         res,
         { session: { issueKey, role: agent.role, ...result }, task },
@@ -513,8 +520,30 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         json(res, { ...session, alive });
         return true;
       }
+      if (method === 'PATCH') {
+        const task = getTask(id);
+        if (!task) { error(res, 'Task not found', 404); return true; }
+        const body = parseJson(await readBody(req));
+        if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+        const patch: Record<string, unknown> = {};
+        for (const key of ['title', 'description', 'priority', 'projectId', 'state'] as const) {
+          if (key in body) patch[key] = body[key];
+        }
+        if (patch.projectId !== undefined && patch.projectId !== null) {
+          if (typeof patch.projectId !== 'string' || !ENTITY_ID_REGEX.test(patch.projectId)) {
+            error(res, 'Invalid projectId format', 400); return true;
+          }
+          if (!getProject(patch.projectId as string)) {
+            error(res, 'Unknown projectId', 404); return true;
+          }
+        }
+        const updated = updateTask(id, patch as Parameters<typeof updateTask>[1]);
+        json(res, { task: updated });
+        return true;
+      }
       if (method === 'DELETE') {
-        // Kill any active sessions tied to the task row OR a matching issueKey.
+        // Kill any active sessions tied to the task row OR a matching issueKey,
+        // then hard-delete the task row + dependent task_events / task_comments.
         const task = getTask(id);
         if (task) {
           const sessRows = getDb().prepare(
@@ -528,7 +557,12 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
               killed++;
             }
           }
-          json(res, { ok: true, killed: task.id, sessions: killed });
+          // Hard delete the task row + cascading children.
+          let removed = false;
+          try { removed = deleteTask(id); } catch (err) {
+            log.error(`deleteTask(${id}) failed: ${(err as Error).message}`);
+          }
+          json(res, { ok: true, killed: task.id, sessions: killed, deleted: removed });
           return true;
         }
         const session = getSessionForIssue(id);
@@ -562,7 +596,8 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     // === Projects ===
     // -- Wave 2A new routes --
     if (method === 'GET' && path === '/projects') {
-      const projects = listProjects().map(p => ({ ...p, stats: getProjectStats(p.id) }));
+      const includeArchived = url.searchParams.get('includeArchived') === 'true';
+      const projects = listProjects({ includeArchived }).map(p => ({ ...p, stats: getProjectStats(p.id) }));
       json(res, { projects });
       return true;
     }
@@ -820,6 +855,24 @@ function buildTaskDetail(task: NonNullable<ReturnType<typeof getTask>>): TaskDet
       alive: r.state === 'active' && sessionExists(tmux),
     };
   });
+
+  // Merge in-memory tracked sessions that haven't been flushed to DB yet.
+  // Match on either taskId (preferred) or issueKey == task.id (legacy single-session shape).
+  const seen = new Set(sessions.map(s => `${s.role}:${s.issueKey}`));
+  for (const t of getTrackedSessions()) {
+    if (t.taskId !== task.id && t.issueKey !== task.id && !t.issueKey.startsWith(`${task.id}-`)) continue;
+    const key = `${t.role}:${t.issueKey}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    sessions.push({
+      issueKey: t.issueKey,
+      role: t.role,
+      state: t.state,
+      tmuxSession: t.tmuxSession,
+      spawnedAt: t.spawnedAt,
+      alive: t.state === 'active' && sessionExists(t.tmuxSession),
+    });
+  }
 
   const eventRows = db.prepare(
     'SELECT * FROM task_events WHERE task_id = ? ORDER BY created_at DESC LIMIT 100'

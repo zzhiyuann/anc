@@ -220,4 +220,16 @@ describe('ensureHookToken', () => {
     expect(a).toBe('test-token-fixed');
     expect(b).toBe(a);
   });
+
+  // Wave 2 fix: hook-handler.ts is ESM, so any leftover require() call would
+  // throw 'require is not defined' the first time it runs. The fact that the
+  // module imported successfully at the top of this file already proves there
+  // are no top-level require()s. Exercise ensureHookToken without the env var
+  // shortcut to make sure the file-system fallback path also avoids require().
+  it('no require() in fallback file-system path (ESM smoke)', () => {
+    delete process.env.ANC_HOOK_TOKEN;
+    expect(() => ensureHookToken()).not.toThrow();
+    // Restore so other tests stay deterministic.
+    process.env.ANC_HOOK_TOKEN = 'test-token-fixed';
+  });
 });

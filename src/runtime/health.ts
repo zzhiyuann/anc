@@ -44,6 +44,7 @@ const sessions = new Map<string, TrackedSession>();  // key = issueKey
 export function trackSession(params: {
   role: AgentRole; issueKey: string; tmuxSession: string; spawnedAt: number;
   priority: number; ceoAssigned: boolean; useContinue?: boolean; isDuty?: boolean;
+  taskId?: string;
 }): void {
   sessions.set(params.issueKey, {
     ...params,
@@ -51,6 +52,7 @@ export function trackSession(params: {
     handoffProcessed: false,
     useContinue: params.useContinue ?? false,
     isDuty: params.isDuty ?? false,
+    taskId: params.taskId,
   });
 }
 

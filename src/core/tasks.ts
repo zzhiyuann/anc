@@ -149,6 +149,26 @@ export function getTaskChildren(parentId: string): Task[] {
   return rows.map(rowToTask);
 }
 
+/**
+ * Hard-delete a task and its dependent rows. Returns true if a row was removed.
+ *
+ * The schema declares FK references but no ON DELETE CASCADE, so we manually
+ * remove task_events, task_comments and detach sessions/notifications first.
+ */
+export function deleteTask(id: string): boolean {
+  const db = getDb();
+  const tx = db.transaction((taskId: string): boolean => {
+    db.prepare('DELETE FROM task_events WHERE task_id = ?').run(taskId);
+    db.prepare('DELETE FROM task_comments WHERE task_id = ?').run(taskId);
+    // Detach sessions/notifications instead of deleting them — preserves history.
+    try { db.prepare('UPDATE sessions SET task_id = NULL WHERE task_id = ?').run(taskId); } catch { /* table may lack column */ }
+    try { db.prepare('UPDATE notifications SET task_id = NULL WHERE task_id = ?').run(taskId); } catch { /* ignore */ }
+    const result = db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
+    return result.changes > 0;
+  });
+  return tx(id);
+}
+
 /** Resolve task_id from either a direct taskId or a linear_issue_key. */
 export function resolveTaskIdFromIssueKey(issueKey: string | undefined | null): string | null {
   if (!issueKey) return null;

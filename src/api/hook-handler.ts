@@ -30,7 +30,7 @@
  *        can fetch the spill file on demand.
  */
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -195,9 +195,8 @@ export function ensureHookToken(): string {
 
   const tokenPath = join(homedir(), '.anc', 'hook-token');
   try {
-    const fs = require('node:fs');
-    if (fs.existsSync(tokenPath)) {
-      const existing = fs.readFileSync(tokenPath, 'utf8').trim();
+    if (existsSync(tokenPath)) {
+      const existing = readFileSync(tokenPath, 'utf8').trim();
       if (existing) {
         process.env.ANC_HOOK_TOKEN = existing;
         return existing;
@@ -207,9 +206,8 @@ export function ensureHookToken(): string {
 
   const fresh = randomUUID().replace(/-/g, '');
   try {
-    const fs = require('node:fs');
-    fs.mkdirSync(join(homedir(), '.anc'), { recursive: true });
-    fs.writeFileSync(tokenPath, fresh, { mode: 0o600 });
+    mkdirSync(join(homedir(), '.anc'), { recursive: true });
+    writeFileSync(tokenPath, fresh, { mode: 0o600 });
   } catch (err) {
     log.warn(`Failed to persist hook token: ${(err as Error).message}`);
   }
