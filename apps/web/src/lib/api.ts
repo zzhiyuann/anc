@@ -18,7 +18,24 @@ import type {
   EventRow,
   MemoryList,
   AgentOutput,
+  Task,
+  TaskFull,
+  TaskComment,
+  TaskAttachment,
+  Project,
+  ProjectStats,
+  ProjectWithStats,
+  SessionOnTask,
+  AncNotification,
 } from "./types";
+import {
+  mockTask,
+  mockTaskFull,
+  mockTaskComments,
+  mockProject,
+  mockProjectsWithStats,
+  mockNotifications,
+} from "./mock-data";
 
 // --- Base URL + fetch wrapper ---
 
@@ -143,6 +160,25 @@ export interface CreateTaskInput {
   priority?: number;
 }
 
+/**
+ * If the backend returns 404 (Wave 2A endpoint not yet merged) or a network
+ * error, fall back to a mock value so the dashboard still renders. Any other
+ * error (500, validation, etc.) is rethrown so real bugs surface.
+ */
+async function withMockFallback<T>(fn: () => Promise<T>, mock: T, label: string): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
+      if (typeof console !== "undefined") {
+        console.warn(`[api] ${label} unavailable (${err.status}), using mock fallback`);
+      }
+      return mock;
+    }
+    throw err;
+  }
+}
+
 export const tasks = {
   async list(
     filters: { status?: string; agent?: string } = {},
@@ -170,6 +206,210 @@ export const tasks = {
 
   async resume(id: string): Promise<{ action: string; [k: string]: unknown }> {
     return request(`/tasks/${encodeURIComponent(id)}/resume`, { method: "POST" });
+  },
+
+  // --- New task-entity API (Wave 2A) ---
+
+  /**
+   * GET /api/v1/tasks/:id — full task detail bundle.
+   * Falls back to mockTaskFull when backend endpoint is not yet deployed.
+   */
+  async getFull(id: string, signal?: AbortSignal): Promise<TaskFull> {
+    return withMockFallback(
+      () => request<TaskFull>(`/tasks/${encodeURIComponent(id)}/full`, { signal }),
+      { ...mockTaskFull, task: { ...mockTaskFull.task, id } },
+      `tasks.getFull(${id})`,
+    );
+  },
+
+  /**
+   * GET /api/v1/tasks?projectId=… — first-class Task entities for a project.
+   * Distinct from tasks.list() which returns the legacy session-based TaskRow.
+   */
+  async listByProject(projectId: string, signal?: AbortSignal): Promise<Task[]> {
+    return withMockFallback(
+      async () => {
+        const res = await request<{ tasks: Task[] }>(
+          `/tasks?projectId=${encodeURIComponent(projectId)}`,
+          { signal },
+        );
+        return res.tasks;
+      },
+      [mockTask],
+      `tasks.listByProject(${projectId})`,
+    );
+  },
+};
+
+// --- Task sub-resources (comments, attachments, dispatch) ---
+
+export const taskComments = {
+  async list(taskId: string, signal?: AbortSignal): Promise<TaskComment[]> {
+    return withMockFallback(
+      async () => {
+        const res = await request<{ comments: TaskComment[] }>(
+          `/tasks/${encodeURIComponent(taskId)}/comments`,
+          { signal },
+        );
+        return res.comments;
+      },
+      mockTaskComments,
+      `taskComments.list(${taskId})`,
+    );
+  },
+
+  async create(taskId: string, body: string, parentId?: number): Promise<TaskComment> {
+    const res = await request<{ comment: TaskComment }>(
+      `/tasks/${encodeURIComponent(taskId)}/comments`,
+      { method: "POST", body: { body, parentId } },
+    );
+    return res.comment;
+  },
+};
+
+export const taskAttachments = {
+  async list(taskId: string, signal?: AbortSignal): Promise<TaskAttachment[]> {
+    return withMockFallback(
+      async () => {
+        const res = await request<{ attachments: TaskAttachment[] }>(
+          `/tasks/${encodeURIComponent(taskId)}/attachments`,
+          { signal },
+        );
+        return res.attachments;
+      },
+      [],
+      `taskAttachments.list(${taskId})`,
+    );
+  },
+
+  /** Fetch raw text content of an attachment. Caller should handle binary via url(). */
+  async read(taskId: string, filename: string): Promise<string> {
+    const url = `${baseUrl()}/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(filename)}`;
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new ApiError(r.status, `attachment ${filename}: ${r.statusText}`);
+    return r.text();
+  },
+
+  /** Build the URL for an attachment (useful for <img src> / <a href>). */
+  url(taskId: string, filename: string): string {
+    return `${baseUrl()}/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(filename)}`;
+  },
+};
+
+export const taskDispatch = {
+  /**
+   * POST /api/v1/tasks/:id/dispatch — attach a new agent session to an existing task.
+   */
+  async dispatch(taskId: string, role: string, context?: string): Promise<SessionOnTask> {
+    const res = await request<{ session: SessionOnTask }>(
+      `/tasks/${encodeURIComponent(taskId)}/dispatch`,
+      { method: "POST", body: { role, context } },
+    );
+    return res.session;
+  },
+};
+
+// --- Projects ---
+
+export const projects = {
+  async list(signal?: AbortSignal): Promise<ProjectWithStats[]> {
+    return withMockFallback(
+      async () => {
+        const res = await request<{ projects: ProjectWithStats[] }>("/projects", { signal });
+        return res.projects;
+      },
+      mockProjectsWithStats,
+      "projects.list()",
+    );
+  },
+
+  async get(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<{ project: Project; recentTasks: Task[]; stats: ProjectStats }> {
+    return withMockFallback(
+      () =>
+        request<{ project: Project; recentTasks: Task[]; stats: ProjectStats }>(
+          `/projects/${encodeURIComponent(id)}`,
+          { signal },
+        ),
+      {
+        project: { ...mockProject, id },
+        recentTasks: [mockTask],
+        stats: { total: 1, running: 1, queued: 0, done: 0, totalCostUsd: 0 },
+      },
+      `projects.get(${id})`,
+    );
+  },
+
+  async create(input: {
+    name: string;
+    description?: string;
+    color?: string;
+    icon?: string;
+  }): Promise<Project> {
+    const res = await request<{ project: Project }>("/projects", {
+      method: "POST",
+      body: input,
+    });
+    return res.project;
+  },
+
+  async update(id: string, patch: Partial<Project>): Promise<Project> {
+    const res = await request<{ project: Project }>(
+      `/projects/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: patch },
+    );
+    return res.project;
+  },
+
+  async archive(id: string): Promise<void> {
+    await request(`/projects/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+};
+
+// --- Notifications ---
+
+export const notifications = {
+  async list(
+    filter: "unread" | "all" | "archive" = "unread",
+    signal?: AbortSignal,
+  ): Promise<{ notifications: AncNotification[]; unreadCount: number }> {
+    return withMockFallback(
+      () =>
+        request<{ notifications: AncNotification[]; unreadCount: number }>(
+          `/notifications?filter=${filter}`,
+          { signal },
+        ),
+      {
+        notifications: mockNotifications,
+        unreadCount: mockNotifications.filter((n) => n.readAt === null).length,
+      },
+      `notifications.list(${filter})`,
+    );
+  },
+
+  async unreadCount(signal?: AbortSignal): Promise<number> {
+    return withMockFallback(
+      async () => {
+        const res = await request<{ count: number }>("/notifications/unread-count", { signal });
+        return res.count;
+      },
+      mockNotifications.filter((n) => n.readAt === null).length,
+      "notifications.unreadCount()",
+    );
+  },
+
+  async markRead(id: number): Promise<void> {
+    await request(`/notifications/${id}/read`, { method: "POST" });
+  },
+
+  async archive(id: number): Promise<void> {
+    await request(`/notifications/${id}/archive`, { method: "POST" });
+  },
+
+  async markAllRead(): Promise<void> {
+    await request("/notifications/mark-all-read", { method: "POST" });
   },
 };
 
@@ -214,8 +454,24 @@ export const memory = {
   },
 };
 
+// --- System (placeholder grouping for future endpoints) ---
+
+export const system = {};
+
 // --- Unified default export ---
 
-export const api = { agents, tasks, queue, events, memory };
+export const api = {
+  agents,
+  tasks,
+  projects,
+  notifications,
+  taskComments,
+  taskAttachments,
+  taskDispatch,
+  queue,
+  events,
+  memory,
+  system,
+};
 
 export default api;

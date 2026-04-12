@@ -15,6 +15,43 @@ interface UseWebSocketOptions {
   onMessage?: (msg: WsMessage) => void;
 }
 
+/**
+ * Wave 2C: WS event types relevant to live task updates.
+ * The dashboard's task detail page filters on these via subscribeToTask().
+ *
+ *   task:created     — new task entity created
+ *   task:commented   — new comment on a task
+ *   task:dispatched  — additional agent attached to a task
+ *   task:completed   — task moved to done/failed/canceled
+ *   notification:created — new inbox notification
+ *   agent:process-event  — Wave 2B live activity stream item
+ *
+ * Plus all existing agent:* / queue:* / system:* / webhook:* events.
+ */
+export const TASK_SCOPED_EVENT_TYPES: ReadonlySet<string> = new Set([
+  "task:created",
+  "task:commented",
+  "task:dispatched",
+  "task:completed",
+  "agent:process-event",
+  "agent:spawned",
+  "agent:completed",
+  "agent:failed",
+  "agent:idle",
+  "agent:suspended",
+  "agent:resumed",
+]);
+
+/** Type guard: does this WS message carry a taskId we can filter on? */
+function messageTaskId(msg: WsMessage): string | null {
+  const data = msg.data as { taskId?: unknown; issueKey?: unknown } | null | undefined;
+  if (!data || typeof data !== "object") return null;
+  if (typeof data.taskId === "string") return data.taskId;
+  // Legacy: many backend events still use issueKey as the task identifier.
+  if (typeof data.issueKey === "string") return data.issueKey;
+  return null;
+}
+
 interface UseWebSocketReturn {
   connected: boolean;
   snapshot: WsSnapshot | null;
@@ -22,6 +59,15 @@ interface UseWebSocketReturn {
   events: WsMessage[];
   send: (data: unknown) => void;
   reconnect: () => void;
+  /**
+   * Subscribe to WS messages scoped to a single task. The callback fires
+   * for any message whose `data.taskId` (or legacy `data.issueKey`) matches.
+   * Returns an unsubscribe function — call it on unmount.
+   */
+  subscribeToTask: (
+    taskId: string,
+    cb: (msg: WsMessage) => void,
+  ) => () => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {
@@ -42,6 +88,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountedRef = useRef(false);
   const onMessageRef = useRef(onMessage);
+
+  // Per-task subscriber registry: taskId → set of callbacks.
+  // Stable across renders so subscribeToTask returns can be safely captured.
+  const taskSubscribersRef = useRef<Map<string, Set<(msg: WsMessage) => void>>>(
+    new Map(),
+  );
 
   // Keep the callback fresh without retriggering the connect effect.
   useEffect(() => {
@@ -85,6 +137,21 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
           setEvents((prev) => [msg, ...prev].slice(0, 200));
         }
         onMessageRef.current?.(msg);
+
+        // Fan out to per-task subscribers (Wave 2C: task detail page).
+        const tid = messageTaskId(msg);
+        if (tid) {
+          const subs = taskSubscribersRef.current.get(tid);
+          if (subs && subs.size > 0) {
+            for (const cb of subs) {
+              try {
+                cb(msg);
+              } catch {
+                // A misbehaving subscriber must not break the WS pipeline.
+              }
+            }
+          }
+        }
       } catch {
         // Ignore malformed messages
       }
@@ -123,6 +190,24 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     }
   }, []);
 
+  const subscribeToTask = useCallback(
+    (taskId: string, cb: (msg: WsMessage) => void): (() => void) => {
+      let bucket = taskSubscribersRef.current.get(taskId);
+      if (!bucket) {
+        bucket = new Set();
+        taskSubscribersRef.current.set(taskId, bucket);
+      }
+      bucket.add(cb);
+      return () => {
+        const b = taskSubscribersRef.current.get(taskId);
+        if (!b) return;
+        b.delete(cb);
+        if (b.size === 0) taskSubscribersRef.current.delete(taskId);
+      };
+    },
+    [],
+  );
+
   const reconnect = useCallback(() => {
     retriesRef.current = 0;
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -154,5 +239,5 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     };
   }, [connect]);
 
-  return { connected, snapshot, lastMessage, events, send, reconnect };
+  return { connected, snapshot, lastMessage, events, send, reconnect, subscribeToTask };
 }

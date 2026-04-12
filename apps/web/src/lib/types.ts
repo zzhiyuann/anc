@@ -186,3 +186,209 @@ export interface WsSnapshot {
   /** Seconds. */
   uptime: number;
 }
+
+// ============================================================================
+// Wave 2C: First-class Task entity + Projects + Notifications
+// ----------------------------------------------------------------------------
+// These types match the new backend API from Wave 2A. The authoritative
+// shapes live in src/core/tasks.ts and src/core/projects.ts. The full task
+// detail response shape comes from `GET /api/v1/tasks/:id` (see plan doc).
+// ============================================================================
+
+// --- First-class Task entity (src/core/tasks.ts) ---
+
+export type TaskEntityState =
+  | "todo"
+  | "running"
+  | "review"
+  | "done"
+  | "failed"
+  | "canceled";
+
+export type TaskSource = "dashboard" | "linear" | "dispatch" | "duty";
+
+export interface Task {
+  id: string;
+  projectId: string | null;
+  title: string;
+  description: string | null;
+  state: TaskEntityState;
+  priority: number;
+  source: TaskSource;
+  parentTaskId: string | null;
+  createdBy: string;
+  linearIssueKey: string | null;
+  /** Unix epoch milliseconds. */
+  createdAt: number;
+  completedAt: number | null;
+  handoffSummary: string | null;
+}
+
+// --- Projects (src/core/projects.ts) ---
+
+export type ProjectState = "active" | "paused" | "archived";
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string | null;
+  state: ProjectState;
+  createdBy: string;
+  createdAt: number;
+  archivedAt: number | null;
+}
+
+export interface ProjectStats {
+  total: number;
+  running: number;
+  queued: number;
+  done: number;
+  totalCostUsd: number;
+}
+
+export interface ProjectWithStats extends Project {
+  stats: ProjectStats;
+}
+
+// --- Sessions (multi-agent: a task may have many sessions) ---
+
+/** A session attached to a task as returned in TaskFull.sessions. */
+export interface SessionOnTask {
+  issueKey: string;
+  role: string;
+  state: "active" | "idle" | "suspended";
+  tmuxSession: string | null;
+  spawnedAt: number;
+  alive: boolean;
+}
+
+// --- Task events / comments / attachments / cost / handoff ---
+
+export interface TaskEvent {
+  id: number;
+  taskId: string;
+  role: string | null;
+  type: string;
+  /** Parsed JSON payload (server already does JSON.parse). */
+  payload: unknown;
+  createdAt: number;
+}
+
+export interface TaskComment {
+  id: number;
+  taskId: string;
+  /** 'ceo' | 'agent:<role>' */
+  author: string;
+  body: string;
+  parentId: number | null;
+  createdAt: number;
+}
+
+export type TaskAttachmentKind =
+  | "handoff"
+  | "retro"
+  | "suspend"
+  | "code"
+  | "memory"
+  | "other";
+
+export interface TaskAttachment {
+  name: string;
+  size: number;
+  mtime: number;
+  kind: TaskAttachmentKind;
+}
+
+export interface TaskCostByAgent {
+  role: string;
+  usd: number;
+  tokens: number;
+}
+
+export interface TaskCost {
+  totalUsd: number;
+  byAgent: TaskCostByAgent[];
+}
+
+/** Parsed Actions block from a HANDOFF.md */
+export interface ParsedActions {
+  status?: string;
+  dispatches?: Array<{
+    role: string;
+    context: string;
+    newIssue?: string;
+    project?: string;
+  }>;
+  delegate?: string;
+  parentStatus?: string;
+}
+
+export interface TaskHandoff {
+  body: string;
+  actions: ParsedActions | null;
+}
+
+/**
+ * Full task detail — the response shape of `GET /api/v1/tasks/:id`.
+ * See plan doc "API Response Shape" for the spec.
+ */
+export interface TaskFull {
+  task: Task;
+  sessions: SessionOnTask[];
+  events: TaskEvent[];
+  comments: TaskComment[];
+  attachments: TaskAttachment[];
+  cost: TaskCost;
+  children: Task[];
+  handoff: TaskHandoff | null;
+}
+
+// --- Notifications ---
+
+export type NotificationKind =
+  | "mention"
+  | "alert"
+  | "briefing"
+  | "completion"
+  | "failure"
+  | "dispatch"
+  | "queue"
+  | "budget"
+  | "a2a";
+
+export type NotificationSeverity = "info" | "warning" | "critical";
+
+export interface AncNotification {
+  id: number;
+  kind: NotificationKind;
+  severity: NotificationSeverity;
+  title: string;
+  body: string | null;
+  taskId: string | null;
+  projectId: string | null;
+  agentRole: string | null;
+  /** null = unread */
+  readAt: number | null;
+  /** null = active (not archived) */
+  archivedAt: number | null;
+  createdAt: number;
+}
+
+// --- Process events (Wave 2B live agent activity stream) ---
+
+/**
+ * Single-line UI summary of an in-flight agent action, broadcast over WS as
+ * `agent:process-event`. The dashboard renders these as a "live activity"
+ * feed scoped to one task.
+ */
+export interface ProcessEvent {
+  taskId: string;
+  role: string;
+  /** e.g. 'agent:tool-call-start', 'agent:bash-command', 'agent:file-edit' */
+  eventType: string;
+  /** One-line human-readable summary, already truncated by the backend. */
+  preview: string;
+  ts: number;
+}
