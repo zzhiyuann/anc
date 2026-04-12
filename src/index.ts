@@ -51,6 +51,8 @@ program
     const { registerBridgeHandlers } = await import('./hooks/on-bridge.js');
     const { startDiscordBot, stopDiscordBot } = await import('./channels/discord.js');
     const { bus } = await import('./bus.js');
+    const { attachEventLogger } = await import('./core/events.js');
+    attachEventLogger(bus as unknown as { on: (ev: string, l: (d: unknown) => void) => unknown });
     const { cleanup } = await import('./routing/queue.js');
     const { recoverSessionsFromTmux } = await import('./runtime/runner.js');
     const { createLogger } = await import('./core/logger.js');

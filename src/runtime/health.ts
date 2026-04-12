@@ -33,6 +33,7 @@ export interface TrackedSession {
   useContinue: boolean;       // has prior context → use --continue on next spawn
   isDuty: boolean;            // proactive duty session (uses separate capacity pool)
   linearSessionId?: string;   // Linear AgentSession ID (shows "Working..." badge)
+  taskId?: string;            // FK → tasks.id (many sessions can share a task)
 }
 
 // All tracked sessions (active + idle + suspended)
