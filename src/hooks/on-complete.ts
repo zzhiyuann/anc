@@ -23,8 +23,22 @@ import { resolveSession } from '../runtime/runner.js';
 import { sessionExists } from '../runtime/runner.js';
 import type { TaskType, IssueStatus } from '../linear/types.js';
 import { createLogger } from '../core/logger.js';
+import { recordSpend, estimateCost } from '../core/budget.js';
 
 const log = createLogger('complete');
+
+/**
+ * Heuristic cost estimator from elapsed runtime.
+ * Claude Code outputs session cost in its final message, but the tmux-based
+ * runner doesn't capture a structured total. Fall back to $0.10/minute active
+ * (a conservative rough match for mid-usage sessions), clamped to the per-role
+ * floor so trivial sessions still get logged.
+ */
+function estimateCostFromElapsed(role: string, spawnedAt: number): number {
+  const elapsedMinutes = Math.max(0, (Date.now() - spawnedAt) / 60_000);
+  const timeBased = elapsedMinutes * 0.10;
+  return Math.max(timeBased, estimateCost(role));
+}
 
 /** Escape bare filenames (.md, .html, .ts, etc.) with backticks to prevent Linear auto-linking.
  *  e.g. "HANDOFF.md" → "`HANDOFF.md`", but already-backticked "`foo.md`" stays unchanged. */
@@ -110,6 +124,12 @@ export function registerCompletionHandlers(): void {
       // Nothing → lightweight completion (conversation ended, or task with no HANDOFF)
       // Mark idle — session can be reactivated via --continue if needed
       log.debug(`${session.role}/${session.issueKey}: session ended → idle`, { role: session.role, issueKey: session.issueKey });
+      try {
+        const costUsd = estimateCostFromElapsed(session.role, session.spawnedAt);
+        recordSpend(session.role, session.issueKey, 0, costUsd);
+      } catch (err) {
+        log.error(`recordSpend failed: ${(err as Error).message}`, { role: session.role, issueKey: session.issueKey });
+      }
       markIdle(session.issueKey);
       bus.emit('agent:idle', { role: session.role, issueKey: session.issueKey });
     }
@@ -230,6 +250,14 @@ async function processHandoff(
 
   // Process RETRO.md → append to shared memory
   await processRetro(session.role, session.issueKey, workspace);
+
+  // Record spend for this session (elapsed-time heuristic — no structured cost from claude -p)
+  try {
+    const costUsd = estimateCostFromElapsed(session.role, session.spawnedAt);
+    recordSpend(session.role, session.issueKey, 0, costUsd);
+  } catch (err) {
+    log.error(`recordSpend failed: ${(err as Error).message}`, { role: session.role, issueKey: session.issueKey });
+  }
 
   markIdle(session.issueKey);
   bus.emit('agent:completed', { role: session.role, issueKey: session.issueKey, handoff });

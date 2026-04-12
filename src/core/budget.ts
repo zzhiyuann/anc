@@ -58,6 +58,20 @@ export function reloadConfig(): void {
   cachedConfig = null;
 }
 
+/**
+ * Rough pre-spawn cost estimate for budget gating (USD).
+ * Used by the resolve gate before we know the true cost.
+ * Values are conservative — real cost is recorded at completion via recordSpend().
+ */
+export function estimateCost(agentRole: string): number {
+  switch (agentRole) {
+    case 'engineer': return 0.50;
+    case 'strategist': return 0.30;
+    case 'ops': return 0.10;
+    default: return 0.25;
+  }
+}
+
 /** Check if an agent can spend the estimated cost */
 export function canSpend(agentRole: string, estimatedCost: number): { allowed: boolean; reason?: string } {
   const config = loadConfig();

@@ -17,6 +17,7 @@ import {
 import { isBreakerTripped, recordFailure, recordSuccess } from './circuit-breaker.js';
 import { enqueue } from '../routing/queue.js';
 import { spawnClaude, suspendSession, sessionExists, sendToAgent } from './runner.js';
+import { canSpend, estimateCost } from '../core/budget.js';
 
 const log = createLogger('resolve');
 
@@ -115,6 +116,14 @@ export function resolveSession(opts: {
       enqueue({ issueKey, issueId: '', agentRole: role, priority: priority ?? 3, context: prompt });
       return { action: 'queued' };
     }
+  }
+
+  // Budget gate — only for fresh spawns. Resume/reactivate/pipe paths already skipped above.
+  const estimate = estimateCost(role);
+  const budgetCheck = canSpend(role, estimate);
+  if (!budgetCheck.allowed) {
+    log.warn(`Budget blocked spawn for ${role}/${issueKey}: ${budgetCheck.reason}`, { role, issueKey });
+    return { action: 'blocked', error: budgetCheck.reason };
   }
 
   // Spawn — auto-detect if workspace has prior conversation (use --continue for free context recovery)

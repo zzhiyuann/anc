@@ -59,6 +59,20 @@ export function registerLifecycleHandlers(): void {
     log.debug(`${role}/${issueKey} → idle`);
   });
 
+  // --- BUDGET ALERT: log + Discord notify (best-effort) ---
+  bus.on('system:budget-alert', async ({ agentRole, spent, limit, percent }) => {
+    const spentStr = spent.toFixed(2);
+    const limitStr = typeof limit === 'number' && isFinite(limit) ? limit.toFixed(2) : String(limit);
+    const msg = agentRole
+      ? `Budget alert: ${agentRole} at ${percent.toFixed(0)}% ($${spentStr}/$${limitStr})`
+      : `Daily budget at ${percent.toFixed(0)}% ($${spentStr}/$${limitStr})`;
+    log.warn(msg);
+    // Post to Discord if configured — import lazily so tests without Discord still pass
+    try {
+      await postToDiscord('system', `:warning: ${msg}`);
+    } catch { /* Discord not configured */ }
+  });
+
   // --- COMPLETED: notify Discord ---
   bus.on('agent:completed', async ({ role, issueKey, handoff }) => {
     if (isDutyIssue(issueKey)) return;
