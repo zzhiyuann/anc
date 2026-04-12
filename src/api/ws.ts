@@ -101,6 +101,9 @@ export function setupWebSocket(server: Server): void {
     'queue:enqueued', 'queue:drain',
     'system:budget-alert',
     'webhook:issue.created', 'webhook:comment.created',
+    // Wave 2A: task + notification events for the dashboard task detail view.
+    'task:created', 'task:commented', 'task:dispatched', 'task:completed',
+    'notification:created',
   ] as const;
 
   for (const event of events) {

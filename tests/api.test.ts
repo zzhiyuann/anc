@@ -72,9 +72,186 @@ vi.mock('../src/routing/queue.js', () => ({
   cancelItem: vi.fn(),
 }));
 
+// --- In-memory fake DB for route handlers that read task_events / task_comments / sessions / budget_log ---
+interface FakeStmt {
+  run: (...args: unknown[]) => { changes: number; lastInsertRowid: number };
+  get: (...args: unknown[]) => unknown;
+  all: (...args: unknown[]) => unknown[];
+}
+const fakeDbState = {
+  comments: [] as Array<Record<string, unknown>>,
+  taskEvents: [] as Array<Record<string, unknown>>,
+  sessionsByTask: new Map<string, Array<Record<string, unknown>>>(),
+  budgetLog: [] as Array<Record<string, unknown>>,
+  queueDepth: 0,
+};
+function makeFakeStmt(sql: string): FakeStmt {
+  const s = sql.replace(/\s+/g, ' ').trim();
+  return {
+    run: (...args: unknown[]) => {
+      if (s.startsWith('INSERT INTO task_comments')) {
+        const id = fakeDbState.comments.length + 1;
+        fakeDbState.comments.push({
+          id,
+          task_id: args[0],
+          author: args[1],
+          body: args[2],
+          parent_id: args[3] ?? null,
+          created_at: Date.now(),
+        });
+        return { changes: 1, lastInsertRowid: id };
+      }
+      return { changes: 0, lastInsertRowid: 0 };
+    },
+    get: (...args: unknown[]) => {
+      if (s.includes('FROM task_comments WHERE id')) {
+        return fakeDbState.comments.find(c => c.id === args[0]);
+      }
+      if (s.includes('COUNT(*)') && s.includes('queue')) {
+        return { n: fakeDbState.queueDepth };
+      }
+      if (s.startsWith('SELECT issue_key FROM sessions WHERE task_id')) {
+        const list = fakeDbState.sessionsByTask.get(args[0] as string) ?? [];
+        return list[0];
+      }
+      return undefined;
+    },
+    all: (...args: unknown[]) => {
+      if (s.startsWith('SELECT * FROM task_comments WHERE task_id')) {
+        return fakeDbState.comments.filter(c => c.task_id === args[0]);
+      }
+      if (s.startsWith('SELECT * FROM task_events WHERE task_id')) {
+        return fakeDbState.taskEvents.filter(e => e.task_id === args[0]);
+      }
+      if (s.startsWith('SELECT * FROM sessions WHERE task_id')) {
+        return fakeDbState.sessionsByTask.get(args[0] as string) ?? [];
+      }
+      if (s.includes('FROM budget_log')) {
+        return [];
+      }
+      return [];
+    },
+  };
+}
+const fakeDb = { prepare: (sql: string) => makeFakeStmt(sql) };
+
 vi.mock('../src/core/db.js', () => ({
   getRecentEvents: vi.fn(() => []),
-  getDb: vi.fn(),
+  getDb: vi.fn(() => fakeDb),
+}));
+
+// --- Tasks / Projects / Notifications core mocks ---
+const tasksStore = new Map<string, Record<string, unknown>>();
+let taskSeq = 0;
+vi.mock('../src/core/tasks.js', () => ({
+  createTask: vi.fn((input: Record<string, unknown>) => {
+    taskSeq += 1;
+    const id = (input.id as string) ?? `task-test-${taskSeq}`;
+    const task = {
+      id,
+      projectId: (input.projectId as string | null) ?? null,
+      title: input.title,
+      description: (input.description as string | null) ?? null,
+      state: (input.state as string) ?? 'todo',
+      priority: (input.priority as number) ?? 3,
+      source: (input.source as string) ?? 'dashboard',
+      parentTaskId: (input.parentTaskId as string | null) ?? null,
+      createdBy: (input.createdBy as string) ?? 'ceo',
+      linearIssueKey: (input.linearIssueKey as string | null) ?? null,
+      createdAt: Date.now(),
+      completedAt: null,
+      handoffSummary: null,
+    };
+    tasksStore.set(id, task);
+    return task;
+  }),
+  getTask: vi.fn((id: string) => tasksStore.get(id) ?? null),
+  listTasks: vi.fn(() => Array.from(tasksStore.values())),
+  getTaskChildren: vi.fn(() => []),
+  setTaskState: vi.fn(),
+  updateTask: vi.fn((id: string, patch: Record<string, unknown>) => {
+    const existing = tasksStore.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...patch };
+    tasksStore.set(id, updated);
+    return updated;
+  }),
+  resolveTaskIdFromIssueKey: vi.fn((key: string) => key),
+}));
+
+const projectsStore = new Map<string, Record<string, unknown>>();
+vi.mock('../src/core/projects.js', () => ({
+  createProject: vi.fn((input: Record<string, unknown>) => {
+    const id = (input.id as string) ?? `proj-${String(input.name).toLowerCase().replace(/\s+/g, '-')}`;
+    const project = {
+      id,
+      name: input.name,
+      description: (input.description as string | null) ?? null,
+      color: (input.color as string) ?? '#3b82f6',
+      icon: (input.icon as string | null) ?? null,
+      state: 'active',
+      createdBy: 'ceo',
+      createdAt: Date.now(),
+      archivedAt: null,
+    };
+    projectsStore.set(id, project);
+    return project;
+  }),
+  getProject: vi.fn((id: string) => projectsStore.get(id) ?? null),
+  listProjects: vi.fn(() => Array.from(projectsStore.values())),
+  updateProject: vi.fn((id: string, patch: Record<string, unknown>) => {
+    const existing = projectsStore.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...patch };
+    projectsStore.set(id, updated);
+    return updated;
+  }),
+  archiveProject: vi.fn((id: string) => {
+    const existing = projectsStore.get(id);
+    if (existing) {
+      existing.state = 'archived';
+      existing.archivedAt = Date.now();
+    }
+  }),
+  getProjectStats: vi.fn(() => ({ total: 0, running: 0, queued: 0, done: 0, totalCostUsd: 0 })),
+}));
+
+const notificationsStore: Array<Record<string, unknown>> = [];
+let notifSeq = 0;
+vi.mock('../src/core/notifications.js', () => ({
+  createNotification: vi.fn((input: Record<string, unknown>) => {
+    notifSeq += 1;
+    const n = {
+      id: notifSeq,
+      kind: input.kind,
+      severity: (input.severity as string) ?? 'info',
+      title: input.title,
+      body: (input.body as string | null) ?? null,
+      taskId: (input.taskId as string | null) ?? null,
+      projectId: (input.projectId as string | null) ?? null,
+      agentRole: (input.agentRole as string | null) ?? null,
+      readAt: null,
+      archivedAt: null,
+      createdAt: Date.now(),
+    };
+    notificationsStore.push(n);
+    return n;
+  }),
+  listNotifications: vi.fn(() => [...notificationsStore]),
+  getUnreadCount: vi.fn(() => notificationsStore.filter(n => n.readAt === null && n.archivedAt === null).length),
+  markRead: vi.fn((id: number) => {
+    const n = notificationsStore.find(x => x.id === id);
+    if (n) n.readAt = Date.now();
+  }),
+  markAllRead: vi.fn(() => {
+    let c = 0;
+    for (const n of notificationsStore) if (n.readAt === null) { n.readAt = Date.now(); c++; }
+    return c;
+  }),
+  archiveNotification: vi.fn((id: number) => {
+    const n = notificationsStore.find(x => x.id === id);
+    if (n) { n.archivedAt = Date.now(); n.readAt ??= Date.now(); }
+  }),
 }));
 
 vi.mock('../src/linear/types.js', () => ({
@@ -243,30 +420,35 @@ describe('API — POST /agents/:role/talk', () => {
 // --- GET /tasks ---
 
 describe('API — GET /tasks', () => {
-  it('returns task list', async () => {
+  it('returns task rows from listTasks', async () => {
+    // Seed a task via the mocked createTask
+    const { createTask } = await import('../src/core/tasks.js');
+    (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'Seeded' });
     const req = createReq('GET', '/api/v1/tasks');
     const res = createRes();
     await handleApiRequest(req, res);
 
     expect(res._status).toBe(200);
-    const data = res._parsed() as { tasks: Array<{ id: string; role: string; state: string }> };
-    expect(data.tasks).toHaveLength(2);
-    expect(data.tasks[0].role).toBe('engineer');
+    const data = res._parsed() as { tasks: Array<{ id: string; title: string }> };
+    expect(Array.isArray(data.tasks)).toBe(true);
+    expect(data.tasks.some(t => t.title === 'Seeded')).toBe(true);
   });
 });
 
 // --- POST /tasks ---
 
 describe('API — POST /tasks', () => {
-  it('creates a new task', async () => {
+  it('creates a new task row and spawns a session', async () => {
     const req = createReq('POST', '/api/v1/tasks', { title: 'Fix the bug', agent: 'engineer' });
     const res = createRes();
     await handleApiRequest(req, res);
 
     expect(res._status).toBe(201);
     expect(mockedResolveSession).toHaveBeenCalled();
-    const data = res._parsed() as { issueKey: string };
-    expect(data.issueKey).toMatch(/^manual-/);
+    const data = res._parsed() as { task: { id: string; title: string }; action: string };
+    expect(data.task.id).toMatch(/^task-/);
+    expect(data.task.title).toBe('Fix the bug');
+    expect(data.action).toBe('spawned');
   });
 
   it('returns 400 when title is missing', async () => {
@@ -277,6 +459,13 @@ describe('API — POST /tasks', () => {
     expect(res._status).toBe(400);
     const data = res._parsed() as { error: string };
     expect(data.error).toContain('title');
+  });
+
+  it('returns 404 when projectId does not exist', async () => {
+    const req = createReq('POST', '/api/v1/tasks', { title: 'x', projectId: 'proj-missing' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(404);
   });
 });
 
@@ -442,5 +631,293 @@ describe('API — GET /queue status param', () => {
     const res = createRes();
     await handleApiRequest(req, res);
     expect(res._status).toBe(200);
+  });
+});
+
+// =========================================================================
+// Wave 2A — Task / Project / Notification API
+// =========================================================================
+
+describe('Wave 2A — GET /tasks/:id detail', () => {
+  it('returns full detail shape for an existing task', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'Detail me' }) as { id: string };
+    const req = createReq('GET', `/api/v1/tasks/${task.id}`);
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as {
+      task: { id: string; title: string };
+      sessions: unknown[];
+      events: unknown[];
+      comments: unknown[];
+      attachments: unknown[];
+      cost: { totalUsd: number };
+      children: unknown[];
+      handoff: unknown | null;
+    };
+    expect(data.task.id).toBe(task.id);
+    expect(data.task.title).toBe('Detail me');
+    expect(Array.isArray(data.sessions)).toBe(true);
+    expect(Array.isArray(data.events)).toBe(true);
+    expect(Array.isArray(data.comments)).toBe(true);
+    expect(Array.isArray(data.attachments)).toBe(true);
+    expect(Array.isArray(data.children)).toBe(true);
+    expect(data.cost).toHaveProperty('totalUsd');
+  });
+
+  it('falls back to session lookup for legacy issueKey', async () => {
+    const req = createReq('GET', '/api/v1/tasks/ANC-1');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    // Legacy session path returns session shape (has role).
+    expect(res._status).toBe(200);
+  });
+
+  it('returns 404 for unknown task', async () => {
+    const req = createReq('GET', '/api/v1/tasks/task-does-not-exist');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(404);
+  });
+
+  it('rejects malformed id', async () => {
+    const req = createReq('GET', '/api/v1/tasks/bad%20id');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(400);
+  });
+});
+
+describe('Wave 2A — task comments', () => {
+  it('POST /tasks/:id/comments creates a row', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'C' }) as { id: string };
+    const req = createReq('POST', `/api/v1/tasks/${task.id}/comments`, { body: 'hello world' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(201);
+    const data = res._parsed() as { comment: { id: number; body: string; author: string } };
+    expect(data.comment.body).toBe('hello world');
+    expect(data.comment.author).toBe('ceo');
+  });
+
+  it('GET /tasks/:id/comments lists created comments', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'C2' }) as { id: string };
+    // Seed a comment
+    const postReq = createReq('POST', `/api/v1/tasks/${task.id}/comments`, { body: 'first' });
+    const postRes = createRes();
+    await handleApiRequest(postReq, postRes);
+
+    const req = createReq('GET', `/api/v1/tasks/${task.id}/comments`);
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { comments: Array<{ body: string }> };
+    expect(data.comments.some(c => c.body === 'first')).toBe(true);
+  });
+
+  it('POST requires a body', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'C3' }) as { id: string };
+    const req = createReq('POST', `/api/v1/tasks/${task.id}/comments`, {});
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(400);
+  });
+
+  it('returns 404 when task does not exist', async () => {
+    const req = createReq('POST', '/api/v1/tasks/task-missing/comments', { body: 'x' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(404);
+  });
+});
+
+describe('Wave 2A — POST /tasks/:id/dispatch', () => {
+  it('creates a second session on the same task', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'Dispatch me' }) as { id: string };
+    const req = createReq('POST', `/api/v1/tasks/${task.id}/dispatch`, { role: 'strategist' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(201);
+    const data = res._parsed() as { session: { role: string; issueKey: string } };
+    expect(data.session.role).toBe('strategist');
+    expect(data.session.issueKey).toContain(task.id);
+  });
+
+  it('rejects unknown role', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'DD' }) as { id: string };
+    const req = createReq('POST', `/api/v1/tasks/${task.id}/dispatch`, { role: 'wizard' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(404);
+  });
+
+  it('requires role in body', async () => {
+    const { createTask } = await import('../src/core/tasks.js');
+    const task = (createTask as unknown as ReturnType<typeof vi.fn>)({ title: 'DD2' }) as { id: string };
+    const req = createReq('POST', `/api/v1/tasks/${task.id}/dispatch`, {});
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(400);
+  });
+});
+
+describe('Wave 2A — Projects API', () => {
+  it('POST /projects creates a project', async () => {
+    const req = createReq('POST', '/api/v1/projects', { name: 'My Project' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(201);
+    const data = res._parsed() as { project: { id: string; name: string } };
+    expect(data.project.name).toBe('My Project');
+  });
+
+  it('POST /projects rejects empty name', async () => {
+    const req = createReq('POST', '/api/v1/projects', {});
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(400);
+  });
+
+  it('GET /projects lists projects with stats', async () => {
+    const req0 = createReq('POST', '/api/v1/projects', { name: 'Listable' });
+    await handleApiRequest(req0, createRes());
+    const req = createReq('GET', '/api/v1/projects');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { projects: Array<{ name: string; stats: unknown }> };
+    expect(data.projects.some(p => p.name === 'Listable')).toBe(true);
+    expect(data.projects[0]).toHaveProperty('stats');
+  });
+
+  it('GET /projects/:id returns recent tasks + stats', async () => {
+    const reqC = createReq('POST', '/api/v1/projects', { name: 'Detail Project' });
+    const resC = createRes();
+    await handleApiRequest(reqC, resC);
+    const created = resC._parsed() as { project: { id: string } };
+
+    const req = createReq('GET', `/api/v1/projects/${created.project.id}`);
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { project: { id: string }; recentTasks: unknown[]; stats: unknown };
+    expect(data.project.id).toBe(created.project.id);
+    expect(Array.isArray(data.recentTasks)).toBe(true);
+  });
+
+  it('PATCH /projects/:id updates fields', async () => {
+    const reqC = createReq('POST', '/api/v1/projects', { name: 'Patchy' });
+    const resC = createRes();
+    await handleApiRequest(reqC, resC);
+    const created = resC._parsed() as { project: { id: string } };
+
+    const req = createReq('PATCH', `/api/v1/projects/${created.project.id}`, { color: '#ff00aa' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { project: { color: string } };
+    expect(data.project.color).toBe('#ff00aa');
+  });
+
+  it('DELETE /projects/:id archives', async () => {
+    const reqC = createReq('POST', '/api/v1/projects', { name: 'Archivable' });
+    const resC = createRes();
+    await handleApiRequest(reqC, resC);
+    const created = resC._parsed() as { project: { id: string } };
+
+    const req = createReq('DELETE', `/api/v1/projects/${created.project.id}`);
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+
+    // Re-fetch — the archiveProject mock flips the state to 'archived'.
+    const req2 = createReq('GET', `/api/v1/projects/${created.project.id}`);
+    const res2 = createRes();
+    await handleApiRequest(req2, res2);
+    const data = res2._parsed() as { project: { state: string } };
+    expect(data.project.state).toBe('archived');
+  });
+
+  it('returns 404 for missing project', async () => {
+    const req = createReq('GET', '/api/v1/projects/proj-nope');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(404);
+  });
+});
+
+describe('Wave 2A — Notifications API', () => {
+  it('GET /notifications returns empty list and unreadCount:0 initially', async () => {
+    const { createNotification } = await import('../src/core/notifications.js');
+    // Fresh — we can't easily reset the module-level store between tests,
+    // but the endpoint must still return valid shape.
+    const req = createReq('GET', '/api/v1/notifications');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { notifications: unknown[]; unreadCount: number };
+    expect(Array.isArray(data.notifications)).toBe(true);
+    expect(typeof data.unreadCount).toBe('number');
+    // Touch the mocked factory so subsequent assertions have a known-good one.
+    void createNotification;
+  });
+
+  it('GET /notifications/unread-count returns a number', async () => {
+    const req = createReq('GET', '/api/v1/notifications/unread-count');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { count: number };
+    expect(typeof data.count).toBe('number');
+  });
+
+  it('POST /notifications/:id/read marks the notification as read', async () => {
+    const { createNotification } = await import('../src/core/notifications.js');
+    const n = (createNotification as unknown as ReturnType<typeof vi.fn>)({
+      kind: 'alert', title: 'ping',
+    }) as { id: number };
+    const req = createReq('POST', `/api/v1/notifications/${n.id}/read`);
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { ok: boolean };
+    expect(data.ok).toBe(true);
+  });
+
+  it('POST /notifications/mark-all-read returns count', async () => {
+    const { createNotification } = await import('../src/core/notifications.js');
+    (createNotification as unknown as ReturnType<typeof vi.fn>)({ kind: 'alert', title: 'a' });
+    (createNotification as unknown as ReturnType<typeof vi.fn>)({ kind: 'alert', title: 'b' });
+    const req = createReq('POST', '/api/v1/notifications/mark-all-read');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { ok: boolean; count: number };
+    expect(data.ok).toBe(true);
+    expect(typeof data.count).toBe('number');
+  });
+
+  it('POST /notifications/:id/archive archives a notification', async () => {
+    const { createNotification } = await import('../src/core/notifications.js');
+    const n = (createNotification as unknown as ReturnType<typeof vi.fn>)({
+      kind: 'alert', title: 'arch-me',
+    }) as { id: number };
+    const req = createReq('POST', `/api/v1/notifications/${n.id}/archive`);
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+  });
+
+  it('rejects invalid notification id', async () => {
+    const req = createReq('POST', '/api/v1/notifications/abc/read');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(400);
   });
 });

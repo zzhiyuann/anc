@@ -158,6 +158,22 @@ export function getDb(): Database.Database {
       created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
     CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id, created_at ASC);
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind          TEXT NOT NULL,
+      severity      TEXT NOT NULL DEFAULT 'info',
+      title         TEXT NOT NULL,
+      body          TEXT,
+      task_id       TEXT REFERENCES tasks(id),
+      project_id    TEXT REFERENCES projects(id),
+      agent_role    TEXT,
+      read_at       INTEGER,
+      archived_at   INTEGER,
+      created_at    INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(read_at, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_notifications_task ON notifications(task_id, created_at DESC);
   `);
 
   // Migrate existing tables from TEXT → INTEGER timestamps (idempotent)

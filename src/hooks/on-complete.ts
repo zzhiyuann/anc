@@ -24,6 +24,7 @@ import { sessionExists } from '../runtime/runner.js';
 import type { TaskType, IssueStatus } from '../linear/types.js';
 import { createLogger } from '../core/logger.js';
 import { recordSpend, estimateCost } from '../core/budget.js';
+import { resolveTaskIdFromIssueKey, setTaskState, createTask, getTask } from '../core/tasks.js';
 
 const log = createLogger('complete');
 
@@ -192,6 +193,10 @@ async function processHandoff(
   const newStatus = actions?.status ?? decideStatus(taskType, handoff);
   log.info(`${session.issueKey} → ${newStatus}${actions ? ' (agent-decided)' : ' (system-decided)'}`, { issueKey: session.issueKey });
 
+  // Resolve parent task once — child tasks inherit this id and project.
+  const parentTaskId = resolveTaskIdFromIssueKey(session.issueKey);
+  const parentTask = parentTaskId ? getTask(parentTaskId) : null;
+
   // Execute dispatches — each creates a sub-issue (one issue = one agent)
   if (actions?.dispatches && actions.dispatches.length > 0) {
     const previousContext = summary.length > 500
@@ -206,6 +211,29 @@ async function processHandoff(
       const subKey = await createSubIssue(session.issueKey, subTitle, subDesc, dispatch.priority ?? 3, dispatch.role);
       if (subKey) {
         log.info(`Created sub-issue ${subKey} → ${dispatch.role}`, { issueKey: session.issueKey });
+
+        // Wave 2A: mirror the dispatch into a local child task so the
+        // dashboard shows parent/child hierarchy even before Linear syncs.
+        try {
+          const childTask = createTask({
+            title: subTitle,
+            description: dispatch.context,
+            priority: dispatch.priority ?? 3,
+            source: 'dispatch',
+            projectId: parentTask?.projectId ?? null,
+            parentTaskId: parentTaskId ?? null,
+            linearIssueKey: subKey,
+            createdBy: session.role,
+          });
+          void bus.emit('task:dispatched', {
+            taskId: childTask.id,
+            role: dispatch.role,
+            parentTaskId: parentTaskId ?? null,
+          });
+        } catch (err) {
+          log.warn(`failed to create child task: ${(err as Error).message}`);
+        }
+
         resolveSession({ role: dispatch.role, issueKey: subKey, prompt: dispatch.context, priority: dispatch.priority });
       }
     }
@@ -260,6 +288,25 @@ async function processHandoff(
   }
 
   markIdle(session.issueKey);
+
+  // Wave 2A: set the parent task state based on the decided Linear status.
+  // 'Done' → done, 'In Review' → review, anything else → failed (best-effort).
+  if (parentTaskId) {
+    try {
+      const taskState =
+        newStatus === 'Done' ? 'done'
+        : newStatus === 'In Review' ? 'review'
+        : 'failed';
+      setTaskState(parentTaskId, taskState, Date.now());
+      void bus.emit('task:completed', {
+        taskId: parentTaskId,
+        handoffSummary: summary.substring(0, 2000),
+      });
+    } catch (err) {
+      log.warn(`failed to set task state: ${(err as Error).message}`);
+    }
+  }
+
   bus.emit('agent:completed', { role: session.role, issueKey: session.issueKey, handoff });
 }
 
