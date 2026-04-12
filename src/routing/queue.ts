@@ -10,9 +10,10 @@
  *   5 = Duty / background
  */
 
+import { randomUUID } from 'node:crypto';
 import type { QueueItem, AgentRole } from '../linear/types.js';
 import { bus } from '../bus.js';
-import { getDb, saveQueueItem, loadQueueItems, deleteQueueItem, clearOldQueueItems } from '../core/db.js';
+import { getDb, saveQueueItem, clearOldQueueItems } from '../core/db.js';
 
 export const PRIORITY = {
   CEO_ASSIGNED: 1,
@@ -20,8 +21,6 @@ export const PRIORITY = {
   NORMAL: 3,
   DUTY: 5,
 } as const;
-
-let idCounter = 0;
 
 // Per-issue cooldown map (in-memory, no need to persist)
 const cooldowns = new Map<string, number>();
@@ -75,7 +74,7 @@ export function enqueue(params: EnqueueParams): QueueItem | null {
   if (existing) return null;
 
   const item: QueueItem = {
-    id: `q-${++idCounter}-${Date.now()}`,
+    id: randomUUID(),
     issueKey: params.issueKey,
     issueId: params.issueId,
     agentRole: params.agentRole,
@@ -95,7 +94,7 @@ export function enqueue(params: EnqueueParams): QueueItem | null {
     saveQueueItem(item);
   }
 
-  bus.emit('queue:enqueued', { issueKey: item.issueKey, role: item.agentRole, priority: item.priority });
+  void bus.emit('queue:enqueued', { issueKey: item.issueKey, role: item.agentRole, priority: item.priority });
 
   return item;
 }
@@ -105,24 +104,38 @@ export function dequeue(role?: AgentRole): QueueItem | null {
   const d = getDb();
   const now = new Date().toISOString();
 
-  const row = role
-    ? d.prepare(`
-        SELECT * FROM queue
-        WHERE status = 'queued' AND agent_role = ? AND (delay_until IS NULL OR delay_until <= ?)
-        ORDER BY priority ASC, created_at ASC LIMIT 1
-      `).get(role, now) as Record<string, unknown> | undefined
-    : d.prepare(`
-        SELECT * FROM queue
-        WHERE status = 'queued' AND (delay_until IS NULL OR delay_until <= ?)
-        ORDER BY priority ASC, created_at ASC LIMIT 1
-      `).get(now) as Record<string, unknown> | undefined;
+  // Atomic SELECT+UPDATE inside an immediate transaction so two concurrent
+  // callers can't both claim the same row.
+  const claim = d.transaction((): Record<string, unknown> | undefined => {
+    const row = role
+      ? d.prepare(`
+          SELECT * FROM queue
+          WHERE status = 'queued' AND agent_role = ? AND (delay_until IS NULL OR delay_until <= ?)
+          ORDER BY priority ASC, created_at ASC LIMIT 1
+        `).get(role, now) as Record<string, unknown> | undefined
+      : d.prepare(`
+          SELECT * FROM queue
+          WHERE status = 'queued' AND (delay_until IS NULL OR delay_until <= ?)
+          ORDER BY priority ASC, created_at ASC LIMIT 1
+        `).get(now) as Record<string, unknown> | undefined;
 
+    if (!row) return undefined;
+
+    d.prepare("UPDATE queue SET status = 'processing' WHERE id = ?").run(row.id);
+    return row;
+  });
+
+  const row = claim.immediate();
   if (!row) return null;
 
-  // Mark processing in DB
-  d.prepare("UPDATE queue SET status = 'processing' WHERE id = ?").run(row.id);
+  const item = rowToItem({ ...row, status: 'processing' });
 
-  return rowToItem({ ...row, status: 'processing' });
+  // If the queue is now empty, announce drain.
+  if (peek() === null) {
+    void bus.emit('queue:drain', undefined);
+  }
+
+  return item;
 }
 
 /** Mark a queue item as completed */
@@ -172,9 +185,16 @@ export function peek(role?: AgentRole): QueueItem | null {
   return row ? rowToItem(row) : null;
 }
 
-/** Clean up old completed/canceled items (>1 hour) */
+/** Clean up old completed/canceled items (>1 hour) and prune expired cooldowns. */
 export function cleanup(): number {
-  return clearOldQueueItems(3600_000);
+  const removed = clearOldQueueItems(3600_000);
+
+  const now = Date.now();
+  for (const [key, expiry] of cooldowns.entries()) {
+    if (expiry < now) cooldowns.delete(key);
+  }
+
+  return removed;
 }
 
 /** Get queue length for queued items */
@@ -187,7 +207,6 @@ export function getQueueLength(): number {
 export function _resetQueue(): void {
   getDb().prepare('DELETE FROM queue').run();
   cooldowns.clear();
-  idCounter = 0;
 }
 
 // --- Helpers ---
