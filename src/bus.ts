@@ -86,6 +86,9 @@ export interface AncEvents {
   'task:commented': { taskId: string; author: string; body: string; commentId: number };
   'task:dispatched': { taskId: string; role: string; parentTaskId: string | null };
   'task:completed': { taskId: string; handoffSummary: string | null };
+
+  // Notification events
+  'notification:created': { id: number; kind: string; severity: string; title: string; taskId?: string | null };
 }
 
 // Singleton bus instance

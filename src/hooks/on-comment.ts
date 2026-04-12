@@ -11,6 +11,8 @@ import { getIssue } from '../linear/client.js';
 import { downloadCommentImages } from '../linear/images.js';
 import { getWorkspacePath } from '../runtime/workspace.js';
 import { createLogger } from '../core/logger.js';
+import { resolveTaskIdFromIssueKey } from '../core/tasks.js';
+import { getDb } from '../core/db.js';
 
 const log = createLogger('comment');
 
@@ -68,5 +70,26 @@ export function registerCommentHandlers(): void {
       prompt,
       priority: decision.priority,
     });
+
+    // Mirror the comment into task_comments so the dashboard's task detail
+    // view can show a unified conversation thread. Best-effort — DB errors
+    // should not disrupt routing.
+    try {
+      const taskId = resolveTaskIdFromIssueKey(issue.identifier);
+      if (taskId) {
+        const result = getDb().prepare(
+          'INSERT INTO task_comments (task_id, author, body) VALUES (?, ?, ?)'
+        ).run(taskId, 'ceo', processedBody);
+        const commentId = Number(result.lastInsertRowid);
+        void bus.emit('task:commented', {
+          taskId,
+          author: 'ceo',
+          body: processedBody,
+          commentId,
+        });
+      }
+    } catch (err) {
+      log.warn(`task_comments mirror failed: ${(err as Error).message}`);
+    }
   });
 }
