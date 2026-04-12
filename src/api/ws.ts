@@ -8,13 +8,14 @@ import { WebSocketServer, WebSocket } from 'ws';
 import type { Server, IncomingMessage } from 'http';
 import { bus } from '../bus.js';
 import { getRegisteredAgents } from '../agents/registry.js';
-import { getHealthStatus, getTrackedSessions } from '../runtime/health.js';
+import { getHealthStatus, getTrackedSessions, hasCapacity } from '../runtime/health.js';
 import { getQueue } from '../routing/queue.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('ws');
 
 let wss: WebSocketServer | null = null;
+const unsubscribers: Array<() => void> = [];
 
 /** Broadcast a JSON message to all connected clients */
 function broadcast(type: string, data: unknown): void {
@@ -32,6 +33,7 @@ function buildSnapshot(): unknown {
   const agents = getRegisteredAgents().map(a => ({
     role: a.role,
     name: a.name,
+    hasCapacity: hasCapacity(a.role),
     ...getHealthStatus(a.role),
   }));
   const sessions = getTrackedSessions().map(s => ({
@@ -67,6 +69,12 @@ export function setupWebSocket(server: Server): void {
     // Send initial state snapshot
     ws.send(JSON.stringify({ type: 'snapshot', data: buildSnapshot(), ts: Date.now() }));
 
+    ws.on('message', (data) => {
+      const text = data.toString();
+      if (text === 'ping') { ws.send('pong'); return; }
+      // Ignore other messages — dashboard is read-only
+    });
+
     ws.on('close', () => log.debug('Dashboard client disconnected'));
     ws.on('error', (err) => log.error(`WS error: ${err.message}`));
   });
@@ -75,12 +83,28 @@ export function setupWebSocket(server: Server): void {
   const events = [
     'agent:spawned', 'agent:completed', 'agent:failed',
     'agent:idle', 'agent:suspended', 'agent:resumed',
+    'agent:health',
     'queue:enqueued', 'queue:drain',
+    'system:budget-alert',
+    'webhook:issue.created', 'webhook:comment.created',
   ] as const;
 
   for (const event of events) {
-    bus.on(event, (data) => broadcast(event, data));
+    const unsub = bus.on(event, (data) => broadcast(event, data));
+    unsubscribers.push(unsub);
   }
 
   log.info('WebSocket server ready on /ws');
+}
+
+/** Tear down WebSocket server: unsubscribe all bus listeners and close server. */
+export function teardownWebSocket(): void {
+  for (const unsub of unsubscribers) {
+    try { unsub(); } catch { /* ignore */ }
+  }
+  unsubscribers.length = 0;
+  if (wss) {
+    try { wss.close(); } catch { /* ignore */ }
+    wss = null;
+  }
 }
