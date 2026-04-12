@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { TaskCard } from "@/components/task-card";
+import { ProjectPicker } from "@/components/project-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,7 +17,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { api, ApiError } from "@/lib/api";
 import { mockTasks } from "@/lib/mock-data";
-import type { SessionState, TaskRow } from "@/lib/types";
+import type {
+  ProjectWithStats,
+  SessionState,
+  Task,
+  TaskRow,
+} from "@/lib/types";
 
 const columns: { key: SessionState; label: string; color: string }[] = [
   { key: "active", label: "Active", color: "text-status-active" },
@@ -40,17 +46,25 @@ export default function TasksPage() {
 }
 
 function TasksPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const filterProjectId = searchParams.get("projectId");
+  const initialNew = searchParams.get("new") === "1";
+  const presetProjectId = searchParams.get("projectId");
+
   const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [projects, setProjects] = useState<ProjectWithStats[]>([]);
+  const [projectTaskIds, setProjectTaskIds] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [backendError, setBackendError] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(searchParams.get("new") === "1");
+  const [dialogOpen, setDialogOpen] = useState(initialNew);
 
   // Create form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [agent, setAgent] = useState("engineer");
   const [priority, setPriority] = useState<number>(3);
+  const [taskProjectId, setTaskProjectId] = useState<string | null>(presetProjectId);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -73,6 +87,62 @@ function TasksPageInner() {
     void refresh();
   }, [refresh]);
 
+  // Load projects (for picker + filter + card tags).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await api.projects.list();
+        if (!cancelled) setProjects(list);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // When a project filter is active, fetch project tasks to know which IDs match.
+  useEffect(() => {
+    if (!filterProjectId) {
+      setProjectTaskIds(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const projTasks: Task[] = await api.tasks.listByProject(filterProjectId);
+        if (cancelled) return;
+        const ids = new Set<string>();
+        for (const t of projTasks) {
+          ids.add(t.id);
+          if (t.linearIssueKey) ids.add(t.linearIssueKey);
+        }
+        setProjectTaskIds(ids);
+      } catch {
+        if (!cancelled) setProjectTaskIds(new Set());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filterProjectId]);
+
+  const projectsById = useMemo(() => {
+    const m = new Map<string, ProjectWithStats>();
+    for (const p of projects) m.set(p.id, p);
+    return m;
+  }, [projects]);
+
+  // Apply project filter on tasks list (best-effort match by id or issueKey).
+  const visibleTasks = useMemo(() => {
+    if (!filterProjectId || !projectTaskIds) return tasks;
+    return tasks.filter(
+      (t) => projectTaskIds.has(t.id) || projectTaskIds.has(t.issueKey),
+    );
+  }, [tasks, filterProjectId, projectTaskIds]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -83,11 +153,13 @@ function TasksPageInner() {
         description: description || undefined,
         agent,
         priority,
+        projectId: taskProjectId,
       });
       setTitle("");
       setDescription("");
       setAgent("engineer");
       setPriority(3);
+      setTaskProjectId(filterProjectId);
       setDialogOpen(false);
       await refresh();
     } catch (err) {
@@ -99,32 +171,59 @@ function TasksPageInner() {
 
   const tasksByStatus = columns.map((col) => ({
     ...col,
-    tasks: tasks.filter((t) => t.state === col.key),
+    tasks: visibleTasks.filter((t) => t.state === col.key),
   }));
+
+  const setProjectFilter = (id: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) params.set("projectId", id);
+    else params.delete("projectId");
+    const qs = params.toString();
+    router.replace(qs ? `/tasks?${qs}` : "/tasks");
+  };
+
+  const filterProject = filterProjectId ? projectsById.get(filterProjectId) : null;
 
   return (
     <div className="flex h-full flex-col p-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Tasks</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {loading
               ? "Loading..."
-              : `${tasks.length} tracked sessions${backendError ? " (mock data — backend offline)" : ""}`}
+              : `${visibleTasks.length} tracked sessions${backendError ? " (mock data — backend offline)" : ""}`}
+            {filterProject && (
+              <>
+                {" "}
+                · filtered by{" "}
+                <span className="font-medium text-foreground">{filterProject.name}</span>
+              </>
+            )}
           </p>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => setDialogOpen(true)}>
-          <svg
-            className="size-3.5"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M8 3v10M3 8h10" />
-          </svg>
-          New Task
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="w-56">
+            <ProjectPicker
+              value={filterProjectId}
+              onChange={setProjectFilter}
+              allOption
+              projects={projects}
+            />
+          </div>
+          <Button size="sm" className="gap-1.5" onClick={() => setDialogOpen(true)}>
+            <svg
+              className="size-3.5"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M8 3v10M3 8h10" />
+            </svg>
+            New Task
+          </Button>
+        </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -152,6 +251,14 @@ function TasksPageInner() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe the task..."
                   rows={3}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Project</label>
+                <ProjectPicker
+                  value={taskProjectId}
+                  onChange={setTaskProjectId}
+                  projects={projects}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -226,7 +333,11 @@ function TasksPageInner() {
             <ScrollArea className="flex-1 px-2 pb-2">
               <div className="space-y-2">
                 {column.tasks.map((task) => (
-                  <TaskCard key={task.id} task={task} />
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    project={filterProject ?? null}
+                  />
                 ))}
                 {column.tasks.length === 0 && (
                   <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">

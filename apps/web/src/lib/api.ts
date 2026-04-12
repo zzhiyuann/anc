@@ -43,7 +43,7 @@ function baseUrl(): string {
   // On the server (SSR / prerender), we can't use relative URLs.
   if (typeof window === "undefined") {
     const backend =
-      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3848";
+      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3849";
     return `${backend}/api/v1`;
   }
   // Browser: use the Next.js proxy in next.config.ts.

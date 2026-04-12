@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,6 +32,7 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <AppShell>{children}</AppShell>
+        <Toaster />
       </body>
     </html>
   );
