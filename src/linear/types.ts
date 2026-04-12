@@ -137,6 +137,7 @@ export interface QueueItem {
   agentRole: AgentRole;
   priority: number;
   context?: string;
-  createdAt: string;
+  /** Unix epoch milliseconds */
+  createdAt: number;
   status: 'queued' | 'processing' | 'completed' | 'canceled';
 }

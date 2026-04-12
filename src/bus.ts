@@ -39,7 +39,13 @@ class TypedEventBus<Events> {
     }
   }
 
-  off<K extends keyof Events & string>(event: K): void {
+  /** Remove a specific listener for an event */
+  off<K extends keyof Events & string>(event: K, listener: Listener<Events[K]>): void {
+    this.listeners.get(event)?.delete(listener as Listener<unknown>);
+  }
+
+  /** Remove all listeners for an event */
+  removeAllListeners<K extends keyof Events & string>(event: K): void {
     this.listeners.delete(event);
   }
 

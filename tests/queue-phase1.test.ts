@@ -53,7 +53,7 @@ describe('Priority Queue — ordering', () => {
 
 describe('Priority Queue — delay_until', () => {
   it('skips items with delay_until in the future', () => {
-    const future = new Date(Date.now() + 60_000).toISOString();
+    const future = Date.now() + 60_000;
     enqueue({ issueKey: 'D-1', issueId: 'a', agentRole: 'engineer', priority: 3, delayUntil: future });
 
     const result = dequeue();
@@ -61,7 +61,7 @@ describe('Priority Queue — delay_until', () => {
   });
 
   it('returns items with delay_until in the past', () => {
-    const past = new Date(Date.now() - 1_000).toISOString();
+    const past = Date.now() - 1_000;
     enqueue({ issueKey: 'D-2', issueId: 'a', agentRole: 'engineer', priority: 3, delayUntil: past });
 
     const result = dequeue();
@@ -70,7 +70,7 @@ describe('Priority Queue — delay_until', () => {
   });
 
   it('dequeues non-delayed items while delayed items wait', () => {
-    const future = new Date(Date.now() + 60_000).toISOString();
+    const future = Date.now() + 60_000;
     enqueue({ issueKey: 'D-3', issueId: 'a', agentRole: 'engineer', priority: 1, delayUntil: future });
     enqueue({ issueKey: 'D-4', issueId: 'b', agentRole: 'engineer', priority: 3 });
 
@@ -79,7 +79,7 @@ describe('Priority Queue — delay_until', () => {
   });
 
   it('peek also respects delay_until', () => {
-    const future = new Date(Date.now() + 60_000).toISOString();
+    const future = Date.now() + 60_000;
     enqueue({ issueKey: 'D-5', issueId: 'a', agentRole: 'engineer', priority: 1, delayUntil: future });
 
     expect(peek()).toBeNull();

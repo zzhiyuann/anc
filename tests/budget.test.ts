@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  bus.off('system:budget-alert');
+  bus.removeAllListeners('system:budget-alert');
 });
 
 // --- canSpend ---

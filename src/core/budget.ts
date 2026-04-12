@@ -4,7 +4,7 @@
  * Emits system:budget-alert when approaching limits.
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml } from 'yaml';
 import { getDb } from './db.js';
@@ -29,10 +29,9 @@ const DEFAULT_CONFIG: BudgetConfig = {
 };
 
 let cachedConfig: BudgetConfig | null = null;
+let cachedMtime = 0;
 
 function loadConfig(): BudgetConfig {
-  if (cachedConfig) return cachedConfig;
-
   const configPath = join(process.cwd(), 'config', 'budget.yaml');
   if (!existsSync(configPath)) {
     log.debug('No budget.yaml found, using defaults');
@@ -40,12 +39,17 @@ function loadConfig(): BudgetConfig {
   }
 
   try {
+    const stat = statSync(configPath);
+    // Cache hit only if file hasn't been modified since last load
+    if (cachedConfig && stat.mtimeMs === cachedMtime) return cachedConfig;
+
     const raw = readFileSync(configPath, 'utf-8');
     const parsed = parseYaml(raw) as BudgetConfig;
     cachedConfig = {
       daily: { limit: parsed.daily?.limit ?? 50, alertAt: parsed.daily?.alertAt ?? 0.80 },
       agents: parsed.agents ?? {},
     };
+    cachedMtime = stat.mtimeMs;
     return cachedConfig;
   } catch (err) {
     log.warn(`Failed to parse budget.yaml: ${(err as Error).message}`);
@@ -56,6 +60,7 @@ function loadConfig(): BudgetConfig {
 /** Clear cached config (for testing or config reload) */
 export function reloadConfig(): void {
   cachedConfig = null;
+  cachedMtime = 0;
 }
 
 /**
@@ -106,7 +111,7 @@ export function recordSpend(agentRole: string, issueKey: string, tokens: number,
 
   const dailyPercent = todaySpend.total / config.daily.limit;
   if (dailyPercent >= config.daily.alertAt) {
-    bus.emit('system:budget-alert', {
+    void bus.emit('system:budget-alert', {
       spent: todaySpend.total,
       limit: config.daily.limit,
       percent: Math.round(dailyPercent * 100),
@@ -118,7 +123,7 @@ export function recordSpend(agentRole: string, issueKey: string, tokens: number,
     const agentSpend = todaySpend.byAgent[agentRole] ?? 0;
     const agentPercent = agentSpend / agentConfig.limit;
     if (agentPercent >= agentConfig.alertAt) {
-      bus.emit('system:budget-alert', {
+      void bus.emit('system:budget-alert', {
         agentRole,
         spent: agentSpend,
         limit: agentConfig.limit,
@@ -144,14 +149,31 @@ export function getSummary(): { today: { spent: number; limit: number }; perAgen
     }
   }
 
-  // Last 7 days of history
-  const history = getDb().prepare(`
-    SELECT DATE(created_at) as date, SUM(cost_usd) as total
+  // Last 7 days of history (local-time day boundaries, integer ms)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // include today + previous 6 days
+  const cutoffMs = sevenDaysAgo.getTime();
+
+  const rows = getDb().prepare(`
+    SELECT created_at, cost_usd
     FROM budget_log
-    WHERE created_at >= datetime('now', '-7 days')
-    GROUP BY DATE(created_at)
-    ORDER BY date DESC
-  `).all() as Array<{ date: string; total: number }>;
+    WHERE created_at >= ?
+  `).all(cutoffMs) as Array<{ created_at: number; cost_usd: number }>;
+
+  const byDate = new Map<string, number>();
+  for (const row of rows) {
+    const d = new Date(row.created_at);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const key = `${y}-${m}-${day}`;
+    byDate.set(key, (byDate.get(key) ?? 0) + row.cost_usd);
+  }
+
+  const history: Array<{ date: string; total: number }> = Array.from(byDate.entries())
+    .map(([date, total]) => ({ date, total }))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   return {
     today: { spent: todaySpend.total, limit: config.daily.limit },
@@ -163,12 +185,18 @@ export function getSummary(): { today: { spent: number; limit: number }; perAgen
 // --- Internal helpers ---
 
 function getTodaySpend(): { total: number; byAgent: Record<string, number> } {
+  // Use integer range comparison so the compound index (created_at, agent_role) is usable.
+  // Local-time start-of-day — matches operator intuition about "today".
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startMs = startOfToday.getTime();
+
   const rows = getDb().prepare(`
     SELECT agent_role, SUM(cost_usd) as total
     FROM budget_log
-    WHERE DATE(created_at) = DATE('now')
+    WHERE created_at >= ?
     GROUP BY agent_role
-  `).all() as Array<{ agent_role: string; total: number }>;
+  `).all(startMs) as Array<{ agent_role: string; total: number }>;
 
   let total = 0;
   const byAgent: Record<string, number> = {};

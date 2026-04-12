@@ -5,8 +5,9 @@
 
 import chalk from 'chalk';
 import { resolveSession } from '../runtime/resolve.js';
+import { getAgent } from '../agents/registry.js';
 
-const DELAY_MS = 3000;
+const DELAY_MS = 5000;  // per PLAN.md: 5-second delay between spawns
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -16,6 +17,12 @@ export async function batchCommand(issueKeys: string[], role: string): Promise<v
   if (issueKeys.length === 0) {
     console.log(chalk.dim('No issue keys provided'));
     return;
+  }
+
+  // Validate role before starting so we fail fast instead of per-issue
+  if (!getAgent(role)) {
+    console.error(chalk.red(`Unknown agent role: ${role}`));
+    process.exit(1);
   }
 
   console.log(chalk.bold(`Batch spawning ${issueKeys.length} sessions as ${role}...\n`));

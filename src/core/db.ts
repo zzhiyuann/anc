@@ -33,7 +33,7 @@ export function getDb(): Database.Database {
   db.pragma('journal_mode = WAL');
   db.pragma('busy_timeout = 5000');
 
-  // Create tables
+  // Create tables (new schema uses INTEGER unix-ms for all created_at / delay_until)
   db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       issue_key TEXT PRIMARY KEY,
@@ -57,9 +57,9 @@ export function getDb(): Database.Database {
       agent_role TEXT NOT NULL,
       priority INTEGER NOT NULL DEFAULT 3,
       context TEXT,
-      created_at TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
       status TEXT NOT NULL DEFAULT 'queued',
-      delay_until TEXT
+      delay_until INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS budget_log (
@@ -68,7 +68,7 @@ export function getDb(): Database.Database {
       issue_key TEXT NOT NULL,
       tokens INTEGER NOT NULL DEFAULT 0,
       cost_usd REAL NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
 
     CREATE TABLE IF NOT EXISTS breakers (
@@ -102,9 +102,114 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_dl_issue ON discord_links(linear_issue_key);
     CREATE INDEX IF NOT EXISTS idx_budget_date ON budget_log(created_at);
     CREATE INDEX IF NOT EXISTS idx_budget_role ON budget_log(agent_role);
+    CREATE INDEX IF NOT EXISTS idx_budget_today ON budget_log(created_at, agent_role);
   `);
 
+  // Migrate existing tables from TEXT → INTEGER timestamps (idempotent)
+  migrateTimestamps(db);
+
   return db;
+}
+
+/**
+ * Migrate queue.created_at / queue.delay_until / budget_log.created_at
+ * from TEXT (ISO 8601 / datetime()) to INTEGER (unix ms).
+ *
+ * Idempotent: inspects PRAGMA table_info and skips if already INTEGER.
+ * Runs inside a transaction per table so a failure leaves the table intact.
+ */
+function migrateTimestamps(d: Database.Database): void {
+  interface ColumnInfo { name: string; type: string }
+
+  const getColumn = (table: string, col: string): ColumnInfo | undefined => {
+    const rows = d.prepare(`PRAGMA table_info(${table})`).all() as ColumnInfo[];
+    return rows.find(r => r.name === col);
+  };
+
+  const needsMigration = (table: string, col: string): boolean => {
+    const info = getColumn(table, col);
+    if (!info) return false;
+    return info.type.toUpperCase() !== 'INTEGER';
+  };
+
+  // --- queue table ---
+  if (needsMigration('queue', 'created_at') || needsMigration('queue', 'delay_until')) {
+    log.info('Migrating queue table timestamps TEXT → INTEGER');
+    const tx = d.transaction(() => {
+      d.exec(`
+        CREATE TABLE queue_new (
+          id TEXT PRIMARY KEY,
+          issue_key TEXT NOT NULL,
+          issue_id TEXT NOT NULL DEFAULT '',
+          agent_role TEXT NOT NULL,
+          priority INTEGER NOT NULL DEFAULT 3,
+          context TEXT,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+          status TEXT NOT NULL DEFAULT 'queued',
+          delay_until INTEGER DEFAULT 0
+        );
+
+        INSERT INTO queue_new (id, issue_key, issue_id, agent_role, priority, context, created_at, status, delay_until)
+        SELECT
+          id,
+          issue_key,
+          issue_id,
+          agent_role,
+          priority,
+          context,
+          CAST(strftime('%s', created_at) AS INTEGER) * 1000,
+          status,
+          CASE
+            WHEN delay_until IS NULL THEN 0
+            ELSE CAST(strftime('%s', delay_until) AS INTEGER) * 1000
+          END
+        FROM queue;
+
+        DROP INDEX IF EXISTS idx_queue_dispatch;
+        DROP TABLE queue;
+        ALTER TABLE queue_new RENAME TO queue;
+        CREATE INDEX IF NOT EXISTS idx_queue_dispatch ON queue(status, priority ASC, created_at ASC);
+      `);
+    });
+    tx();
+  }
+
+  // --- budget_log table ---
+  if (needsMigration('budget_log', 'created_at')) {
+    log.info('Migrating budget_log table timestamp TEXT → INTEGER');
+    const tx = d.transaction(() => {
+      d.exec(`
+        CREATE TABLE budget_log_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          agent_role TEXT NOT NULL,
+          issue_key TEXT NOT NULL,
+          tokens INTEGER NOT NULL DEFAULT 0,
+          cost_usd REAL NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+        );
+
+        INSERT INTO budget_log_new (id, agent_role, issue_key, tokens, cost_usd, created_at)
+        SELECT
+          id,
+          agent_role,
+          issue_key,
+          tokens,
+          cost_usd,
+          CAST(strftime('%s', created_at) AS INTEGER) * 1000
+        FROM budget_log;
+
+        DROP INDEX IF EXISTS idx_budget_date;
+        DROP INDEX IF EXISTS idx_budget_role;
+        DROP INDEX IF EXISTS idx_budget_today;
+        DROP TABLE budget_log;
+        ALTER TABLE budget_log_new RENAME TO budget_log;
+        CREATE INDEX IF NOT EXISTS idx_budget_date ON budget_log(created_at);
+        CREATE INDEX IF NOT EXISTS idx_budget_role ON budget_log(agent_role);
+        CREATE INDEX IF NOT EXISTS idx_budget_today ON budget_log(created_at, agent_role);
+      `);
+    });
+    tx();
+  }
 }
 
 // --- Session persistence ---
@@ -172,7 +277,7 @@ export function loadQueueItems(): QueueItem[] {
     agentRole: r.agent_role as string,
     priority: r.priority as number,
     context: r.context as string | undefined,
-    createdAt: r.created_at as string,
+    createdAt: r.created_at as number,
     status: r.status as QueueItem['status'],
   }));
 }
@@ -182,7 +287,7 @@ export function deleteQueueItem(id: string): void {
 }
 
 export function clearOldQueueItems(olderThanMs: number): number {
-  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  const cutoff = Date.now() - olderThanMs;
   const result = getDb().prepare("DELETE FROM queue WHERE status IN ('completed', 'canceled') AND created_at < ?").run(cutoff);
   return result.changes;
 }

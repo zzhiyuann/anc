@@ -30,12 +30,12 @@ beforeEach(() => {
   _resetLifecycle();
   mockedPostToDiscord.mockResolvedValue('discord-msg-id');
 
-  bus.off('agent:spawned');
-  bus.off('agent:failed');
-  bus.off('agent:suspended');
-  bus.off('agent:resumed');
-  bus.off('agent:idle');
-  bus.off('agent:completed');
+  bus.removeAllListeners('agent:spawned');
+  bus.removeAllListeners('agent:failed');
+  bus.removeAllListeners('agent:suspended');
+  bus.removeAllListeners('agent:resumed');
+  bus.removeAllListeners('agent:idle');
+  bus.removeAllListeners('agent:completed');
   registerLifecycleHandlers();
 });
 

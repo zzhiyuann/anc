@@ -31,7 +31,8 @@ export interface EnqueueParams {
   agentRole: AgentRole;
   priority: number;
   context?: string;
-  delayUntil?: string;  // ISO timestamp — item won't be dequeued until this time
+  /** Unix epoch milliseconds — item won't be dequeued until this time */
+  delayUntil?: number;
 }
 
 /** Set a cooldown on an issue — no dispatches for this issue during the window */
@@ -80,11 +81,11 @@ export function enqueue(params: EnqueueParams): QueueItem | null {
     agentRole: params.agentRole,
     priority: params.priority,
     context: params.context,
-    createdAt: new Date().toISOString(),
+    createdAt: Date.now(),
     status: 'queued',
   };
 
-  // Persist with delay_until support
+  // Persist with delay_until support (0 = no delay)
   if (params.delayUntil) {
     d.prepare(`
       INSERT OR REPLACE INTO queue (id, issue_key, issue_id, agent_role, priority, context, created_at, status, delay_until)
@@ -102,7 +103,7 @@ export function enqueue(params: EnqueueParams): QueueItem | null {
 /** Dequeue the next item for a given role (or any role). Respects delay_until. */
 export function dequeue(role?: AgentRole): QueueItem | null {
   const d = getDb();
-  const now = new Date().toISOString();
+  const now = Date.now();
 
   // Atomic SELECT+UPDATE inside an immediate transaction so two concurrent
   // callers can't both claim the same row.
@@ -168,7 +169,7 @@ export function getQueue(status?: QueueItem['status']): QueueItem[] {
 /** Peek at the next item without dequeuing. Respects delay_until. */
 export function peek(role?: AgentRole): QueueItem | null {
   const d = getDb();
-  const now = new Date().toISOString();
+  const now = Date.now();
 
   const row = role
     ? d.prepare(`
@@ -219,7 +220,7 @@ function rowToItem(r: Record<string, unknown>): QueueItem {
     agentRole: r.agent_role as string,
     priority: r.priority as number,
     context: r.context as string | undefined,
-    createdAt: r.created_at as string,
+    createdAt: r.created_at as number,
     status: r.status as QueueItem['status'],
   };
 }

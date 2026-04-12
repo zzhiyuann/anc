@@ -15,6 +15,7 @@ import { getConfig } from '../linear/types.js';
 const MAX_TOTAL_MEMORIES = 20;  // hard cap to prevent token explosion
 const MAX_SHARED_FILES = 5;
 const MAX_SHARED_CHARS = 2000;
+const MAX_AGENT_MEMORY_CHARS = 5000;  // per agent-specific memory file
 const MAX_RETRO_FILES = 3;
 
 // --- Frontmatter parsing ---
@@ -118,12 +119,17 @@ function buildMemorySection(role: AgentRole): string | null {
   // Agent-specific memory
   const memDir = join(config.stateDir, 'agents', role, 'memory');
   if (existsSync(memDir)) {
-    const files = readdirSync(memDir).filter(f => f.endsWith('.md'));
+    const files = readdirSync(memDir)
+      .filter(f => f.endsWith('.md'))
+      .sort();  // deterministic order
     for (const file of files) {
       const raw = readFileSync(join(memDir, file), 'utf-8').trim();
       if (raw.length > 0) {
         const { importance, content } = parseFrontmatter(raw);
-        allMemories.push({ name: file.replace('.md', ''), content, importance });
+        const truncated = content.length > MAX_AGENT_MEMORY_CHARS
+          ? content.substring(0, MAX_AGENT_MEMORY_CHARS) + '\n...(truncated)'
+          : content;
+        allMemories.push({ name: file.replace('.md', ''), content: truncated, importance });
       }
     }
   }
@@ -131,7 +137,10 @@ function buildMemorySection(role: AgentRole): string | null {
   // Cross-agent shared memory from ~/.anc/memory/shared/
   const sharedDir = join(homedir(), '.anc', 'memory', 'shared');
   if (existsSync(sharedDir)) {
-    const sharedFiles = readdirSync(sharedDir).filter(f => f.endsWith('.md')).slice(0, MAX_SHARED_FILES);
+    const sharedFiles = readdirSync(sharedDir)
+      .filter(f => f.endsWith('.md'))
+      .sort()  // deterministic order
+      .slice(0, MAX_SHARED_FILES);
     for (const file of sharedFiles) {
       const raw = readFileSync(join(sharedDir, file), 'utf-8').trim();
       if (raw.length > 0) {
