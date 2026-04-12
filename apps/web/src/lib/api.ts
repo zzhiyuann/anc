@@ -158,6 +158,7 @@ export interface CreateTaskInput {
   description?: string;
   agent?: string;
   priority?: number;
+  projectId?: string | null;
 }
 
 /**
@@ -226,6 +227,29 @@ export const tasks = {
    * GET /api/v1/tasks?projectId=… — first-class Task entities for a project.
    * Distinct from tasks.list() which returns the legacy session-based TaskRow.
    */
+  /**
+   * GET /api/v1/tasks/:id/output?role=… — live tmux capture for a session
+   * attached to this task. Returns empty array on 404 / no active session.
+   */
+  async output(
+    taskId: string,
+    role: string,
+    lines = 200,
+    signal?: AbortSignal,
+  ): Promise<string[]> {
+    return withMockFallback(
+      async () => {
+        const res = await request<{ lines: string[] }>(
+          `/tasks/${encodeURIComponent(taskId)}/output?role=${encodeURIComponent(role)}&lines=${lines}`,
+          { signal },
+        );
+        return res.lines ?? [];
+      },
+      [],
+      `tasks.output(${taskId}, ${role})`,
+    );
+  },
+
   async listByProject(projectId: string, signal?: AbortSignal): Promise<Task[]> {
     return withMockFallback(
       async () => {

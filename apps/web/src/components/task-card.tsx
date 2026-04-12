@@ -1,4 +1,5 @@
-import type { TaskRow } from "@/lib/types";
+import Link from "next/link";
+import type { ProjectWithStats, TaskRow } from "@/lib/types";
 import {
   agentInitial,
   cn,
@@ -9,6 +10,8 @@ import {
 
 interface TaskCardProps {
   task: TaskRow;
+  /** Optional project metadata for tagging the card with color/icon. */
+  project?: Pick<ProjectWithStats, "id" | "name" | "color" | "icon"> | null;
 }
 
 const agentAvatarColors: Record<string, string> = {
@@ -17,9 +20,24 @@ const agentAvatarColors: Record<string, string> = {
   ops: "bg-amber-500/20 text-amber-400",
 };
 
-export function TaskCard({ task }: TaskCardProps) {
+export function TaskCard({ task, project }: TaskCardProps) {
   return (
-    <div className="group rounded-lg border border-border bg-card p-3 transition-colors hover:border-border/80">
+    <Link
+      href={`/tasks/${encodeURIComponent(task.id)}`}
+      className="group block rounded-lg border border-border bg-card p-3 transition-colors hover:border-border/80 hover:bg-card/80"
+    >
+      {project && (
+        <div
+          className="mb-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium"
+          style={{
+            backgroundColor: `${project.color}1f`,
+            color: project.color,
+          }}
+        >
+          <span>{project.icon ?? "📁"}</span>
+          <span className="max-w-[10rem] truncate">{project.name}</span>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-2">
         <span className="font-mono text-xs text-muted-foreground">
           {task.issueKey}
@@ -63,6 +81,6 @@ export function TaskCard({ task }: TaskCardProps) {
           {formatDurationMs(task.spawnedAt)}
         </span>
       </div>
-    </div>
+    </Link>
   );
 }
