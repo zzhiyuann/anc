@@ -85,6 +85,50 @@ export function startGateway(port?: number): void {
       return;
     }
 
+    // -- Wave 2B: Claude Code hook endpoint (fast-path, local-only, BEFORE /api/v1/ delegation) --
+    if (req.method === 'POST' && req.url?.startsWith('/api/v1/hooks/') && req.url.endsWith('/event')) {
+      try {
+        const expected = process.env.ANC_HOOK_TOKEN;
+        const provided = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+        if (!expected || provided !== expected) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Unauthorized hook' }));
+          return;
+        }
+
+        // Path: /api/v1/hooks/:taskId/event
+        const segs = req.url.split('?')[0].split('/'); // ['', 'api', 'v1', 'hooks', ':taskId', 'event']
+        const taskId = segs[4];
+        if (!taskId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing taskId' }));
+          return;
+        }
+
+        const role = (req.headers['x-anc-agent-role'] as string | undefined) ?? 'unknown';
+        const body = await readBody(req, 64 * 1024);
+        let payload: unknown;
+        try {
+          payload = JSON.parse(body);
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'invalid JSON' }));
+          return;
+        }
+
+        const { processHookEvent } = await import('./api/hook-handler.js');
+        processHookEvent(taskId, role, payload);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"ok":true}');
+      } catch (err) {
+        log.error(`hook endpoint error: ${(err as Error).message}`);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: (err as Error).message }));
+      }
+      return;
+    }
+
     // --- API v1 routes (dashboard) ---
     if (req.url?.startsWith('/api/v1/')) {
       const handled = await handleApiRequest(req, res);

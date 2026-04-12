@@ -79,10 +79,26 @@ export function writePersonaToWorkspace(workspace: WorkspaceInfo, persona: strin
   writeFileSync(join(workspace.claudeDir, 'CLAUDE.md'), persona, 'utf-8');
 }
 
+// -- Wave 2B: optional hook config for Claude Code process capture --
+export interface ProcessCaptureHookConfig {
+  taskId: string;
+  role: string;
+  hookUrl: string;   // e.g. http://localhost:3849/api/v1/hooks/<taskId>/event
+  hookToken: string; // shared secret matching ANC_HOOK_TOKEN
+}
+
 /** Write Claude Code auto-mode settings.
  *  NO Linear MCP — agents must use `anc` CLI for all Linear operations.
- *  This prevents identity leaks (MCP uses CEO's global token). */
-export function writeAutoModeSettings(workspace: WorkspaceInfo, _agentToken?: string): void {
+ *  This prevents identity leaks (MCP uses CEO's global token).
+ *
+ *  Wave 2B: when `hookConfig` is provided, also registers PreToolUse,
+ *  PostToolUse, UserPromptSubmit, Stop, and SessionEnd hooks that POST
+ *  the raw event JSON to ANC's local hook endpoint for process capture. */
+export function writeAutoModeSettings(
+  workspace: WorkspaceInfo,
+  _agentToken?: string,
+  hookConfig?: ProcessCaptureHookConfig,
+): void {
   // Resolve hook script path from project root (deterministic, not cwd-dependent)
   const hookScript = join(ANC_ROOT, 'hooks', 'plan-guard.sh');
 
@@ -97,13 +113,39 @@ export function writeAutoModeSettings(workspace: WorkspaceInfo, _agentToken?: st
         'mcp__claude_ai_Linear__*',
       ],
     },
-    hooks: {
-      PostToolUse: [{
-        matcher: 'Bash',
-        hooks: [{ type: 'command', command: hookScript }],
-      }],
-    },
   };
+
+  // Existing PostToolUse Bash plan-guard hook (always on).
+  const baseHooks: Record<string, Array<Record<string, unknown>>> = {
+    PostToolUse: [{
+      matcher: 'Bash',
+      hooks: [{ type: 'command', command: hookScript }],
+    }],
+  };
+
+  if (hookConfig) {
+    // -- Wave 2B: register process-capture hooks --
+    // Each hook curl-POSTs the JSON payload Claude sends on stdin to ANC's
+    // local hook endpoint. --max-time keeps a slow ANC from blocking the agent.
+    const captureCmd =
+      `cat | /usr/bin/curl -sS -X POST "${hookConfig.hookUrl}" ` +
+      `-H "Authorization: Bearer ${hookConfig.hookToken}" ` +
+      `-H "X-ANC-Agent-Role: ${hookConfig.role}" ` +
+      `-H "Content-Type: application/json" ` +
+      `--data-binary @- ` +
+      `--max-time 3 || true`;
+    const captureHook = () => ({ type: 'command', command: captureCmd });
+
+    baseHooks.PreToolUse = [{ matcher: '*', hooks: [captureHook()] }];
+    // Append capture hook alongside existing PostToolUse Bash entry.
+    baseHooks.PostToolUse.push({ matcher: '*', hooks: [captureHook()] });
+    baseHooks.UserPromptSubmit = [{ hooks: [captureHook()] }];
+    baseHooks.Stop = [{ hooks: [captureHook()] }];
+    baseHooks.SessionEnd = [{ hooks: [captureHook()] }];
+    baseHooks.Notification = [{ hooks: [captureHook()] }];
+  }
+
+  settings.hooks = baseHooks;
 
   writeFileSync(
     join(workspace.claudeDir, 'settings.local.json'),

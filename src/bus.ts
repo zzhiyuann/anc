@@ -89,6 +89,9 @@ export interface AncEvents {
 
   // Notification events
   'notification:created': { id: number; kind: string; severity: string; title: string; taskId?: string | null };
+
+  // -- Wave 2B: Claude Code hook process-capture events --
+  'agent:process-event': { taskId: string; role: string; eventType: string; preview: string };
 }
 
 // Singleton bus instance

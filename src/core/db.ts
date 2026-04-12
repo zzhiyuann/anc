@@ -174,6 +174,7 @@ export function getDb(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(read_at, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_notifications_task ON notifications(task_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, id DESC);
   `);
 
   // Migrate existing tables from TEXT → INTEGER timestamps (idempotent)
@@ -223,6 +224,11 @@ export function _resetDb(): void {
     try { db.close(); } catch { /**/ }
     db = null;
   }
+}
+
+/** Test helper: swap in a pre-opened DB (e.g., :memory: for tests). */
+export function _setDbForTesting(testDb: Database.Database | null): void {
+  db = testDb;
 }
 
 /**
