@@ -1,48 +1,81 @@
-import type { AncEvent, EventType } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import type { EventRow } from "@/lib/types";
+import { cn, formatRelativeTime } from "@/lib/utils";
 
-const eventIcons: Record<EventType, { icon: string; color: string }> = {
-  "agent.started": { icon: "play", color: "text-status-active" },
-  "agent.completed": { icon: "check", color: "text-status-completed" },
-  "agent.failed": { icon: "x", color: "text-status-failed" },
-  "agent.idle": { icon: "pause", color: "text-status-idle" },
-  "task.created": { icon: "plus", color: "text-status-queued" },
-  "task.assigned": { icon: "arrow", color: "text-status-completed" },
-  "task.completed": { icon: "check", color: "text-status-active" },
-  "system.health": { icon: "heart", color: "text-muted-foreground" },
-  "message.sent": { icon: "msg", color: "text-status-suspended" },
-  "message.received": { icon: "msg", color: "text-status-completed" },
-};
+// Event type prefixes from src/bus.ts — mapped to icon + color.
+// See src/api/ws.ts for the broadcast event list.
+type IconKind =
+  | "play"
+  | "check"
+  | "x"
+  | "pause"
+  | "plus"
+  | "arrow"
+  | "heart"
+  | "msg";
 
-function formatRelativeTime(timestamp: string): string {
-  const now = new Date("2026-04-11T11:30:00Z"); // mock "now" for consistent display
-  const then = new Date(timestamp);
-  const diffMs = now.getTime() - then.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffH = Math.floor(diffMin / 60);
-  const diffD = Math.floor(diffH / 24);
-
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${diffD}d ago`;
+interface EventVisual {
+  icon: IconKind;
+  color: string;
 }
 
-function EventIcon({ type }: { type: EventType }) {
-  const config = eventIcons[type];
-  const iconMap: Record<string, React.ReactNode> = {
+function eventVisual(type: string): EventVisual {
+  switch (type) {
+    case "agent:spawned":
+      return { icon: "play", color: "text-status-active" };
+    case "agent:completed":
+      return { icon: "check", color: "text-status-completed" };
+    case "agent:failed":
+      return { icon: "x", color: "text-status-failed" };
+    case "agent:idle":
+      return { icon: "pause", color: "text-status-idle" };
+    case "agent:suspended":
+      return { icon: "pause", color: "text-status-suspended" };
+    case "agent:resumed":
+      return { icon: "play", color: "text-status-active" };
+    case "agent:health":
+      return { icon: "heart", color: "text-muted-foreground" };
+    case "queue:enqueued":
+      return { icon: "plus", color: "text-status-queued" };
+    case "queue:drain":
+      return { icon: "check", color: "text-status-completed" };
+    case "system:budget-alert":
+      return { icon: "x", color: "text-status-failed" };
+    case "webhook:issue.created":
+      return { icon: "plus", color: "text-status-queued" };
+    case "webhook:comment.created":
+      return { icon: "msg", color: "text-status-suspended" };
+    default:
+      return { icon: "arrow", color: "text-muted-foreground" };
+  }
+}
+
+function EventIcon({ type }: { type: string }) {
+  const { icon, color } = eventVisual(type);
+  const iconMap: Record<IconKind, React.ReactNode> = {
     play: (
       <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor">
         <path d="M4 2.5v11l9-5.5z" />
       </svg>
     ),
     check: (
-      <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        className="size-3.5"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <path d="M3 8.5l3.5 3.5 6.5-8" />
       </svg>
     ),
     x: (
-      <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        className="size-3.5"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <path d="M4 4l8 8M12 4l-8 8" />
       </svg>
     ),
@@ -52,12 +85,24 @@ function EventIcon({ type }: { type: EventType }) {
       </svg>
     ),
     plus: (
-      <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        className="size-3.5"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <path d="M8 3v10M3 8h10" />
       </svg>
     ),
     arrow: (
-      <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        className="size-3.5"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <path d="M3 8h10M9 4l4 4-4 4" />
       </svg>
     ),
@@ -74,28 +119,45 @@ function EventIcon({ type }: { type: EventType }) {
   };
 
   return (
-    <span className={cn("flex size-6 items-center justify-center rounded-md bg-secondary", config.color)}>
-      {iconMap[config.icon]}
+    <span
+      className={cn("flex size-6 items-center justify-center rounded-md bg-secondary", color)}
+    >
+      {iconMap[icon]}
     </span>
   );
 }
 
 interface ActivityItemProps {
-  event: AncEvent;
+  event: EventRow;
+}
+
+function describe(event: EventRow): string {
+  if (event.detail) return event.detail;
+  const parts: string[] = [];
+  if (event.role) parts.push(event.role);
+  parts.push(event.eventType);
+  if (event.issueKey) parts.push(event.issueKey);
+  return parts.join(" ");
 }
 
 export function ActivityItem({ event }: ActivityItemProps) {
   return (
     <div className="flex items-start gap-3 px-1 py-2">
-      <EventIcon type={event.type} />
+      <EventIcon type={event.eventType} />
       <div className="min-w-0 flex-1">
-        <p className="text-sm leading-snug">{event.message}</p>
+        <p className="text-sm leading-snug">{describe(event)}</p>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{formatRelativeTime(event.timestamp)}</span>
-          {event.agent && (
+          <span>{formatRelativeTime(event.createdAt)}</span>
+          {event.role && (
             <>
               <span className="text-border">|</span>
-              <span className="capitalize">{event.agent}</span>
+              <span className="capitalize">{event.role}</span>
+            </>
+          )}
+          {event.issueKey && (
+            <>
+              <span className="text-border">|</span>
+              <span className="font-mono">{event.issueKey}</span>
             </>
           )}
         </div>

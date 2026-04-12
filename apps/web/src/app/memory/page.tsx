@@ -1,78 +1,133 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { mockAgentDetails } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import { mockAgentMemory } from "@/lib/mock-data";
+import { agentInitial } from "@/lib/utils";
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  return `${(bytes / 1024).toFixed(1)} KB`;
+export const dynamic = "force-dynamic";
+
+async function loadMemory(): Promise<{
+  byRole: Record<string, string[]>;
+  shared: string[];
+  live: boolean;
+}> {
+  try {
+    const agents = await api.agents.list();
+    const entries = await Promise.all(
+      agents.map(async (a) => {
+        try {
+          const mem = await api.agents.memory(a.role);
+          return [a.role, mem.files] as const;
+        } catch {
+          return [a.role, [] as string[]] as const;
+        }
+      }),
+    );
+    const shared = await api.memory.shared().catch(() => [] as string[]);
+    return {
+      byRole: Object.fromEntries(entries),
+      shared,
+      live: true,
+    };
+  } catch {
+    return { byRole: mockAgentMemory, shared: [], live: false };
+  }
 }
 
-function formatTimestamp(ts: string): string {
-  return new Date(ts).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+const avatarColors: Record<string, string> = {
+  engineer: "bg-blue-500/20 text-blue-400",
+  strategist: "bg-purple-500/20 text-purple-400",
+  ops: "bg-amber-500/20 text-amber-400",
+};
 
-export default function MemoryPage() {
-  const allMemories = Object.entries(mockAgentDetails).flatMap(([role, agent]) =>
-    agent.memoryEntries.map((entry) => ({ ...entry, agent: role, agentName: agent.name }))
-  );
-
-  allMemories.sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
-
-  const avatarColors: Record<string, string> = {
-    engineer: "bg-blue-500/20 text-blue-400",
-    strategist: "bg-purple-500/20 text-purple-400",
-    ops: "bg-amber-500/20 text-amber-400",
-  };
+export default async function MemoryPage() {
+  const { byRole, shared, live } = await loadMemory();
+  const total =
+    Object.values(byRole).reduce((sum, arr) => sum + arr.length, 0) +
+    shared.length;
 
   return (
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-xl font-semibold tracking-tight">Memory</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {allMemories.length} memory files across all agents
+          {total} memory files across all agents
+          {!live && " (mock data — backend offline)"}
         </p>
       </div>
 
-      <div className="space-y-3">
-        {allMemories.map((entry) => (
-          <div
-            key={`${entry.agent}-${entry.filename}`}
-            className="rounded-lg border border-border bg-card p-4"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`flex size-7 items-center justify-center rounded-lg text-xs font-semibold ${avatarColors[entry.agent] ?? "bg-muted text-muted-foreground"}`}
-                >
-                  {entry.agent.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <span className="font-mono text-sm font-medium">
-                    {entry.filename}
-                  </span>
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {entry.agentName}
-                  </span>
-                </div>
+      <div className="space-y-6">
+        {Object.entries(byRole).map(([role, files]) => (
+          <section key={role}>
+            <div className="mb-2 flex items-center gap-2">
+              <div
+                className={`flex size-7 items-center justify-center rounded-lg text-xs font-semibold ${
+                  avatarColors[role] ?? "bg-muted text-muted-foreground"
+                }`}
+              >
+                {agentInitial(role)}
               </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span>{formatBytes(entry.sizeBytes)}</span>
-                <span>{formatTimestamp(entry.updatedAt)}</span>
-              </div>
+              <h2 className="text-sm font-semibold capitalize">{role}</h2>
+              <span className="text-xs text-muted-foreground">
+                ({files.length})
+              </span>
             </div>
-            <ScrollArea className="mt-3 max-h-32">
-              <pre className="font-mono text-xs leading-relaxed text-muted-foreground">
-                {entry.content}
-              </pre>
-            </ScrollArea>
-          </div>
+            <div className="space-y-2">
+              {files.map((filename) => (
+                <div
+                  key={`${role}-${filename}`}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
+                >
+                  <svg
+                    className="size-4 text-muted-foreground"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <path d="M4 2h5l3 3v9H4V2z" />
+                    <path d="M9 2v3h3" />
+                  </svg>
+                  <span className="font-mono text-sm">{filename}</span>
+                </div>
+              ))}
+              {files.length === 0 && (
+                <p className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                  No memory files.
+                </p>
+              )}
+            </div>
+          </section>
         ))}
+
+        {shared.length > 0 && (
+          <section>
+            <div className="mb-2 flex items-center gap-2">
+              <h2 className="text-sm font-semibold">Shared</h2>
+              <span className="text-xs text-muted-foreground">
+                ({shared.length})
+              </span>
+            </div>
+            <div className="space-y-2">
+              {shared.map((filename) => (
+                <div
+                  key={`shared-${filename}`}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
+                >
+                  <svg
+                    className="size-4 text-muted-foreground"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <path d="M4 2h5l3 3v9H4V2z" />
+                    <path d="M9 2v3h3" />
+                  </svg>
+                  <span className="font-mono text-sm">{filename}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

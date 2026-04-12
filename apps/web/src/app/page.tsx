@@ -2,22 +2,69 @@ import { KpiCard } from "@/components/kpi-card";
 import { AgentCard } from "@/components/agent-card";
 import { ActivityItem } from "@/components/activity-item";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getKpis, mockAgents, mockEvents } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import {
+  mockAgents,
+  mockEvents,
+  mockQueueItems,
+  deriveKpis,
+} from "@/lib/mock-data";
+import { parseEventTimestamp } from "@/lib/utils";
+import type { AgentStatus, EventRow, QueueItem } from "@/lib/types";
 
-export default function CommandCenter() {
-  const kpis = getKpis();
-  const sortedEvents = [...mockEvents].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+// Always fetch at request time — never prerender dashboard data.
+export const dynamic = "force-dynamic";
+
+async function loadData(): Promise<{
+  agents: AgentStatus[];
+  events: EventRow[];
+  queueItems: QueueItem[];
+  live: boolean;
+}> {
+  try {
+    const [agents, events, queueItems] = await Promise.all([
+      api.agents.list(),
+      api.events.list(50),
+      api.queue.list("queued"),
+    ]);
+    return { agents, events, queueItems, live: true };
+  } catch {
+    // Backend unreachable → fall back to realistic mock shapes.
+    return {
+      agents: mockAgents,
+      events: mockEvents,
+      queueItems: mockQueueItems,
+      live: false,
+    };
+  }
+}
+
+export default async function CommandCenter() {
+  const { agents, events, queueItems, live } = await loadData();
+  const kpis = deriveKpis(agents, queueItems);
+
+  const sortedEvents = [...events].sort(
+    (a, b) =>
+      parseEventTimestamp(b.createdAt) - parseEventTimestamp(a.createdAt),
   );
 
   return (
     <div className="p-6">
       {/* Page header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight">Command Center</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Real-time overview of your AI company
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Command Center</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {live
+              ? "Real-time overview of your AI company"
+              : "Backend offline — showing mock data"}
+          </p>
+        </div>
+        {!live && (
+          <span className="rounded-md bg-status-failed/10 px-2 py-1 text-xs text-status-failed">
+            Disconnected
+          </span>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -25,24 +72,32 @@ export default function CommandCenter() {
         <KpiCard
           label="Running Agents"
           value={kpis.running}
-          detail={`${kpis.running} of ${mockAgents.length} agents active`}
-          trend="up"
-          trendValue="1 since yesterday"
+          detail={`${kpis.running} active across ${kpis.agentCount} roles`}
           icon={
-            <svg className="size-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              className="size-4"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <circle cx="8" cy="5" r="3" />
               <path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" />
             </svg>
           }
         />
         <KpiCard
-          label="Idle Agents"
+          label="Idle Sessions"
           value={kpis.idle}
-          detail="Ready for assignment"
-          trend="neutral"
-          trendValue="stable"
+          detail="Resumable via --continue"
           icon={
-            <svg className="size-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              className="size-4"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path d="M5 6h2v6H5zM9 6h2v6H9z" />
             </svg>
           }
@@ -51,23 +106,31 @@ export default function CommandCenter() {
           label="Queued Tasks"
           value={kpis.queued}
           detail="Waiting for agent capacity"
-          trend="down"
-          trendValue="2 from peak"
           icon={
-            <svg className="size-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              className="size-4"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path d="M3 4h10M3 8h10M3 12h10" />
             </svg>
           }
         />
         <KpiCard
-          label="Today's Cost"
-          value={`$${kpis.todayCost.toFixed(2)}`}
-          detail="API token usage"
-          trend="up"
-          trendValue="$1.20 vs avg"
+          label="Events (24h)"
+          value={events.length}
+          detail="Recent bus events"
           icon={
-            <svg className="size-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M8 2v12M5 5c0-1 1-2 3-2s3 1 3 2-1 2-3 2-3 1-3 2 1 2 3 2 3-1 3-2" />
+            <svg
+              className="size-4"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
+              <path d="M3 8h3l2-4 2 8 2-4h2" />
             </svg>
           }
         />
@@ -81,13 +144,18 @@ export default function CommandCenter() {
             <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
               <h2 className="text-sm font-semibold">Agent Status</h2>
               <span className="text-xs text-muted-foreground">
-                {mockAgents.length} agents
+                {agents.length} agents
               </span>
             </div>
             <div className="divide-y divide-border">
-              {mockAgents.map((agent) => (
+              {agents.map((agent) => (
                 <AgentCard key={agent.role} agent={agent} compact />
               ))}
+              {agents.length === 0 && (
+                <p className="p-5 text-sm text-muted-foreground">
+                  No agents registered.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -106,6 +174,11 @@ export default function CommandCenter() {
                 {sortedEvents.map((event) => (
                   <ActivityItem key={event.id} event={event} />
                 ))}
+                {sortedEvents.length === 0 && (
+                  <p className="p-4 text-sm text-muted-foreground">
+                    No recent events.
+                  </p>
+                )}
               </div>
             </ScrollArea>
           </div>

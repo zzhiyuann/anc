@@ -1,56 +1,66 @@
 import { Separator } from "@/components/ui/separator";
-import { mockHealth } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import { mockAgents } from "@/lib/mock-data";
+import { formatUptime } from "@/lib/utils";
+import type { AgentStatus } from "@/lib/types";
 
-function formatUptime(seconds: number): string {
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${d}d ${h}h ${m}m`;
+export const dynamic = "force-dynamic";
+
+async function loadSettings(): Promise<{
+  agents: AgentStatus[];
+  live: boolean;
+}> {
+  try {
+    const agents = await api.agents.list();
+    return { agents, live: true };
+  } catch {
+    return { agents: mockAgents, live: false };
+  }
 }
 
-function formatBytes(bytes: number): string {
-  return `${(bytes / 1_000_000).toFixed(0)} MB`;
-}
-
-export default function SettingsPage() {
-  const health = mockHealth;
+export default async function SettingsPage() {
+  const { agents, live } = await loadSettings();
+  const totalActive = agents.reduce((sum, a) => sum + a.activeSessions, 0);
+  const totalIdle = agents.reduce((sum, a) => sum + a.idleSessions, 0);
+  const totalSuspended = agents.reduce((sum, a) => sum + a.suspendedSessions, 0);
 
   return (
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          System configuration and health
+          System configuration and status
         </p>
       </div>
 
       <div className="max-w-2xl space-y-6">
-        {/* System Info */}
+        {/* Backend status */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold">System Health</h2>
+          <h2 className="text-sm font-semibold">Backend</h2>
           <Separator className="my-3" />
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Status</span>
-              <p className="mt-0.5 font-medium capitalize text-status-active">
-                {health.status}
+              <p
+                className={`mt-0.5 font-medium ${
+                  live ? "text-status-active" : "text-status-failed"
+                }`}
+              >
+                {live ? "Connected" : "Offline"}
               </p>
             </div>
             <div>
-              <span className="text-muted-foreground">Version</span>
-              <p className="mt-0.5 font-mono font-medium">{health.version}</p>
+              <span className="text-muted-foreground">Registered Agents</span>
+              <p className="mt-0.5 font-mono font-medium">{agents.length}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Uptime</span>
-              <p className="mt-0.5 font-mono font-medium">
-                {formatUptime(health.uptime)}
-              </p>
+              <span className="text-muted-foreground">Active Sessions</span>
+              <p className="mt-0.5 font-mono font-medium">{totalActive}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Memory</span>
+              <span className="text-muted-foreground">Idle / Suspended</span>
               <p className="mt-0.5 font-mono font-medium">
-                {formatBytes(health.memory.heapUsed)} /{" "}
-                {formatBytes(health.memory.heapTotal)}
+                {totalIdle} / {totalSuspended}
               </p>
             </div>
           </div>
@@ -63,36 +73,35 @@ export default function SettingsPage() {
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">API Endpoint</span>
-              <span className="font-mono">localhost:3848</span>
+              <span className="font-mono">
+                {process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3848"}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">WebSocket</span>
-              <span className="font-mono">ws://localhost:3848/ws</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Dashboard Port</span>
-              <span className="font-mono">3000</span>
+              <span className="font-mono">
+                {process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3848/ws"}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Agent Configuration */}
+        {/* Agent capacity */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold">Agent Configuration</h2>
+          <h2 className="text-sm font-semibold">Agent Capacity</h2>
           <Separator className="my-3" />
           <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Total Agents</span>
-              <span className="font-mono">{health.agents.total}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Queue Pending</span>
-              <span className="font-mono">{health.queue.pending}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Queue Running</span>
-              <span className="font-mono">{health.queue.running}</span>
-            </div>
+            {agents.map((a) => (
+              <div key={a.role} className="flex items-center justify-between">
+                <span className="text-muted-foreground">{a.name}</span>
+                <span className="font-mono">
+                  {a.activeSessions}/{a.maxConcurrency} active ·{" "}
+                  {formatUptime(
+                    a.sessions.find((s) => s.state === "active")?.uptime ?? 0,
+                  )}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

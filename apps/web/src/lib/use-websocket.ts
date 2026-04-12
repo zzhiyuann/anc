@@ -1,90 +1,158 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import type { WsEvent } from "./types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { WsMessage, WsSnapshot } from "./types";
+
+// WebSocket upgrades can't be proxied through Next.js rewrites, so we connect
+// directly to the anc gateway. Override via NEXT_PUBLIC_WS_URL in .env.local.
+const DEFAULT_WS_URL =
+  process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3848/ws";
 
 interface UseWebSocketOptions {
   url?: string;
-  reconnectInterval?: number;
   maxRetries?: number;
+  maxBackoffMs?: number;
+  onMessage?: (msg: WsMessage) => void;
 }
 
 interface UseWebSocketReturn {
   connected: boolean;
-  lastEvent: WsEvent | null;
-  events: WsEvent[];
+  snapshot: WsSnapshot | null;
+  lastMessage: WsMessage | null;
+  events: WsMessage[];
   send: (data: unknown) => void;
+  reconnect: () => void;
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {
   const {
-    url = "ws://localhost:3848/ws",
-    reconnectInterval = 3000,
-    maxRetries = 10,
+    url = DEFAULT_WS_URL,
+    maxRetries = 20,
+    maxBackoffMs = 30_000,
+    onMessage,
   } = options;
 
   const [connected, setConnected] = useState(false);
-  const [lastEvent, setLastEvent] = useState<WsEvent | null>(null);
-  const [events, setEvents] = useState<WsEvent[]>([]);
+  const [snapshot, setSnapshot] = useState<WsSnapshot | null>(null);
+  const [lastMessage, setLastMessage] = useState<WsMessage | null>(null);
+  const [events, setEvents] = useState<WsMessage[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const retriesRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unmountedRef = useRef(false);
+  const onMessageRef = useRef(onMessage);
+
+  // Keep the callback fresh without retriggering the connect effect.
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-
-    try {
-      const ws = new WebSocket(url);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setConnected(true);
-        retriesRef.current = 0;
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const parsed = JSON.parse(event.data) as WsEvent;
-          setLastEvent(parsed);
-          setEvents((prev) => [parsed, ...prev].slice(0, 200));
-        } catch {
-          // Ignore malformed messages
-        }
-      };
-
-      ws.onclose = () => {
-        setConnected(false);
-        wsRef.current = null;
-
-        if (retriesRef.current < maxRetries) {
-          retriesRef.current += 1;
-          timerRef.current = setTimeout(connect, reconnectInterval);
-        }
-      };
-
-      ws.onerror = () => {
-        ws.close();
-      };
-    } catch {
-      // Connection failed, will retry via onclose
+    if (unmountedRef.current) return;
+    if (
+      wsRef.current &&
+      (wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
     }
-  }, [url, reconnectInterval, maxRetries]);
+
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(url);
+    } catch {
+      // Constructor can throw for invalid URLs — schedule a retry.
+      scheduleReconnect();
+      return;
+    }
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setConnected(true);
+      retriesRef.current = 0;
+    };
+
+    ws.onmessage = (event) => {
+      const raw = typeof event.data === "string" ? event.data : "";
+      if (raw === "pong") return;
+      try {
+        const msg = JSON.parse(raw) as WsMessage;
+        setLastMessage(msg);
+        if (msg.type === "snapshot") {
+          setSnapshot(msg.data as WsSnapshot);
+        } else {
+          setEvents((prev) => [msg, ...prev].slice(0, 200));
+        }
+        onMessageRef.current?.(msg);
+      } catch {
+        // Ignore malformed messages
+      }
+    };
+
+    ws.onclose = () => {
+      setConnected(false);
+      wsRef.current = null;
+      scheduleReconnect();
+    };
+
+    ws.onerror = () => {
+      // Let onclose handle reconnection.
+      try {
+        ws.close();
+      } catch {
+        // ignore
+      }
+    };
+  }, [url]);
+
+  const scheduleReconnect = useCallback(() => {
+    if (unmountedRef.current) return;
+    if (retriesRef.current >= maxRetries) return;
+
+    const retries = retriesRef.current++;
+    const backoff = Math.min(1000 * Math.pow(2, retries), maxBackoffMs);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => connect(), backoff);
+  }, [connect, maxRetries, maxBackoffMs]);
 
   const send = useCallback((data: unknown) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(data));
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(typeof data === "string" ? data : JSON.stringify(data));
     }
   }, []);
 
-  useEffect(() => {
+  const reconnect = useCallback(() => {
+    retriesRef.current = 0;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (wsRef.current) {
+      try {
+        wsRef.current.close();
+      } catch {
+        // ignore
+      }
+      wsRef.current = null;
+    }
     connect();
+  }, [connect]);
 
+  useEffect(() => {
+    unmountedRef.current = false;
+    connect();
     return () => {
+      unmountedRef.current = true;
       if (timerRef.current) clearTimeout(timerRef.current);
-      wsRef.current?.close();
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch {
+          // ignore
+        }
+        wsRef.current = null;
+      }
     };
   }, [connect]);
 
-  return { connected, lastEvent, events, send };
+  return { connected, snapshot, lastMessage, events, send, reconnect };
 }

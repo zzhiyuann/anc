@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { CommandPalette, useCommandPalette } from "./command-palette";
+import { useWebSocket } from "@/lib/use-websocket";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -12,9 +13,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { open: commandOpen, setOpen: setCommandOpen } = useCommandPalette();
-
-  // In production, this would come from useWebSocket().connected
-  const connected = false;
+  const { connected } = useWebSocket();
 
   return (
     <>

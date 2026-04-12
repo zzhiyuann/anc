@@ -1,125 +1,188 @@
-// Agent types
-export type AgentStatus = "active" | "idle" | "queued" | "failed" | "completed" | "suspended";
+// Types mirrored directly from the anc backend (src/api/routes.ts + src/api/ws.ts).
+// These are the REAL API response shapes — do not freelance.
 
-export interface Agent {
+// --- Sessions (runtime/health.ts → TrackedSession) ---
+
+export type SessionState = "active" | "idle" | "suspended";
+
+export interface SessionSummary {
+  issueKey: string;
+  state: SessionState;
+  /** Seconds since spawn. Only present for active sessions. */
+  uptime?: number;
+}
+
+// --- Agents ---
+
+/**
+ * GET /api/v1/agents → { agents: AgentStatus[] }
+ * GET /api/v1/agents/:role → AgentStatusDetail
+ *
+ * Built from getRegisteredAgents() + getHealthStatus() in routes.ts.
+ */
+export interface AgentStatus {
   role: string;
   name: string;
-  status: AgentStatus;
-  model: string;
-  currentTask: string | null;
-  currentIssueKey: string | null;
-  uptime: number; // seconds
-  memoryFiles: number;
-  sessionCount: number;
-  avatar: string; // emoji or URL
+  hasCapacity: boolean;
+  activeSessions: number;
+  idleSessions: number;
+  suspendedSessions: number;
+  maxConcurrency: number;
+  sessions: SessionSummary[];
 }
 
-export interface AgentDetail extends Agent {
-  description: string;
-  outputLines: string[];
-  memoryEntries: MemoryEntry[];
-  sessions: SessionEntry[];
+/**
+ * GET /api/v1/agents/:role → agent config + health + memoryCount
+ * Shape: { ...AgentConfig, ...HealthStatus, memoryCount }
+ */
+export interface AgentStatusDetail extends AgentStatus {
+  model: "claude-code";
+  linearUserId: string;
+  oauthTokenPath?: string;
+  personaFiles: string[];
+  dutySlots: number;
+  memoryCount: number;
 }
 
-// Task types
-export type TaskStatus = "backlog" | "todo" | "in_progress" | "in_review" | "done";
-export type TaskPriority = "urgent" | "high" | "medium" | "low" | "none";
+// --- Tasks (mapped from TrackedSession in routes.ts) ---
 
-export interface Task {
+/**
+ * GET /api/v1/tasks → { tasks: TaskRow[] }
+ *
+ * Each task row is the projection built in routes.ts:
+ *   { id: issueKey, role, issueKey, state, priority, spawnedAt, isDuty, ceoAssigned }
+ */
+export interface TaskRow {
   id: string;
+  role: string;
   issueKey: string;
-  title: string;
-  description: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  agent: string | null;
-  duration: number | null; // seconds
-  createdAt: string;
-  updatedAt: string;
+  state: SessionState;
+  priority: number;
+  /** Unix epoch milliseconds. */
+  spawnedAt: number;
+  isDuty: boolean;
+  ceoAssigned: boolean;
 }
 
-// Memory types
-export interface MemoryEntry {
-  filename: string;
-  content: string;
-  updatedAt: string;
-  sizeBytes: number;
-}
-
-// Session types
-export interface SessionEntry {
-  id: string;
+/**
+ * GET /api/v1/tasks/:id → TrackedSession + { alive }
+ */
+export interface TaskDetail {
+  role: string;
   issueKey: string;
-  startedAt: string;
-  endedAt: string | null;
-  status: "running" | "completed" | "failed" | "killed";
-  duration: number; // seconds
+  tmuxSession: string;
+  state: SessionState;
+  spawnedAt: number;
+  suspendedAt?: number;
+  idleSince?: number;
+  priority: number;
+  ceoAssigned: boolean;
+  handoffProcessed: boolean;
+  useContinue: boolean;
+  isDuty: boolean;
+  alive: boolean;
 }
 
-// Event types
-export type EventType =
-  | "agent.started"
-  | "agent.completed"
-  | "agent.failed"
-  | "agent.idle"
-  | "task.created"
-  | "task.assigned"
-  | "task.completed"
-  | "system.health"
-  | "message.sent"
-  | "message.received";
-
-export interface AncEvent {
-  id: string;
-  type: EventType;
-  agent: string | null;
-  message: string;
-  timestamp: string;
-  metadata?: Record<string, unknown>;
+/**
+ * POST /api/v1/tasks → { issueKey, action, ... }
+ * action comes from resolveSession() — one of: 'spawned' | 'queued' | 'resumed' | 'blocked' | etc.
+ */
+export interface CreateTaskResponse {
+  issueKey: string;
+  action: string;
+  [key: string]: unknown;
 }
 
-// Queue types
-export interface QueueState {
-  pending: number;
-  running: number;
-  completed: number;
-  failed: number;
-  items: QueueItem[];
-}
+// --- Queue ---
 
+/**
+ * GET /api/v1/queue → { items: QueueItem[] }
+ * Shape mirrors src/linear/types.ts QueueItem.
+ */
 export interface QueueItem {
   id: string;
   issueKey: string;
-  agent: string;
-  priority: TaskPriority;
-  status: "pending" | "running" | "completed" | "failed";
-  enqueuedAt: string;
+  issueId: string;
+  agentRole: string;
+  priority: number;
+  context?: string;
+  /** ISO timestamp string. */
+  createdAt: string;
+  status: "queued" | "processing" | "completed" | "canceled";
 }
 
-// Health types
-export interface SystemHealth {
-  status: "healthy" | "degraded" | "unhealthy";
-  uptime: number;
-  agents: {
-    total: number;
-    active: number;
-    idle: number;
-    failed: number;
-  };
-  queue: {
-    pending: number;
-    running: number;
-  };
-  memory: {
-    heapUsed: number;
-    heapTotal: number;
-  };
-  version: string;
+// --- Events (db.getRecentEvents) ---
+
+/**
+ * GET /api/v1/events → { events: EventRow[] }
+ */
+export interface EventRow {
+  id: number;
+  eventType: string;
+  role?: string;
+  issueKey?: string;
+  detail?: string;
+  /** SQLite datetime string: 'YYYY-MM-DD HH:MM:SS' in UTC. */
+  createdAt: string;
 }
 
-// WebSocket event
-export interface WsEvent {
+// --- Memory ---
+
+/**
+ * GET /api/v1/agents/:role/memory → { role, files: string[] }
+ * GET /api/v1/memory/shared → { files: string[] }
+ *
+ * Backend only returns filenames — content is not exposed through the API.
+ */
+export interface MemoryList {
+  role?: string;
+  files: string[];
+}
+
+// --- Agent output ---
+
+/**
+ * GET /api/v1/agents/:role/output → { outputs: AgentOutput[] }
+ */
+export interface AgentOutput {
+  issueKey: string;
+  tmuxSession: string;
+  output: string;
+}
+
+// --- WebSocket envelope (src/api/ws.ts broadcast format) ---
+
+/**
+ * All WS messages share this envelope. The very first message after connect
+ * is always { type: 'snapshot', data: WsSnapshot }.
+ *
+ * Subsequent messages use bus event names as `type`:
+ *   agent:spawned, agent:completed, agent:failed, agent:idle,
+ *   agent:suspended, agent:resumed, agent:health,
+ *   queue:enqueued, queue:drain,
+ *   system:budget-alert,
+ *   webhook:issue.created, webhook:comment.created
+ */
+export interface WsMessage<T = unknown> {
   type: string;
-  data: unknown;
-  timestamp: string;
+  data: T;
+  /** Server-side epoch ms timestamp. */
+  ts: number;
+}
+
+/**
+ * Snapshot payload sent on connect (src/api/ws.ts buildSnapshot()).
+ */
+export interface WsSnapshot {
+  agents: AgentStatus[];
+  sessions: Array<{
+    role: string;
+    issueKey: string;
+    state: SessionState;
+    spawnedAt: number;
+    priority: number;
+  }>;
+  queue: QueueItem[];
+  /** Seconds. */
+  uptime: number;
 }

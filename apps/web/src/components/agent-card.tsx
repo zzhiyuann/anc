@@ -1,11 +1,18 @@
 import Link from "next/link";
-import type { Agent } from "@/lib/types";
+import type { AgentStatus } from "@/lib/types";
 import { StatusBadge } from "./status-badge";
-import { cn } from "@/lib/utils";
+import {
+  agentInitial,
+  cn,
+  deriveAgentStatus,
+  formatUptime,
+  primaryActiveSession,
+} from "@/lib/utils";
 
 interface AgentCardProps {
-  agent: Agent;
+  agent: AgentStatus;
   compact?: boolean;
+  memoryCount?: number;
 }
 
 const avatarColors: Record<string, string> = {
@@ -14,15 +21,14 @@ const avatarColors: Record<string, string> = {
   ops: "bg-amber-500/20 text-amber-400",
 };
 
-function formatUptime(seconds: number): string {
-  if (seconds === 0) return "--";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
+export function AgentCard({ agent, compact = false, memoryCount }: AgentCardProps) {
+  const status = deriveAgentStatus(agent);
+  const active = primaryActiveSession(agent);
+  const activeTask = active?.issueKey ?? null;
+  const uptime = active?.uptime ?? 0;
+  const totalSessions =
+    agent.activeSessions + agent.idleSessions + agent.suspendedSessions;
 
-export function AgentCard({ agent, compact = false }: AgentCardProps) {
   if (compact) {
     return (
       <Link
@@ -32,22 +38,26 @@ export function AgentCard({ agent, compact = false }: AgentCardProps) {
         <div
           className={cn(
             "flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-semibold",
-            avatarColors[agent.role] ?? "bg-muted text-muted-foreground"
+            avatarColors[agent.role] ?? "bg-muted text-muted-foreground",
           )}
         >
-          {agent.avatar}
+          {agentInitial(agent.role)}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{agent.name}</span>
-            <StatusBadge status={agent.status} />
+            <StatusBadge status={status} />
           </div>
           <p className="truncate text-xs text-muted-foreground">
-            {agent.currentTask ?? "No active task"}
+            {activeTask
+              ? `Working on ${activeTask}`
+              : status === "idle"
+                ? "Ready for assignment"
+                : "No active task"}
           </p>
         </div>
         <span className="shrink-0 font-mono text-xs text-muted-foreground">
-          {formatUptime(agent.uptime)}
+          {formatUptime(uptime)}
         </span>
       </Link>
     );
@@ -62,21 +72,25 @@ export function AgentCard({ agent, compact = false }: AgentCardProps) {
         <div
           className={cn(
             "flex size-11 items-center justify-center rounded-xl text-lg font-bold",
-            avatarColors[agent.role] ?? "bg-muted text-muted-foreground"
+            avatarColors[agent.role] ?? "bg-muted text-muted-foreground",
           )}
         >
-          {agent.avatar}
+          {agentInitial(agent.role)}
         </div>
-        <StatusBadge status={agent.status} />
+        <StatusBadge status={status} />
       </div>
 
       <div className="mt-4">
         <h3 className="text-base font-semibold">{agent.name}</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">{agent.model}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {agent.activeSessions}/{agent.maxConcurrency} active
+        </p>
       </div>
 
       <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
-        {agent.currentTask ?? "Awaiting next assignment"}
+        {activeTask
+          ? `Working on ${activeTask}`
+          : "Awaiting next assignment"}
       </p>
 
       <div className="mt-4 flex items-center gap-4 border-t border-border pt-3 text-xs text-muted-foreground">
@@ -84,10 +98,10 @@ export function AgentCard({ agent, compact = false }: AgentCardProps) {
           <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm0 14.5a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zM8 3a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5A.75.75 0 0 1 7.25 8V3.75A.75.75 0 0 1 8 3z" />
           </svg>
-          {formatUptime(agent.uptime)}
+          {formatUptime(uptime)}
         </span>
-        <span>{agent.memoryFiles} memories</span>
-        <span>{agent.sessionCount} sessions</span>
+        {memoryCount != null && <span>{memoryCount} memories</span>}
+        <span>{totalSessions} sessions</span>
       </div>
     </Link>
   );
