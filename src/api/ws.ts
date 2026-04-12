@@ -11,6 +11,7 @@ import { getRegisteredAgents } from '../agents/registry.js';
 import { getHealthStatus, getTrackedSessions, hasCapacity } from '../runtime/health.js';
 import { getQueue } from '../routing/queue.js';
 import { createLogger } from '../core/logger.js';
+import { checkAuth } from './routes.js';
 
 const log = createLogger('ws');
 
@@ -57,6 +58,19 @@ export function setupWebSocket(server: Server): void {
     const url = req.url?.replace(/^\/anc/, '') ?? '';
     if (url !== '/ws') {
       socket.destroy();
+      return;
+    }
+    // Auth: localhost allowed; remote requires ANC_API_TOKEN bearer token.
+    if (!checkAuth(req)) {
+      // 1008 = policy violation; write an HTTP 401 on the raw socket and close.
+      socket.write(
+        'HTTP/1.1 401 Unauthorized\r\n' +
+        'Connection: close\r\n' +
+        'Content-Length: 0\r\n' +
+        '\r\n'
+      );
+      socket.destroy();
+      log.warn('WS upgrade rejected: unauthorized');
       return;
     }
     wss!.handleUpgrade(req, socket, head, (ws) => {

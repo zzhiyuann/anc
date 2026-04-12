@@ -67,7 +67,7 @@ vi.mock('../src/runtime/resolve.js', () => ({
 
 vi.mock('../src/routing/queue.js', () => ({
   getQueue: vi.fn(() => [
-    { id: 'q-1', issueKey: 'ANC-10', agentRole: 'engineer', priority: 3, status: 'queued', createdAt: new Date().toISOString() },
+    { id: 'q-1', issueKey: 'ANC-10', agentRole: 'engineer', priority: 3, status: 'queued', createdAt: Date.now() },
   ]),
   cancelItem: vi.fn(),
 }));
@@ -103,6 +103,8 @@ function createReq(method: string, url: string, body?: Record<string, unknown>):
     method,
     url,
     headers: {},
+    // Simulate a loopback connection so the auth check passes.
+    socket: { remoteAddress: '127.0.0.1' },
     on: vi.fn((event: string, handler: (data?: unknown) => void) => {
       if (event === 'data' && body) {
         handler(Buffer.from(JSON.stringify(body)));
@@ -311,9 +313,9 @@ describe('API — GET /queue', () => {
     await handleApiRequest(req, res);
 
     expect(res._status).toBe(200);
-    const data = res._parsed() as { items: Array<{ id: string }> };
-    expect(data.items).toHaveLength(1);
-    expect(data.items[0].id).toBe('q-1');
+    const data = res._parsed() as { queue: Array<{ id: string }> };
+    expect(data.queue).toHaveLength(1);
+    expect(data.queue[0].id).toBe('q-1');
   });
 });
 
@@ -348,5 +350,97 @@ describe('API — unknown endpoint', () => {
     const handled = await handleApiRequest(req, res);
 
     expect(handled).toBe(false);
+  });
+});
+
+// --- Auth ---
+
+describe('API — auth', () => {
+  it('rejects non-localhost requests when no token configured', async () => {
+    const prev = process.env.ANC_API_TOKEN;
+    delete process.env.ANC_API_TOKEN;
+    const req = createReq('GET', '/api/v1/agents');
+    (req as unknown as { socket: { remoteAddress: string } }).socket = { remoteAddress: '10.0.0.42' };
+    const res = createRes();
+    const handled = await handleApiRequest(req, res);
+    expect(handled).toBe(true);
+    expect(res._status).toBe(401);
+    if (prev !== undefined) process.env.ANC_API_TOKEN = prev;
+  });
+
+  it('allows non-localhost request with valid Bearer token', async () => {
+    process.env.ANC_API_TOKEN = 'secret-token';
+    const req = createReq('GET', '/api/v1/agents');
+    (req as unknown as { socket: { remoteAddress: string } }).socket = { remoteAddress: '10.0.0.42' };
+    (req as unknown as { headers: Record<string, string> }).headers = { authorization: 'Bearer secret-token' };
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    delete process.env.ANC_API_TOKEN;
+  });
+
+  it('rejects non-localhost request with wrong token', async () => {
+    process.env.ANC_API_TOKEN = 'secret-token';
+    const req = createReq('GET', '/api/v1/agents');
+    (req as unknown as { socket: { remoteAddress: string } }).socket = { remoteAddress: '10.0.0.42' };
+    (req as unknown as { headers: Record<string, string> }).headers = { authorization: 'Bearer wrong' };
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(401);
+    delete process.env.ANC_API_TOKEN;
+  });
+});
+
+// --- issueKey validation ---
+
+describe('API — issueKey validation', () => {
+  it('rejects issueKey with path traversal', async () => {
+    const req = createReq('POST', '/api/v1/agents/engineer/start', { issueKey: '../etc/passwd' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(400);
+    const data = res._parsed() as { error: string };
+    expect(data.error).toContain('Invalid issueKey format');
+  });
+
+  it('rejects issueKey with shell metacharacters', async () => {
+    const req = createReq('POST', '/api/v1/agents/engineer/start', { issueKey: 'ANC-1; rm -rf /' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(400);
+  });
+
+  it('accepts valid alphanumeric/dash/underscore issueKey', async () => {
+    const req = createReq('POST', '/api/v1/agents/engineer/start', { issueKey: 'ANC-42_test' });
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+  });
+
+  it('rejects malformed task id on DELETE /tasks/:id', async () => {
+    const req = createReq('DELETE', '/api/v1/tasks/bad%20id');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(400);
+  });
+});
+
+// --- Status param validation ---
+
+describe('API — GET /queue status param', () => {
+  it('ignores invalid status param', async () => {
+    const req = createReq('GET', '/api/v1/queue?status=bogus');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
+    const data = res._parsed() as { queue: unknown[] };
+    expect(Array.isArray(data.queue)).toBe(true);
+  });
+
+  it('accepts valid status param', async () => {
+    const req = createReq('GET', '/api/v1/queue?status=queued');
+    const res = createRes();
+    await handleApiRequest(req, res);
+    expect(res._status).toBe(200);
   });
 });

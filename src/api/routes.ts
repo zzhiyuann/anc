@@ -20,6 +20,38 @@ import type { AgentRole } from '../linear/types.js';
 
 const log = createLogger('api');
 
+// --- Validation ---
+
+/**
+ * Allowed pattern for `issueKey` values that flow from user input into
+ * tmux session names and filesystem paths. Restricting to alphanumerics,
+ * dash, and underscore prevents shell metacharacter injection and path
+ * traversal.
+ */
+const ISSUE_KEY_REGEX = /^[A-Za-z0-9_-]+$/;
+
+// --- Auth ---
+
+/** True if the connection came from the loopback interface. */
+export function isLocalhost(req: IncomingMessage): boolean {
+  const addr = req.socket?.remoteAddress;
+  return addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+}
+
+/**
+ * Authorization check: localhost requests are always allowed; remote requests
+ * require a Bearer token matching the `ANC_API_TOKEN` environment variable.
+ * If the env var is not set, remote access is denied outright.
+ */
+export function checkAuth(req: IncomingMessage): boolean {
+  if (isLocalhost(req)) return true;
+  const header = req.headers.authorization;
+  const token = typeof header === 'string' ? header.replace(/^Bearer /, '') : '';
+  const expected = process.env.ANC_API_TOKEN;
+  if (!expected) return false; // no token configured = no remote access
+  return token === expected;
+}
+
 // --- Helpers ---
 
 function json(res: ServerResponse, data: unknown, status = 200): void {
@@ -78,7 +110,12 @@ function matchRoute(pattern: string, path: string): RouteMatch | null {
 
 export async function handleApiRequest(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   try {
-    const url = new URL(req.url!, 'http://localhost');
+    if (!checkAuth(req)) {
+      error(res, 'Unauthorized', 401);
+      return true;
+    }
+
+    const url = new URL(req.url ?? '/', 'http://localhost');
     const path = url.pathname.replace(/^\/api\/v1/, '');
     const method = req.method ?? 'GET';
 
@@ -112,8 +149,8 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     if (method === 'POST' && m) {
       const body = parseJson(await readBody(req));
       const issueKey = body?.issueKey;
-      if (typeof issueKey !== 'string' || !issueKey) {
-        error(res, 'issueKey required (string)', 400);
+      if (typeof issueKey !== 'string' || !ISSUE_KEY_REGEX.test(issueKey)) {
+        error(res, 'Invalid issueKey format (alphanumeric, dash, underscore only)', 400);
         return true;
       }
       const agent = getAgent(m.params.role);
@@ -235,28 +272,38 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     }
 
     m = matchRoute('/tasks/:id', path);
-    if (method === 'GET' && m) {
-      const session = getSessionForIssue(m.params.id);
-      if (!session) { error(res, 'Task not found', 404); return true; }
-      const alive = session.state === 'active' && sessionExists(session.tmuxSession);
-      json(res, { ...session, alive });
-      return true;
-    }
-
-    m = matchRoute('/tasks/:id', path);
-    if (method === 'DELETE' && m) {
-      const session = getSessionForIssue(m.params.id);
-      if (!session) { error(res, 'Task not found', 404); return true; }
-      if (session.state === 'active' && sessionExists(session.tmuxSession)) {
-        killAgent(session.tmuxSession);
+    if (m) {
+      const id = m.params.id;
+      if (!ISSUE_KEY_REGEX.test(id)) {
+        error(res, 'Invalid task id format (alphanumeric, dash, underscore only)', 400);
+        return true;
       }
-      json(res, { ok: true, killed: m.params.id });
-      return true;
+      if (method === 'GET') {
+        const session = getSessionForIssue(id);
+        if (!session) { error(res, 'Task not found', 404); return true; }
+        const alive = session.state === 'active' && sessionExists(session.tmuxSession);
+        json(res, { ...session, alive });
+        return true;
+      }
+      if (method === 'DELETE') {
+        const session = getSessionForIssue(id);
+        if (!session) { error(res, 'Task not found', 404); return true; }
+        if (session.state === 'active' && sessionExists(session.tmuxSession)) {
+          killAgent(session.tmuxSession);
+        }
+        json(res, { ok: true, killed: id });
+        return true;
+      }
     }
 
     m = matchRoute('/tasks/:id/resume', path);
     if (method === 'POST' && m) {
-      const session = getSessionForIssue(m.params.id);
+      const id = m.params.id;
+      if (!ISSUE_KEY_REGEX.test(id)) {
+        error(res, 'Invalid task id format (alphanumeric, dash, underscore only)', 400);
+        return true;
+      }
+      const session = getSessionForIssue(id);
       if (!session) { error(res, 'Task not found', 404); return true; }
       if (session.state === 'active') { error(res, 'Task already active', 409); return true; }
       const result = resolveSession({
@@ -270,8 +317,12 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     // === System ===
 
     if (method === 'GET' && path === '/queue') {
-      const status = url.searchParams.get('status') as 'queued' | 'processing' | undefined;
-      json(res, { items: getQueue(status || undefined) });
+      const statusParam = url.searchParams.get('status');
+      const validStatuses = ['queued', 'processing'] as const;
+      const status = statusParam && (validStatuses as readonly string[]).includes(statusParam)
+        ? (statusParam as 'queued' | 'processing')
+        : undefined;
+      json(res, { queue: getQueue(status) });
       return true;
     }
 
