@@ -7,10 +7,11 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   async rewrites() {
+    const backend = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3849";
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:3848/api/:path*",
+        destination: `${backend}/api/:path*`,
       },
     ];
   },
