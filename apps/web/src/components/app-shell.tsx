@@ -13,7 +13,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { open: commandOpen, setOpen: setCommandOpen } = useCommandPalette();
-  const { connected } = useWebSocket();
+  const { connected, lastMessage } = useWebSocket();
 
   return (
     <>
@@ -26,6 +26,7 @@ export function AppShell({ children }: AppShellProps) {
           <Header
             connected={connected}
             onCommandPalette={() => setCommandOpen(true)}
+            lastMessage={lastMessage}
           />
           <main className="flex-1 overflow-y-auto">
             {children}

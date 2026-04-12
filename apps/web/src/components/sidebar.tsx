@@ -42,6 +42,15 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    label: "Inbox",
+    href: "/inbox",
+    icon: (
+      <svg className="size-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M8 2a4 4 0 0 0-4 4v2l-1 2h10l-1-2V6a4 4 0 0 0-4-4zM6.5 12.5a1.5 1.5 0 0 0 3 0" />
+      </svg>
+    ),
+  },
+  {
     label: "Memory",
     href: "/memory",
     icon: (

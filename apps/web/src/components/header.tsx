@@ -1,13 +1,16 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "./inbox/notification-bell";
+import type { WsMessage } from "@/lib/types";
 
 interface HeaderProps {
   connected: boolean;
   onCommandPalette: () => void;
+  lastMessage?: WsMessage | null;
 }
 
-export function Header({ connected, onCommandPalette }: HeaderProps) {
+export function Header({ connected, onCommandPalette, lastMessage }: HeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-sm">
       <div className="flex items-center gap-4">
@@ -32,12 +35,7 @@ export function Header({ connected, onCommandPalette }: HeaderProps) {
         </button>
 
         {/* Notifications */}
-        <button className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-          <svg className="size-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M8 2a4 4 0 0 0-4 4v2l-1 2h10l-1-2V6a4 4 0 0 0-4-4zM6.5 12.5a1.5 1.5 0 0 0 3 0" />
-          </svg>
-          <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-status-active" />
-        </button>
+        <NotificationBell lastMessage={lastMessage} />
 
         {/* Connection status */}
         <div
