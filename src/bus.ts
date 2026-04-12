@@ -76,6 +76,9 @@ export interface AncEvents {
 
   // System events
   'system:tick': { timestamp: number };  // periodic health check
+
+  // -- Wave 2B: Claude Code hook process-capture events --
+  'agent:process-event': { taskId: string; role: string; eventType: string; preview: string };
 }
 
 // Singleton bus instance

@@ -90,8 +90,27 @@ export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSe
     const persona = buildPersona(role);
     writePersonaToWorkspace(workspace, persona);
   }
+  // -- Wave 2B: register Claude Code process-capture hooks --
+  // Hook URL points to the local gateway; token is shared across sessions.
+  let hookConfig: { taskId: string; role: string; hookUrl: string; hookToken: string } | undefined;
+  try {
+    // Lazy-import to avoid pulling api/* into pure-runtime tests.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { ensureHookToken } = require('../api/hook-handler.js');
+    const token = ensureHookToken();
+    const port = process.env.ANC_WEBHOOK_PORT || '3849';
+    hookConfig = {
+      taskId: issueKey, // no separate task_id table yet — issueKey is canonical
+      role,
+      hookUrl: `http://localhost:${port}/api/v1/hooks/${issueKey}/event`,
+      hookToken: token,
+    };
+  } catch (err) {
+    log.warn(`process-capture hook setup skipped: ${(err as Error).message}`);
+  }
+
   // Always write settings (may have updated MCP config)
-  writeAutoModeSettings(workspace, agentToken);
+  writeAutoModeSettings(workspace, agentToken, hookConfig);
 
   // Build prompt
   const fullPrompt = prompt ?? buildDefaultPrompt(issueKey);

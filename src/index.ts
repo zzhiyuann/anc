@@ -56,6 +56,11 @@ program
     const { createLogger } = await import('./core/logger.js');
     const log = createLogger('system');
 
+    // -- Wave 2B: prepare process-capture spill dir + hook token --
+    const { initSpillDir, ensureHookToken } = await import('./api/hook-handler.js');
+    initSpillDir();
+    ensureHookToken();
+
     // Register all event handlers
     registerIssueHandlers();
     registerCommentHandlers();

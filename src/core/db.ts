@@ -86,13 +86,30 @@ export function getDb(): Database.Database {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Wave 2B: Claude Code hook process-capture events
+    CREATE TABLE IF NOT EXISTS task_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      type TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_queue_status ON queue(status);
     CREATE INDEX IF NOT EXISTS idx_sessions_role ON sessions(role);
     CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at);
     CREATE INDEX IF NOT EXISTS idx_dl_issue ON discord_links(linear_issue_key);
+    CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, id DESC);
   `);
 
   return db;
+}
+
+// -- Wave 2B: test-only DB override hook --
+/** @internal For tests: override the DB instance */
+export function _setDbForTesting(override: Database.Database | null): void {
+  db = override;
 }
 
 // --- Session persistence ---
