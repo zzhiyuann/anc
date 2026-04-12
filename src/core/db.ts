@@ -19,15 +19,18 @@ const log = createLogger('db');
 import type { QueueItem } from '../linear/types.js';
 import type { TrackedSession, SessionState } from '../runtime/health.js';
 
-const DB_PATH = join(homedir(), '.anc', 'state.db');
+function resolveDbPath(): string {
+  return process.env.ANC_DB_PATH || join(homedir(), '.anc', 'state.db');
+}
 
 let db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
   if (db) return db;
 
+  const DB_PATH = resolveDbPath();
   const dir = dirname(DB_PATH);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  if (dir && dir !== ':memory:' && !existsSync(dir)) mkdirSync(dir, { recursive: true });
 
   db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
@@ -103,12 +106,107 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_budget_date ON budget_log(created_at);
     CREATE INDEX IF NOT EXISTS idx_budget_role ON budget_log(agent_role);
     CREATE INDEX IF NOT EXISTS idx_budget_today ON budget_log(created_at, agent_role);
+
+    CREATE TABLE IF NOT EXISTS projects (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      description   TEXT,
+      color         TEXT NOT NULL DEFAULT '#3b82f6',
+      icon          TEXT,
+      state         TEXT NOT NULL DEFAULT 'active',
+      created_by    TEXT NOT NULL DEFAULT 'ceo',
+      created_at    INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      archived_at   INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_projects_state ON projects(state, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS tasks (
+      id                TEXT PRIMARY KEY,
+      project_id        TEXT REFERENCES projects(id),
+      title             TEXT NOT NULL,
+      description       TEXT,
+      state             TEXT NOT NULL DEFAULT 'todo',
+      priority          INTEGER NOT NULL DEFAULT 3,
+      source            TEXT NOT NULL DEFAULT 'dashboard',
+      parent_task_id    TEXT REFERENCES tasks(id),
+      created_by        TEXT NOT NULL DEFAULT 'ceo',
+      linear_issue_key  TEXT,
+      created_at        INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      completed_at      INTEGER,
+      handoff_summary   TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_tasks_state ON tasks(state, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
+    CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id, state, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS task_events (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id    TEXT NOT NULL REFERENCES tasks(id),
+      role       TEXT,
+      type       TEXT NOT NULL,
+      payload    TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE INDEX IF NOT EXISTS idx_task_events_task_created ON task_events(task_id, created_at ASC);
+
+    CREATE TABLE IF NOT EXISTS task_comments (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id    TEXT NOT NULL REFERENCES tasks(id),
+      author     TEXT NOT NULL,
+      body       TEXT NOT NULL,
+      parent_id  INTEGER REFERENCES task_comments(id),
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id, created_at ASC);
   `);
 
   // Migrate existing tables from TEXT → INTEGER timestamps (idempotent)
   migrateTimestamps(db);
 
+  // Migrate existing sessions table: add task_id column if missing
+  const columns = db.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+  if (!columns.some(c => c.name === 'task_id')) {
+    db.prepare("ALTER TABLE sessions ADD COLUMN task_id TEXT").run();
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_sessions_task ON sessions(task_id)").run();
+  }
+
+  // Seed built-in 'system' project for standing duties
+  db.prepare(`INSERT OR IGNORE INTO projects (id, name, description, color, icon, state)
+              VALUES ('system', 'System', 'Standing duties and system tasks', '#6b7280', '⚙️', 'active')`).run();
+
+  // Backfill: for each session without a task_id, create a task row and link it
+  const orphans = db.prepare("SELECT * FROM sessions WHERE task_id IS NULL").all() as Array<Record<string, unknown>>;
+  if (orphans.length > 0) {
+    const insertTask = db.prepare(`
+      INSERT OR IGNORE INTO tasks (id, title, state, priority, source, created_by, created_at)
+      VALUES (?, ?, ?, ?, 'duty', 'system', ?)
+    `);
+    const linkSession = db.prepare("UPDATE sessions SET task_id = ? WHERE issue_key = ?");
+    const tx = db.transaction(() => {
+      for (const s of orphans) {
+        const issueKey = s.issue_key as string;
+        const taskId = `migrated-${issueKey}`;
+        const sessionState = s.state as string;
+        const taskState =
+          sessionState === 'active' ? 'running'
+          : sessionState === 'idle' ? 'done'
+          : sessionState;
+        insertTask.run(taskId, issueKey, taskState, s.priority as number, s.spawned_at as number);
+        linkSession.run(taskId, issueKey);
+      }
+    });
+    tx();
+  }
+
   return db;
+}
+
+/** Test helper: close current DB handle so next getDb() reopens from env var path. */
+export function _resetDb(): void {
+  if (db) {
+    try { db.close(); } catch { /**/ }
+    db = null;
+  }
 }
 
 /**
@@ -219,8 +317,8 @@ export function saveSessions(sessions: TrackedSession[]): void {
   const upsert = d.prepare(`
     INSERT OR REPLACE INTO sessions
     (issue_key, role, tmux_session, state, spawned_at, suspended_at, idle_since,
-     priority, ceo_assigned, handoff_processed, use_continue, is_duty)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     priority, ceo_assigned, handoff_processed, use_continue, is_duty, task_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const tx = d.transaction(() => {
@@ -230,6 +328,7 @@ export function saveSessions(sessions: TrackedSession[]): void {
         s.suspendedAt ?? null, s.idleSince ?? null, s.priority,
         s.ceoAssigned ? 1 : 0, s.handoffProcessed ? 1 : 0,
         s.useContinue ? 1 : 0, s.isDuty ? 1 : 0,
+        s.taskId ?? null,
       );
     }
   });
@@ -252,6 +351,7 @@ export function loadSessions(): TrackedSession[] {
     handoffProcessed: r.handoff_processed === 1,
     useContinue: r.use_continue === 1,
     isDuty: r.is_duty === 1,
+    taskId: (r.task_id as string | null) ?? undefined,
   }));
 }
 
@@ -352,7 +452,7 @@ export function closeDb(): void {
 export function backupDb(): void {
   if (!db) return;
   try {
-    const backupPath = DB_PATH + '.bak';
+    const backupPath = resolveDbPath() + '.bak';
     db.backup(backupPath);
   } catch (err) {
     log.warn(`DB backup error: ${(err as Error).message}`);

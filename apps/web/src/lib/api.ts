@@ -181,7 +181,7 @@ export const queue = {
     signal?: AbortSignal,
   ): Promise<QueueItem[]> {
     const qs = status ? `?status=${status}` : "";
-    const { items } = await request<{ items: QueueItem[] }>(`/queue${qs}`, { signal });
+    const { queue: items } = await request<{ queue: QueueItem[] }>(`/queue${qs}`, { signal });
     return items;
   },
 

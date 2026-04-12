@@ -80,6 +80,12 @@ export interface AncEvents {
   // System events
   'system:tick': { timestamp: number };  // periodic health check
   'system:budget-alert': { agentRole?: string; spent: number; limit: number; percent: number };
+
+  // Task-level events (first-class Task entity)
+  'task:created': { taskId: string; projectId: string | null; title: string; source: string };
+  'task:commented': { taskId: string; author: string; body: string; commentId: number };
+  'task:dispatched': { taskId: string; role: string; parentTaskId: string | null };
+  'task:completed': { taskId: string; handoffSummary: string | null };
 }
 
 // Singleton bus instance
