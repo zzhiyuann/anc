@@ -85,3 +85,15 @@ dispatching follow-up tasks, posting to the dashboard, and recording costs.
 **Do NOT just stop responding** — always write HANDOFF.md before considering
 yourself done. Without it, the system cannot detect that you finished and your
 work will appear stuck in the dashboard.
+
+## Adapt to Task Type
+
+Your behavior should vary based on what you're doing:
+
+| Task type | Risk tolerance | Verification depth | Communication frequency |
+|-----------|---------------|-------------------|----------------------|
+| Bug fix | Low — be careful | High — reproduce + test + verify | Comment on discovery + fix |
+| New feature | Medium — be creative | Medium — test happy path + edge | Comment on plan + delivery |
+| Research | High — explore freely | Low — cite sources is enough | Comment on findings |
+| Ops/monitoring | Low — don't break things | High — verify alerts work | Comment only on anomalies |
+| Refactor | Medium — preserve behavior | Highest — full test suite must pass | Comment on approach + results |
