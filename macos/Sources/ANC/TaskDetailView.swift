@@ -530,23 +530,47 @@ struct ActivityItem: Identifiable {
     let isComment: Bool
 }
 
+// Only show human-readable activity events, not process capture noise
+let activityEventTypes: Set<String> = [
+    "task:created", "task:state-changed", "task:updated", "task:renamed",
+    "task:assigned", "task:dispatched", "task:completed",
+    "task:feedback-delivered", "task:feedback-pending", "task:all-children-done",
+    "agent:spawned", "agent:completed", "agent:failed",
+    "agent:idle", "agent:suspended", "agent:resumed",
+    "attachment:added", "handoff:attached", "label:added", "label:removed",
+]
+
 private func buildActivityItems(_ detail: TaskDetailResponse) -> [ActivityItem] {
     var items: [ActivityItem] = []
 
     for event in detail.events {
+        // Skip noisy process capture events (tool calls, file reads, bash commands)
+        guard activityEventTypes.contains(event.type) else { continue }
+
         let label = event.type
             .replacingOccurrences(of: "agent:", with: "")
             .replacingOccurrences(of: "task:", with: "")
             .replacingOccurrences(of: "-", with: " ")
 
-        // Extract meaningful body from certain event types
+        // Extract meaningful body from payload
         var body: String? = nil
-        if event.type == "agent:session-stop" || event.type == "agent:stop" {
-            if let payload = event.payload,
-               let data = payload.data(using: .utf8),
-               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let msg = dict["last_assistant_message"] as? String {
-                body = msg
+        if let payload = event.payload,
+           let data = payload.data(using: .utf8),
+           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            // Use human-readable fields first
+            if let msg = dict["message"] as? String { body = msg }
+            else if let preview = dict["preview"] as? String { body = preview }
+            else if let detail = dict["detail"] as? String { body = detail }
+            // State changes: "from X → to Y"
+            else if event.type == "task:state-changed",
+                    let from = dict["from"] as? String,
+                    let to = dict["to"] as? String {
+                body = "\(from) → \(to)"
+            }
+            // Dispatch: show role
+            else if event.type == "task:dispatched",
+                    let role = dict["role"] as? String {
+                body = "dispatched \(role)"
             }
         }
 

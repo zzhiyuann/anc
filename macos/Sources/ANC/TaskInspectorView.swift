@@ -38,18 +38,19 @@ struct TaskInspectorView: View {
 
                 // Collapsible Activity section
                 collapsibleSection("Activity", icon: "clock.arrow.circlepath", isExpanded: $showActivitySection) {
-                    if detail.events.isEmpty && detail.comments.isEmpty {
+                    let humanEvents = detail.events.filter { activityEventTypes.contains($0.type) }
+                    if humanEvents.isEmpty && detail.comments.isEmpty {
                         Text("No activity")
                             .font(.system(size: 11))
                             .foregroundColor(.ancMuted)
                     } else {
-                        let recentEvents = Array(detail.events.prefix(5))
+                        let recentEvents = Array(humanEvents.prefix(5))
                         ForEach(recentEvents) { event in
                             HStack(spacing: 6) {
                                 Circle()
                                     .fill(Color.ancMuted.opacity(0.5))
                                     .frame(width: 5, height: 5)
-                                Text(event.type.replacingOccurrences(of: "agent:", with: "").replacingOccurrences(of: "task:", with: ""))
+                                Text(event.type.replacingOccurrences(of: "agent:", with: "").replacingOccurrences(of: "task:", with: "").replacingOccurrences(of: "-", with: " "))
                                     .font(.system(size: 11))
                                     .foregroundColor(.ancMuted)
                                     .lineLimit(1)
