@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22635",
+    "title": "Handle markdown code blocks with syntax errors",
+    "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22635",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "Agent produced no output whatsoever — no code, no analysis, no HANDOFF.md, no communication. The task was low complexity and clearly scoped (investigate a ruff issue about markdown code blocks with syntax errors), yet nothing was delivered. This requires full reassignment.",
+    "timestamp": "2026-04-13T17:04:28.364Z"
+  },
+  "duration_ms": 134213,
+  "cost_usd": 0,
+  "tokens_used": 0
+}
