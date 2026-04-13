@@ -15,6 +15,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import type { AgentRole } from '../linear/types.js';
 import { createLogger } from '../core/logger.js';
+import { selectModel, MODEL_IDS, type ModelTier, type TaskInput } from '../core/model-router.js';
 
 const log = createLogger('runner');
 
@@ -79,11 +80,26 @@ export interface SpawnInternalOpts {
   priority?: number;
   isDuty?: boolean;
   taskId?: string;
+  /** Task metadata for model routing. When absent, defaults to Opus. */
+  taskMeta?: TaskInput;
 }
 
-export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: string; error?: string } {
-  const { role, issueKey, prompt, useContinue, ceoAssigned, priority, isDuty, taskId } = opts;
+export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSession: string; error?: string; modelTier?: ModelTier } {
+  const { role, issueKey, prompt, useContinue, ceoAssigned, priority, isDuty, taskId, taskMeta } = opts;
   const tmuxSession = `anc-${role}-${issueKey}`;
+
+  // Model routing — select optimal model tier for this task
+  const defaultTaskMeta: TaskInput = {
+    title: issueKey,
+    description: null,
+    priority: priority ?? 3,
+    source: ceoAssigned ? 'ceo' : (isDuty ? 'duty' : 'system'),
+    parentTaskId: null,
+  };
+  const modelDecision = selectModel(taskMeta ?? defaultTaskMeta, role);
+  const modelTier = modelDecision.model;
+  const modelId = MODEL_IDS[modelTier];
+  log.info(`Model routing: ${issueKey} → ${modelTier} (${modelDecision.reason})`, { role, issueKey });
 
   // Prepare workspace + persona
   const workspace = ensureWorkspace(issueKey, role);
@@ -111,15 +127,15 @@ export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSe
     log.warn(`process-capture hook setup skipped: ${(err as Error).message}`);
   }
 
-  // Always write settings (may have updated MCP config)
-  writeAutoModeSettings(workspace, agentToken, hookConfig);
+  // Always write settings (may have updated MCP config + model preference)
+  writeAutoModeSettings(workspace, agentToken, hookConfig, modelId);
 
   // Build prompt
   const fullPrompt = prompt ?? buildDefaultPrompt(issueKey);
 
   // Write script
   const scriptPath = `/tmp/anc-spawn-${tmuxSession}.sh`;
-  writeFileSync(scriptPath, _buildSpawnScript(workspace.root, fullPrompt, role, issueKey, useContinue), { mode: 0o755 });
+  writeFileSync(scriptPath, _buildSpawnScript(workspace.root, fullPrompt, role, issueKey, useContinue, modelId), { mode: 0o755 });
 
   // Kill stale tmux
   const tmux = getTmuxPath();
@@ -159,12 +175,12 @@ export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSe
       taskId: resolvedTaskId,
     });
 
-    bus.emit('agent:spawned', { role, issueKey, tmuxSession });
+    bus.emit('agent:spawned', { role, issueKey, tmuxSession, modelTier });
 
     // Set status to In Progress + assign delegate on Linear (async, non-blocking)
     setIssueInProgress(role, issueKey).catch(() => {});
 
-    return { success: true, tmuxSession };
+    return { success: true, tmuxSession, modelTier };
   } catch (err) {
     const error = (err as Error).message;
     log.error(`Spawn failed: ${error}`, { role, issueKey });
@@ -288,7 +304,7 @@ function buildDefaultPrompt(issueKey: string): string {
 }
 
 /** @internal Exported for testing */
-export function _buildSpawnScript(workDir: string, prompt: string, role: string, issueKey: string, useContinue: boolean): string {
+export function _buildSpawnScript(workDir: string, prompt: string, role: string, issueKey: string, useContinue: boolean, modelId?: string): string {
   const promptFile = `/tmp/anc-prompt-${role}-${issueKey}.txt`;
   writeFileSync(promptFile, prompt, 'utf-8');
   const continueFlag = useContinue ? ' --continue' : '';
@@ -304,6 +320,12 @@ export function _buildSpawnScript(workDir: string, prompt: string, role: string,
   // lacks /opt/homebrew/bin, /usr/local/bin, ~/.local/bin, etc.
   const currentPath = process.env.PATH || '/usr/bin:/bin';
 
+  // Model routing: set ANTHROPIC_MODEL env var as fallback for model selection.
+  // Primary mechanism is settings.local.json "model" field written by writeAutoModeSettings.
+  const modelLine = modelId
+    ? `export ANTHROPIC_MODEL="${modelId}"`
+    : '# No model override — using default';
+
   return `#!/bin/bash
 cd "${workDir}" || exit 1
 
@@ -317,6 +339,7 @@ export AGENT_ROLE="${role}"
 export ANC_ISSUE_KEY="${issueKey}"
 export ANC_WORKSPACE_ROOT="${workDir}"
 export ANC_SERVER_URL="http://localhost:${process.env.ANC_WEBHOOK_PORT || 3849}"
+${modelLine}
 ${tokenLine}
 # Read prompt from file (avoids shell quoting issues with special characters)
 PROMPT=$(cat "${promptFile}")

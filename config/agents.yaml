@@ -2,6 +2,7 @@ agents:
   engineer:
     name: "Engineer"
     model: claude-code
+    # modelTier: opus  # Optional override — forces this role to always use a specific model tier (opus/sonnet/haiku)
     linearUserId: "0000aa44-7f3e-4d47-a1cc-4eadebdef64d"
     maxConcurrency: 5
     dutySlots: 1
@@ -15,6 +16,7 @@ agents:
   strategist:
     name: "Strategist"
     model: claude-code
+    # modelTier: opus  # Optional override
     linearUserId: "b7171924-f008-49eb-a6f9-9603fdce960f"
     maxConcurrency: 5
     dutySlots: 1
@@ -28,6 +30,7 @@ agents:
   ops:
     name: "Ops"
     model: claude-code
+    # modelTier: sonnet  # Optional override — ops tasks are often routine
     linearUserId: "1f4d2ee9-4cb4-4243-9c91-9dcc8249fb48"
     maxConcurrency: 5
     dutySlots: 1
@@ -41,6 +44,7 @@ agents:
   ceo-office:
     name: "CEO Office"
     model: claude-code
+    # modelTier: opus  # Optional override
     linearUserId: ""  # No Linear user — coordination-only agent
     maxConcurrency: 1
     dutySlots: 1

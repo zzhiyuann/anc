@@ -98,11 +98,14 @@ export function writeAutoModeSettings(
   workspace: WorkspaceInfo,
   _agentToken?: string,
   hookConfig?: ProcessCaptureHookConfig,
+  modelId?: string,
 ): void {
   // Resolve hook script path from project root (deterministic, not cwd-dependent)
   const hookScript = join(ANC_ROOT, 'hooks', 'plan-guard.sh');
 
   const settings: Record<string, unknown> = {
+    // Model preference for Claude Code (set by model router)
+    ...(modelId ? { model: modelId } : {}),
     permissions: {
       allow: [
         'Bash(*)','Read(*)','Write(*)','Edit(*)','Glob(*)','Grep(*)',

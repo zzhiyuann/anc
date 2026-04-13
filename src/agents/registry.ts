@@ -14,6 +14,7 @@ interface AgentsYaml {
   agents: Record<string, {
     name: string;
     model: 'claude-code';
+    modelTier?: string;
     linearUserId: string;
     oauthTokenPath?: string;
     maxConcurrency?: number;

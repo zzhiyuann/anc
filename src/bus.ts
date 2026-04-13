@@ -65,7 +65,7 @@ export interface AncEvents {
   'discord:message': { content: string; authorId: string; channelId: string; messageId: string; isReply: boolean; referencedMessageId?: string };
 
   // Agent lifecycle events
-  'agent:spawned': { role: string; issueKey: string; tmuxSession: string };
+  'agent:spawned': { role: string; issueKey: string; tmuxSession: string; modelTier?: string };
   'agent:completed': { role: string; issueKey: string; handoff: string };
   'agent:failed': { role: string; issueKey: string; error: string };
   'agent:idle': { role: string; issueKey: string };

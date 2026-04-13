@@ -127,9 +127,20 @@ export function resetTodayBudget(): void {
 /**
  * Rough pre-spawn cost estimate for budget gating (USD).
  * Used by the resolve gate before we know the true cost.
+ * When a model tier is provided (from the model router), uses tier-based pricing.
+ * Otherwise falls back to role-based estimates for backwards compatibility.
  * Values are conservative — real cost is recorded at completion via recordSpend().
  */
-export function estimateCost(agentRole: string): number {
+export function estimateCost(agentRole: string, modelTier?: string): number {
+  // Tier-based pricing (from model router)
+  if (modelTier) {
+    switch (modelTier) {
+      case 'opus': return 0.50;
+      case 'sonnet': return 0.10;
+      case 'haiku': return 0.03;
+    }
+  }
+  // Legacy role-based fallback
   switch (agentRole) {
     case 'engineer': return 0.50;
     case 'strategist': return 0.30;
