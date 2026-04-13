@@ -461,46 +461,67 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         void bus.emit('task:commented', { taskId: id, author: 'ceo', body: text, commentId });
 
         // Mention fanout: spawn a session for every non-CEO role mentioned.
+        // Accept mentions from BOTH (a) explicit `mentions` array (string[] OR
+        // {role}[] — frontend currently sends string[]) and (b) raw `@role`
+        // tokens scanned from the comment body. Union + dedupe.
         const warnings: string[] = [];
+        const mentionRoles = new Set<string>();
         const mentionsRaw = (body as Record<string, unknown>).mentions;
         if (Array.isArray(mentionsRaw)) {
           for (const mention of mentionsRaw) {
-            if (!mention || typeof mention !== 'object') continue;
-            const roleRaw = (mention as Record<string, unknown>).role;
-            if (typeof roleRaw !== 'string' || !roleRaw || roleRaw === 'ceo') continue;
-            const agent = getAgent(roleRaw);
-            if (!agent) {
-              warnings.push(`unknown role: ${roleRaw}`);
+            if (typeof mention === 'string') {
+              if (mention) mentionRoles.add(mention);
+            } else if (mention && typeof mention === 'object') {
+              const roleRaw = (mention as Record<string, unknown>).role;
+              if (typeof roleRaw === 'string' && roleRaw) mentionRoles.add(roleRaw);
+            }
+          }
+        }
+        // Scan the comment text for @role tokens (e.g. "@strategist").
+        for (const m of text.matchAll(/(?:^|[^\w])@([a-z][a-z0-9-]*)\b/g)) {
+          if (m[1]) mentionRoles.add(m[1]);
+        }
+        mentionRoles.delete('ceo');
+        for (const roleRaw of mentionRoles) {
+          const agent = getAgent(roleRaw);
+          if (!agent) {
+            warnings.push(`unknown role: ${roleRaw}`);
+            continue;
+          }
+          const issueKey = `${task.id}-${agent.role}`;
+          try {
+            const result = resolveSession({
+              role: agent.role as AgentRole,
+              issueKey,
+              prompt: text,
+              priority: task.priority,
+              taskId: task.id,
+            });
+            if (result.action === 'blocked') {
+              warnings.push(`${agent.role}: ${result.error ?? 'blocked'}`);
               continue;
             }
-            const issueKey = `${task.id}-${agent.role}`;
-            try {
-              const result = resolveSession({
-                role: agent.role as AgentRole,
-                issueKey,
-                prompt: text,
-                priority: task.priority,
-                taskId: task.id,
-              });
-              if (result.action === 'blocked') {
-                warnings.push(`${agent.role}: ${result.error ?? 'blocked'}`);
-                continue;
-              }
-              void bus.emit('task:dispatched', {
-                taskId: task.id,
-                role: agent.role,
-                parentTaskId: task.parentTaskId,
-              });
-              createNotification({
-                kind: 'dispatch',
-                title: `Dispatched ${agent.role} on @mention`,
-                body: text.length > 200 ? text.slice(0, 200) + '...' : text,
-                taskId: task.id,
-                agentRole: agent.role,
-              });
-            } catch (e) {
-              warnings.push(`${agent.role}: ${(e as Error).message}`);
+            if (result.action === 'queued') {
+              // task:queued is not yet in the typed event surface — cast.
+              (bus as unknown as { emit: (e: string, p: unknown) => void })
+                .emit('task:queued', { taskId: task.id, role: agent.role });
+              warnings.push(`${agent.role}: queued (capacity full)`);
+              continue;
             }
+            void bus.emit('task:dispatched', {
+              taskId: task.id,
+              role: agent.role,
+              parentTaskId: task.parentTaskId,
+            });
+            createNotification({
+              kind: 'dispatch',
+              title: `Dispatched ${agent.role} on @mention`,
+              body: text.length > 200 ? text.slice(0, 200) + '...' : text,
+              taskId: task.id,
+              agentRole: agent.role,
+            });
+          } catch (e) {
+            warnings.push(`${agent.role}: ${(e as Error).message}`);
           }
         }
 
