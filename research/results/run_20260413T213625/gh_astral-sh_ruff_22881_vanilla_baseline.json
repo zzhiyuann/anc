@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22881",
+    "title": "Skip walking toml/markdown files for linter",
+    "description": "Repository: astral-sh/ruff\nIssue #22881\n\n> Let's add a test that `ruff check markdown.md` logs a warning that no python files were found\r> \n> \r> \n> \r> \n> ```\r> \n> ❯ cargo run --bin ruff -p ruff check README.md --no-cache -v\r> \n>     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s\r> \n>      Running `target/debug/ruff check README.md --no-cache -v`\r> \n> [2026-01-21][10:43:37][ruff::resolve][DEBUG] Using configuration file (via parent) at: /Users/micha/astral/ruff/pyproject.toml\r> \n> [2026-01-21][10:43:37][ignore::gitignore][DEBUG] opened gitignore file: /Users/micha/.gitignore_global\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Identified files to lint in: 5.983166ms\r> \n> [2026-01-21][10:43:37][ruff::diagnostics][DEBUG] Checking: /Users/micha/astral/ruff/README.md\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Checked 1 files in: 1.230625ms\r> \n> All checks passed!\r> \n> ```\r> \n> \r> \n> We might also want to add a preview and non-preview test for what Ruff does when checking a directory. \n\n _Originally posted by @MichaReiser in [#22470](https://github.com/astral-sh/ruff/pull/22470/changes#r2711756342)_",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "internal"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22881",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever. No code, no communication, no HANDOFF.md, no progress of any kind. The task was completely ignored or the agent failed silently without any indication of what went wrong.",
+    "timestamp": "2026-04-13T22:12:14.451Z"
+  },
+  "duration_ms": 658316,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

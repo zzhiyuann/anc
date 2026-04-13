@@ -246,7 +246,12 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
   if (warnings.length > 0) {
     commentBody += `\n\n**Quality check warnings:**\n${warnings.map(w => `- ${w}`).join('\n')}`;
   }
-  await addComment(issueKey, commentBody, role);
+  // Linear comment — best-effort (may fail without OAuth; must NOT block dispatch)
+  try {
+    await addComment(issueKey, commentBody, role);
+  } catch (err) {
+    log.warn(`Linear addComment failed (non-blocking): ${(err as Error).message}`, { issueKey });
+  }
 
   // Post the HANDOFF summary to the ANC task comments for dashboard visibility
   const completionTaskId = resolveTaskIdFromIssueKey(issueKey);
@@ -313,24 +318,28 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
     }
   }
 
-  // Set status on Linear
-  const issue = await getIssue(issueKey);
+  // Set status on Linear — best-effort (may fail without OAuth)
   let statusChanged = false;
-  if (issue) {
-    statusChanged = await setIssueStatus(issue.id, newStatus, role);
-
-    if (actions?.delegate && statusChanged) {
-      log.debug(`Delegate → ${actions.delegate}`, { issueKey });
+  try {
+    const issue = await getIssue(issueKey);
+    if (issue) {
+      statusChanged = await setIssueStatus(issue.id, newStatus, role);
+      if (actions?.delegate && statusChanged) {
+        log.debug(`Delegate → ${actions.delegate}`, { issueKey });
+      }
     }
+  } catch (err) {
+    log.warn(`Linear status update failed (non-blocking): ${(err as Error).message}`, { issueKey });
   }
 
-  // Set parent status if specified
+  // Set parent status if specified (Linear — best-effort)
   if (actions?.parentStatus && statusChanged) {
     try {
-      const parentIssue = issue?.parentId ? await getIssue(issue.parentId) : null;
-      if (parentIssue) {
-        await setIssueStatus(parentIssue.id, actions.parentStatus, role);
-        log.info(`Parent ${parentIssue.identifier} → ${actions.parentStatus}`, { issueKey });
+      const parentIssueObj = await getIssue(issueKey);
+      const parentLinearIssue = parentIssueObj?.parentId ? await getIssue(parentIssueObj.parentId) : null;
+      if (parentLinearIssue) {
+        await setIssueStatus(parentLinearIssue.id, actions.parentStatus, role);
+        log.info(`Parent ${parentLinearIssue.identifier} → ${actions.parentStatus}`, { issueKey });
       }
     } catch { /**/ }
   }

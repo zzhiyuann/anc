@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22951",
+    "title": "Support quarto markdown language markers",
+    "description": "Repository: astral-sh/ruff\nIssue #22951\n\n~~~markdown\n```{py}\nprint('hello')\n```\n~~~",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22951",
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
+    "communication_quality": 4,
+    "autonomy_score": 3,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced a well-structured analysis of what the fix should look like, but did not actually implement anything — it described an already-merged PR (#22947) rather than writing and submitting code itself. The task was to support quarto markdown language markers, not to summarize someone else's solution. The test code shown is illustrative pseudocode, not actual committed tests. Communication quality is decent but the output is essentially a book report, not engineering work.",
+    "timestamp": "2026-04-13T22:19:23.134Z"
+  },
+  "duration_ms": 126386,
+  "cost_usd": 0,
+  "tokens_used": 0
+}
