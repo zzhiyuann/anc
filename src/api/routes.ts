@@ -533,7 +533,10 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     // -- Wave 2A new routes --
     // GET /tasks/:id/attachments and GET /tasks/:id/attachments/:filename
     m = matchRoute('/tasks/:id/attachments', path);
-    if (method === 'GET' && m) {
+    // The list handler only fires when no `?path=` is provided. With `?path=`
+    // the request is a single-attachment read (file or directory) routed
+    // through the handler below.
+    if (method === 'GET' && m && !url.searchParams.get('path')) {
       const id = m.params.id;
       if (!ENTITY_ID_REGEX.test(id)) { error(res, 'Invalid task id format', 400); return true; }
       const task = getTask(id);
@@ -543,10 +546,21 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
+    // Match /tasks/:id/attachments/:filename — `filename` cannot contain
+    // slashes via the path matcher, so for nested paths the client must use
+    // the query param form: /tasks/:id/attachments?path=sub/dir/file.
     m = matchRoute('/tasks/:id/attachments/:filename', path);
-    if (method === 'GET' && m) {
-      const id = m.params.id;
-      const filename = decodeURIComponent(m.params.filename);
+    const isAttachReadByQuery =
+      method === 'GET'
+      && !m
+      && matchRoute('/tasks/:id/attachments', path)
+      && (url.searchParams.get('path') ?? '').length > 0;
+    if (method === 'GET' && (m || isAttachReadByQuery)) {
+      const idMatch = m ?? matchRoute('/tasks/:id/attachments', path)!;
+      const id = idMatch.params.id;
+      const filename = m
+        ? decodeURIComponent(m.params.filename)
+        : (url.searchParams.get('path') ?? '');
       if (!ENTITY_ID_REGEX.test(id)) { error(res, 'Invalid task id format', 400); return true; }
       const task = getTask(id);
       if (!task) { error(res, 'Task not found', 404); return true; }
@@ -557,7 +571,30 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       if (!target.startsWith(normalize(wsDir) + '/') && target !== normalize(wsDir)) {
         error(res, 'Invalid path', 400); return true;
       }
-      if (!existsSync(target) || !statSync(target).isFile()) {
+      if (!existsSync(target)) {
+        error(res, 'File not found', 404); return true;
+      }
+      const tStat = statSync(target);
+      // Directory: return JSON listing of immediate children.
+      if (tStat.isDirectory()) {
+        const entries: AttachmentEntry[] = [];
+        try {
+          for (const name of readdirSync(target)) {
+            if (WORKSPACE_SKIP.has(name)) continue;
+            const full = join(target, name);
+            let s; try { s = statSync(full); } catch { continue; }
+            if (s.isDirectory()) {
+              entries.push({ name, size: 0, mtime: s.mtimeMs, kind: 'dir' });
+            } else {
+              entries.push({ name, size: s.size, mtime: s.mtimeMs, kind: classify(extname(name)) });
+            }
+          }
+        } catch { /* ignore */ }
+        entries.sort((a, b) => b.mtime - a.mtime);
+        json(res, { kind: 'dir', path: filename, entries });
+        return true;
+      }
+      if (!tStat.isFile()) {
         error(res, 'File not found', 404); return true;
       }
       const ext = extname(filename).toLowerCase();

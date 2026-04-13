@@ -367,11 +367,10 @@ export const tasks = {
    * Falls back to mockTaskFull when backend endpoint is not yet deployed.
    */
   async getFull(id: string, signal?: AbortSignal): Promise<TaskFull> {
-    return withMockFallback(
-      () => request<TaskFull>(`/tasks/${encodeURIComponent(id)}/full`, { signal }),
-      { ...mockTaskFull, task: { ...mockTaskFull.task, id } },
-      `tasks.getFull(${id})`,
-    );
+    // No mock fallback — surface real errors so the UI can show a banner
+    // instead of silently rendering fixture data. Bug fix: previously this
+    // hit /tasks/:id/full (404) and ALWAYS rendered mockTaskFull.
+    return request<TaskFull>(`/tasks/${encodeURIComponent(id)}`, { signal });
   },
 
   /**
@@ -464,16 +463,47 @@ export const taskAttachments = {
     );
   },
 
-  /** Fetch raw text content of an attachment. Caller should handle binary via url(). */
+  /**
+   * Fetch raw text content of an attachment. For paths containing '/'
+   * (nested files in directories) we use the query-param form because the
+   * router cannot match slashes inside `:filename`. Caller should handle
+   * binary via url().
+   *
+   * Returns a string for file content. If the target is a directory, the
+   * backend responds with JSON `{ kind: 'dir', entries }` — use `readDir`
+   * for that case instead.
+   */
   async read(taskId: string, filename: string): Promise<string> {
-    const url = `${baseUrl()}/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(filename)}`;
+    const url = filename.includes("/")
+      ? `${baseUrl()}/tasks/${encodeURIComponent(taskId)}/attachments?path=${encodeURIComponent(filename)}`
+      : `${baseUrl()}/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(filename)}`;
     const r = await fetch(url, { cache: "no-store" });
     if (!r.ok) throw new ApiError(r.status, `attachment ${filename}: ${r.statusText}`);
     return r.text();
   },
 
+  /**
+   * Read a directory entry — returns the immediate children. Throws
+   * ApiError if the target doesn't exist or isn't a directory.
+   */
+  async readDir(
+    taskId: string,
+    filename: string,
+  ): Promise<{ kind: "dir"; path: string; entries: TaskAttachment[] }> {
+    const url = filename.includes("/")
+      ? `${baseUrl()}/tasks/${encodeURIComponent(taskId)}/attachments?path=${encodeURIComponent(filename)}`
+      : `${baseUrl()}/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(filename)}`;
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new ApiError(r.status, `attachment ${filename}: ${r.statusText}`);
+    const data = (await r.json()) as { kind: "dir"; path: string; entries: TaskAttachment[] };
+    return data;
+  },
+
   /** Build the URL for an attachment (useful for <img src> / <a href>). */
   url(taskId: string, filename: string): string {
+    if (filename.includes("/")) {
+      return `${baseUrl()}/tasks/${encodeURIComponent(taskId)}/attachments?path=${encodeURIComponent(filename)}`;
+    }
     return `${baseUrl()}/tasks/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(filename)}`;
   },
 };
@@ -882,6 +912,54 @@ export const config = {
   },
 };
 
+// --- Labels (Functional 1: backend has /labels GET/POST/DELETE) ---
+
+export interface LabelEntity {
+  id: number;
+  name: string;
+  color: string;
+  createdAt: number;
+}
+
+export const labels = {
+  async list(signal?: AbortSignal): Promise<LabelEntity[]> {
+    return withMockFallback(
+      async () => {
+        const { labels } = await request<{ labels: LabelEntity[] }>("/labels", {
+          signal,
+        });
+        return labels;
+      },
+      [],
+      "labels.list",
+    );
+  },
+  async create(name: string, color?: string): Promise<LabelEntity | null> {
+    try {
+      const { label } = await request<{ label: LabelEntity }>("/labels", {
+        method: "POST",
+        body: { name, color },
+      });
+      return label;
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
+        return null;
+      }
+      throw err;
+    }
+  },
+  async remove(id: number): Promise<boolean> {
+    try {
+      const { ok } = await request<{ ok: boolean }>(`/labels/${id}`, {
+        method: "DELETE",
+      });
+      return !!ok;
+    } catch {
+      return false;
+    }
+  },
+};
+
 // --- Unified default export ---
 
 export const api = {
@@ -899,6 +977,7 @@ export const api = {
   system,
   pulse,
   config,
+  labels,
 };
 
 export default api;

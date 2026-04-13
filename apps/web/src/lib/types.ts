@@ -336,7 +336,13 @@ export type TaskAttachmentKind =
   | "suspend"
   | "code"
   | "memory"
-  | "other";
+  | "other"
+  // Backend (workspace listing) classifies files structurally:
+  | "text"
+  | "json"
+  | "image"
+  | "binary"
+  | "dir";
 
 export interface TaskAttachment {
   name: string;
