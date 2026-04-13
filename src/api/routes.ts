@@ -456,10 +456,13 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         ).get(commentId) as Record<string, unknown>;
         const comment = mapCommentRow(row);
 
-        // Pipe CEO message to any active session on this task (only for CEO comments)
+        // Pipe CEO message to any session with a live tmux pane on this task.
+        // In interactive mode, sessions may be 'idle' (Stop hook fired) but the
+        // tmux pane is still alive with claude waiting for input. Include both
+        // active and idle sessions, checking tmux liveness.
         if (!author.startsWith('agent:')) {
           const sessRows = getDb().prepare(
-            "SELECT * FROM sessions WHERE task_id = ? AND state = 'active'"
+            "SELECT * FROM sessions WHERE task_id = ? AND state IN ('active', 'idle')"
           ).all(id) as Array<Record<string, unknown>>;
           for (const s of sessRows) {
             const tmux = s.tmux_session as string;
@@ -641,8 +644,11 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       const task = getTask(id);
       if (!task) { error(res, 'Task not found', 404); return true; }
       const roleParam = url.searchParams.get('role');
+      // Include idle sessions too — in interactive mode, claude stays alive
+      // in tmux even after completing a response (session goes idle but pane
+      // still has real output to capture).
       const sessRows = getDb().prepare(
-        "SELECT * FROM sessions WHERE task_id = ? AND state = 'active'"
+        "SELECT * FROM sessions WHERE task_id = ? AND state IN ('active', 'idle')"
       ).all(id) as Array<Record<string, unknown>>;
       const sess = roleParam
         ? sessRows.find(s => s.role === roleParam)

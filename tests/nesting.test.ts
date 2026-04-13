@@ -56,9 +56,11 @@ describe('Spawn Script Flags', () => {
     expect(script).not.toContain('--continue');
   });
 
-  it('uses --permission-mode auto', () => {
+  it('uses --dangerously-skip-permissions for interactive mode', () => {
     const script = _buildSpawnScript('/workspace/ANC-1', 'do work', 'engineer', 'ANC-1', false);
-    expect(script).toContain('--permission-mode auto');
+    expect(script).toContain('--dangerously-skip-permissions');
+    // Must NOT use -p (print mode) — interactive mode required for follow-ups
+    expect(script).not.toMatch(/claude\s.*-p\s/);
   });
 });
 

@@ -3,10 +3,10 @@
  *
  * Session resolution logic lives in ./resolve.ts.
  *
- * Hybrid model:
- *   First task:  claude --permission-mode auto -p "prompt"
- *   Follow-ups:  claude --permission-mode auto --continue -p "follow-up"
- *   Resume:      claude --permission-mode auto --continue -p "resume context"
+ * Interactive model (matches AgentOS pattern):
+ *   First task:  claude --dangerously-skip-permissions "prompt"  (interactive, stays alive)
+ *   Follow-ups:  tmux send-keys "message" Enter                 (piped to running session)
+ *   Resume:      claude --dangerously-skip-permissions --continue "resume context"
  */
 
 import { execSync } from 'child_process';
@@ -133,6 +133,16 @@ export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSe
     );
 
     log.info(`${useContinue ? 'Resumed' : 'Spawned'} ${role} on ${issueKey}`, { role, issueKey });
+
+    // Auto-accept the workspace trust dialog in interactive mode.
+    // The dialog defaults to "1. Yes, I trust this folder" with Enter to confirm.
+    // We schedule a background send-keys after a short delay to let the TUI render.
+    setTimeout(() => {
+      try {
+        execSync(`${tmux} send-keys -t "${tmuxSession}" Enter`, { stdio: 'pipe', timeout: 3000 });
+        log.debug(`Sent trust-accept Enter to ${tmuxSession}`);
+      } catch { /* session may have already moved past trust dialog */ }
+    }, 2000);
 
     // Resolve taskId for tracking: explicit > resolveTaskIdFromIssueKey > undefined.
     let resolvedTaskId = taskId;
@@ -310,6 +320,9 @@ export ANC_SERVER_URL="http://localhost:${process.env.ANC_WEBHOOK_PORT || 3849}"
 ${tokenLine}
 # Read prompt from file (avoids shell quoting issues with special characters)
 PROMPT=$(cat "${promptFile}")
-claude --permission-mode auto${continueFlag} -p "$PROMPT"
+# Interactive mode: no -p flag. Uses --dangerously-skip-permissions to bypass
+# tool permission prompts. The workspace trust dialog still appears in interactive
+# mode, so we auto-accept it by sending Enter from a background helper.
+claude --dangerously-skip-permissions${continueFlag} "$PROMPT"
 `;
 }
