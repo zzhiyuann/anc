@@ -8,3 +8,11 @@ state.db
 apps/web/.git-backup/
 apps/web/.next/
 apps/web/node_modules/
+
+# macOS native app
+macos/build/
+macos/.build/
+macos/ANC.xcodeproj/
+macos/DerivedData/
+macos/.screenshots/
+.DS_Store
