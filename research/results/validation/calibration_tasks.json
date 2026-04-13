@@ -1,0 +1,272 @@
+[
+  {
+    "id": "cal_01",
+    "title": "Fix typo in README.md",
+    "description": "The README has \"recieve\" instead of \"receive\" on line 42. Fix all typo instances.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_02",
+    "title": "Add .gitignore entry for .env.local",
+    "description": "Environment files are being committed. Add .env.local and .env.*.local to .gitignore.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_03",
+    "title": "Update copyright year in LICENSE",
+    "description": "License file says 2024, should be 2025.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_04",
+    "title": "Remove unused import in utils.ts",
+    "description": "ESLint reports unused import of `lodash` in src/utils.ts. Remove it.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_05",
+    "title": "Add alt text to all images in docs",
+    "description": "Accessibility audit found 3 images without alt text in docs/getting-started.md.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_06",
+    "title": "Add input validation to POST /tasks endpoint",
+    "description": "The POST /api/v1/tasks endpoint accepts any body without validation. Add zod schema validation for title (required, 1-200 chars), description (optional, max 5000 chars), priority (1-5).",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_07",
+    "title": "Implement rate limiting for API endpoints",
+    "description": "Add rate limiting to prevent abuse. Use a sliding window counter: 100 requests per minute per IP. Return 429 with Retry-After header when exceeded.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_08",
+    "title": "Add unit tests for priority queue",
+    "description": "The priority queue in src/routing/queue.ts has no tests. Write tests covering: enqueue, dequeue by priority, delay-until, retry count, max retries, stale item cleanup.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_09",
+    "title": "Implement graceful shutdown",
+    "description": "When receiving SIGTERM, the server should: 1) stop accepting new connections, 2) wait for active agent sessions to reach a checkpoint, 3) persist queue state, 4) exit cleanly.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_10",
+    "title": "Add structured logging with pino",
+    "description": "Replace console.log/error calls with structured logging using pino. Add request ID tracking, log levels (debug/info/warn/error), and JSON output format.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_11",
+    "title": "Create a health check dashboard widget",
+    "description": "Add a health check component to the dashboard that shows: server uptime, active agents, queue depth, budget remaining, last event time. Poll /health/detailed every 30s.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_12",
+    "title": "Implement task search with filters",
+    "description": "Add search to GET /tasks: text search on title/description, filter by status, agent, labels, date range. Use SQLite FTS5 for text search.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_13",
+    "title": "Add Discord slash commands",
+    "description": "Implement Discord slash commands: /status (system overview), /assign <issue> <agent> (dispatch), /budget (today spend). Register commands on bot startup.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_14",
+    "title": "Implement agent session resume",
+    "description": "When an agent session is interrupted (OOM, timeout), implement resume: save session state to disk, detect incomplete sessions on startup, resume with --continue flag.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_15",
+    "title": "Add cost attribution per task",
+    "description": "Track API costs per task (not just per agent). When a task completes, compute total cost from all sessions that worked on it. Show in task detail API response.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_16",
+    "title": "Implement multi-runtime adapter for Aider",
+    "description": "Add Aider as a second runtime backend alongside Claude Code. Create an adapter that: spawns aider with --message flag, captures output, handles completion detection, maps to ANC session lifecycle. Must pass existing runtime tests.",
+    "complexity": "high",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_17",
+    "title": "Build agent-to-agent communication protocol",
+    "description": "Implement @-mention dispatch: when Agent A mentions @engineer in a comment, ANC should dispatch Engineer on the same task as a contributor. Handle: mention parsing, dispatch creation, shared workspace, conflict prevention.",
+    "complexity": "high",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_18",
+    "title": "Implement knowledge graph for shared memory",
+    "description": "Replace flat-file shared memory with a knowledge graph. Entities: concepts, decisions, patterns, people. Relationships: depends-on, supersedes, relates-to. Query API: find related knowledge given a task description. Use SQLite for storage.",
+    "complexity": "high",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_19",
+    "title": "Add comprehensive E2E test suite",
+    "description": "Create an end-to-end test suite that: starts ANC server, creates a task via API, verifies routing, checks agent spawn, waits for completion, verifies HANDOFF.md, checks status transitions. Must clean up after each test. Target: 10 E2E scenarios.",
+    "complexity": "high",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_20",
+    "title": "Implement real-time process capture for dashboard",
+    "description": "Stream agent tool calls (file edits, terminal commands, search results) to the dashboard in real-time via WebSocket. Parse Claude Code output format, extract structured events, broadcast to connected clients. Show as a live activity feed.",
+    "complexity": "high",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_21",
+    "title": "Add pagination to all list endpoints",
+    "description": "Implement cursor-based pagination for GET /tasks, GET /agents, GET /events. Support limit (default 50, max 200) and cursor parameters. Return next_cursor in response.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_22",
+    "title": "Implement webhook retry with exponential backoff",
+    "description": "When outgoing webhooks (to Discord, Telegram) fail, retry with exponential backoff: 1s, 5s, 25s, max 3 retries. Log failures. Add circuit breaker after 5 consecutive failures.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_23",
+    "title": "Add OpenTelemetry tracing",
+    "description": "Instrument the event bus and API with OpenTelemetry traces. Each task should be traceable from creation through routing, agent spawn, and completion. Export to console (development) or OTLP (production).",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_24",
+    "title": "Create CLI command for bulk task import",
+    "description": "Add `anc import <file.json>` that reads a JSON array of task specs and creates them all via the API. Support dry-run mode, progress bar, and error recovery (skip failed, continue).",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_25",
+    "title": "Implement agent skill tracking",
+    "description": "Track which types of tasks each agent has completed successfully. Store as skill tags with proficiency scores (0-1). Use skills for smarter routing: prefer agents with relevant skills.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_26",
+    "title": "Handle concurrent task dispatch race condition",
+    "description": "When two tasks arrive simultaneously for the same agent (maxConcurrency=1), one should queue while the other runs. Currently both may try to spawn. Add mutex/lock to resolve gate.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_27",
+    "title": "Fix memory injection exceeding context window",
+    "description": "When an agent has accumulated many memories, the injected CLAUDE.md exceeds Claude context limits. Implement token-aware truncation: prioritize recent retros, high-importance memories, and task-relevant content.",
+    "complexity": "high",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_28",
+    "title": "Add database migration system",
+    "description": "SQLite schema changes currently require manual migration. Implement a simple migration system: numbered migration files in migrations/, auto-run on startup, track applied migrations in a meta table.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_29",
+    "title": "Implement task dependencies",
+    "description": "Allow tasks to declare dependencies: task B blocks on task A. When A completes, automatically unblock B. Show dependency graph in dashboard. Handle circular dependency detection.",
+    "complexity": "high",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_30",
+    "title": "Add support for task templates",
+    "description": "Allow creating reusable task templates (e.g., \"Deploy to staging\", \"Security audit\") with pre-filled title, description, labels, agent, and review policy. CRUD API + dashboard UI.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  }
+]

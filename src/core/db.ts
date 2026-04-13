@@ -223,6 +223,16 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(read_at, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_notifications_task ON notifications(task_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, id DESC);
+
+    CREATE TABLE IF NOT EXISTS task_feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      parent_task_id TEXT NOT NULL,
+      child_task_id TEXT NOT NULL,
+      summary TEXT,
+      delivered INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE INDEX IF NOT EXISTS idx_task_feedback_parent ON task_feedback(parent_task_id, delivered);
   `);
 
   // Migrate existing tables from TEXT → INTEGER timestamps (idempotent)
