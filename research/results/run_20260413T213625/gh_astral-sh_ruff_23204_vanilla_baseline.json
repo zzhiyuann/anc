@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23204",
+    "title": "Better extension mapping for markdown files",
+    "description": "Repository: astral-sh/ruff\nIssue #23204\n\nRather than having an exhaustive list of all possible markdown file extensions in `SourceType::from(<path>)`, maybe this could be configurable in some way? Maybe this could also affect default file discovery when we stabilize markdown formatting?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23204",
+    "satisfaction": 3,
+    "task_completion": 1,
+    "code_quality": 3,
+    "communication_quality": 4,
+    "autonomy_score": 4,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent produced a reasonable design with a single MARKDOWN_EXTENSIONS constant to reduce duplication, touched the right files, and communicated changes clearly. However, the inability to compile or run tests is a significant gap — 'compiles logically' is not verification. The issue also asked about configurability beyond a hardcoded list, which was only partially addressed by noting the existing --extension flag rather than proposing a proper config surface.",
+    "timestamp": "2026-04-13T22:35:47.542Z"
+  },
+  "duration_ms": 372701,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23235",
+    "title": "Range suppression diagnostics not being surfaced",
+    "description": "Repository: astral-sh/ruff\nIssue #23235\n\n### Summary\n\nThis should generate both a RUF100 and RUF104: https://play.ruff.rs/ca35d323-c80e-4be3-80ed-e02f05fcaab1\n\n### Version\n\n0.15.0",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "suppression"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23235",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent correctly diagnosed the mutual exclusion bug in the else-if chain and restructured it so RUF100 and RUF104 fire independently. Communication is excellent — clear before/after code, explanation of the dedup HashSet, and scoped impact analysis. Docking one point on satisfaction/code_quality only because the output doesn't show whether the full test suite was run to confirm no regressions beyond the single updated snapshot.",
+    "timestamp": "2026-04-13T22:41:13.218Z"
+  },
+  "duration_ms": 325674,
+  "cost_usd": 0,
+  "tokens_used": 0
+}
