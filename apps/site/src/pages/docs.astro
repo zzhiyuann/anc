@@ -1,0 +1,1124 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const sections = [
+  { id: 'getting-started', label: 'Getting Started' },
+  { id: 'prerequisites', label: 'Prerequisites' },
+  { id: 'installation', label: 'Installation' },
+  { id: 'configuration', label: 'Configuration' },
+  { id: 'first-run', label: 'First Run' },
+  { id: 'ceo-guide', label: 'CEO Guide', divider: true },
+  { id: 'creating-tasks', label: 'Creating Tasks' },
+  { id: 'interacting', label: 'Interacting with Agents' },
+  { id: 'review-policy', label: 'Review Policy' },
+  { id: 'architecture', label: 'Architecture', divider: true },
+  { id: 'event-bus', label: 'Event Bus' },
+  { id: 'routing', label: 'Routing' },
+  { id: 'runtime', label: 'Runtime & Isolation' },
+  { id: 'agents', label: 'Agent System' },
+  { id: 'memory', label: 'Memory & Personas' },
+  { id: 'config-ref', label: 'Configuration Reference', divider: true },
+  { id: 'agents-yaml', label: 'agents.yaml' },
+  { id: 'routing-yaml', label: 'routing.yaml' },
+  { id: 'budget-yaml', label: 'budget.yaml' },
+  { id: 'review-yaml', label: 'review.yaml' },
+  { id: 'duties-yaml', label: 'duties.yaml' },
+  { id: 'personas-dir', label: 'Personas' },
+  { id: 'cli', label: 'CLI Reference', divider: true },
+  { id: 'api', label: 'API Reference', divider: true },
+  { id: 'integrations', label: 'Integrations', divider: true },
+  { id: 'roadmap', label: 'Roadmap', divider: true },
+];
+---
+
+<Layout title="Docs — ANC" description="ANC documentation. Getting started, configuration, CLI, API, and architecture reference.">
+  <!-- Nav inline for docs -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="logo"><span class="logo-mark">ANC</span></a>
+      <div class="nav-links">
+        <a href="/#features">Features</a>
+        <a href="/#how-it-works">How It Works</a>
+        <a href="/docs" class="active">Docs</a>
+        <a href="https://github.com/zzhiyuann/anc" target="_blank" rel="noopener" class="nav-github">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="docs-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+        {sections.map((s) => (
+          <Fragment>
+            {s.divider && <div class="sidebar-divider" />}
+            <a href={`#${s.id}`} class="sidebar-link" data-section={s.id}>{s.label}</a>
+          </Fragment>
+        ))}
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="docs-content">
+
+      <!-- GETTING STARTED -->
+      <section id="getting-started">
+        <h1>Getting Started</h1>
+        <p class="lead">Get ANC running in under 5 minutes. By the end, you'll have a fully operational AI company with four agents ready for work.</p>
+      </section>
+
+      <section id="prerequisites">
+        <h2>Prerequisites</h2>
+        <table class="ref-table">
+          <thead><tr><th>Dependency</th><th>Version</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Node.js</td><td>20+</td><td>Runtime</td></tr>
+            <tr><td>tmux</td><td>3.0+</td><td>Agent session isolation</td></tr>
+            <tr><td>Claude Code CLI</td><td>Latest</td><td>Primary agent runtime</td></tr>
+            <tr><td>git</td><td>2.30+</td><td>Per-issue worktree isolation</td></tr>
+          </tbody>
+        </table>
+        <div class="code-block">
+          <div class="code-header">Install prerequisites (macOS)</div>
+          <pre><code>brew install tmux node git
+npm install -g @anthropic-ai/claude-code</code></pre>
+        </div>
+      </section>
+
+      <section id="installation">
+        <h2>Installation</h2>
+        <div class="code-block">
+          <div class="code-header">Clone and build</div>
+          <pre><code>git clone https://github.com/zzhiyuann/anc.git
+cd anc
+npm install && npm run build && npm link</code></pre>
+        </div>
+        <p>This installs the <code>anc</code> CLI globally. Verify with:</p>
+        <div class="code-block">
+          <pre><code>anc --help</code></pre>
+        </div>
+      </section>
+
+      <section id="configuration">
+        <h2>Configuration</h2>
+        <p>Run the interactive setup wizard:</p>
+        <div class="code-block">
+          <pre><code>anc setup</code></pre>
+        </div>
+        <p>This creates a <code>.env</code> file with your credentials. You'll need:</p>
+        <ul>
+          <li><strong>Linear API key</strong> — for task sync (optional, dashboard works without it)</li>
+          <li><strong>Anthropic API key</strong> — for Claude Code agent runtime</li>
+          <li><strong>Discord bot token</strong> — for bidirectional Discord bridge (optional)</li>
+          <li><strong>Telegram bot token</strong> — for CEO alert notifications (optional)</li>
+        </ul>
+        <div class="callout">
+          <strong>Minimal setup:</strong> Only the Anthropic API key is required. Linear, Discord, and Telegram are optional integrations you can add later.
+        </div>
+      </section>
+
+      <section id="first-run">
+        <h2>First Run</h2>
+        <div class="code-block">
+          <div class="code-header">Start your company</div>
+          <pre><code>anc serve</code></pre>
+        </div>
+        <p>You should see:</p>
+        <div class="code-block terminal">
+          <pre><code><span class="t-green">✓</span> ANC Server running on :3849
+<span class="t-green">✓</span> Event bus ready (20 event types)
+<span class="t-green">✓</span> 4 agents registered: engineer, strategist, ops, ceo-office
+<span class="t-green">✓</span> Dashboard → http://localhost:3848</code></pre>
+        </div>
+        <p>Open the dashboard and create your first task. ANC will route it to the right agent based on your <a href="#routing-yaml">routing rules</a>.</p>
+        <div class="code-block">
+          <div class="code-header">Or create a task from the CLI</div>
+          <pre><code>anc task create "Build the authentication module" --priority 2</code></pre>
+        </div>
+      </section>
+
+      <!-- CEO GUIDE -->
+      <section id="ceo-guide">
+        <h1>CEO Guide</h1>
+        <p class="lead">How to operate your AI company day-to-day. Creating tasks, interacting with agents, and controlling delegation.</p>
+      </section>
+
+      <section id="creating-tasks">
+        <h2>Creating Tasks</h2>
+        <p>Three ways to create tasks:</p>
+        <div class="method-grid">
+          <div class="method-card">
+            <h4>Dashboard</h4>
+            <p>Click <strong>+ New Task</strong> in the Tasks view. Set title, description, labels, priority, and assignee.</p>
+          </div>
+          <div class="method-card">
+            <h4>CLI</h4>
+            <p><code>anc task create "title" --agent engineer --priority 2</code></p>
+          </div>
+          <div class="method-card">
+            <h4>Linear</h4>
+            <p>Create an issue in your Linear project. ANC picks it up via webhook and routes automatically.</p>
+          </div>
+        </div>
+        <h3>What you set vs. what ANC handles</h3>
+        <table class="ref-table">
+          <thead><tr><th>You decide</th><th>ANC handles</th></tr></thead>
+          <tbody>
+            <tr><td>What needs to be done (title + description)</td><td>Which agent picks it up (routing rules)</td></tr>
+            <tr><td>Priority (1-5)</td><td>Queue ordering and scheduling</td></tr>
+            <tr><td>Labels (optional, for routing hints)</td><td>Workspace isolation, memory injection</td></tr>
+            <tr><td>Review policy override (optional)</td><td>Health monitoring, failure recovery</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="interacting">
+        <h2>Interacting with Agents</h2>
+        <p>Once an agent is working on a task, you can communicate via:</p>
+        <ul>
+          <li><strong>Comments</strong> — post a comment on the task; it's piped directly into the agent's tmux session</li>
+          <li><strong>@mentions</strong> — type <code>@engineer</code> in any comment to dispatch a specific agent</li>
+          <li><strong>Live terminal</strong> — watch the agent work in real-time from the Agents tab in the dashboard</li>
+          <li><strong>tmux attach</strong> — <code>anc agent jump engineer</code> gives you the tmux command to attach directly</li>
+        </ul>
+        <h3>Status Flow</h3>
+        <div class="flow">
+          <span class="flow-step">Backlog</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">Todo</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step active">In Progress</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step">In Review</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step done">Done</span>
+        </div>
+        <p>Agents update their own status as work progresses. The transition from <strong>In Review → Done</strong> depends on your <a href="#review-policy">review policy</a>.</p>
+      </section>
+
+      <section id="review-policy">
+        <h2>Review Policy</h2>
+        <p>Control how much oversight each agent needs. Set per role, per project, or per task (most specific wins).</p>
+        <table class="ref-table">
+          <thead><tr><th>Level</th><th>On Completion</th><th>Who Decides</th></tr></thead>
+          <tbody>
+            <tr><td><code>strict</code></td><td>→ In Review. CEO must approve.</td><td>CEO only</td></tr>
+            <tr><td><code>normal</code></td><td>→ In Review. Auto-approved after 24h.</td><td>CEO or timeout</td></tr>
+            <tr><td><code>lax</code></td><td>→ Done immediately. CEO notified.</td><td>Auto</td></tr>
+            <tr><td><code>autonomous</code></td><td>→ Done immediately. No notification.</td><td>Auto</td></tr>
+            <tr><td><code>peer-review</code></td><td>→ In Review. Another agent reviews.</td><td>Peer agent</td></tr>
+          </tbody>
+        </table>
+        <p>See <a href="#review-yaml">review.yaml</a> for configuration details.</p>
+      </section>
+
+      <!-- ARCHITECTURE -->
+      <section id="architecture">
+        <h1>Architecture</h1>
+        <p class="lead">Event-driven, self-healing, built to run without you. A typed event bus at the core, declarative routing, isolated workspaces, and circuit breakers.</p>
+        <div class="arch-ascii">
+          <pre>{`Gateway (:3849)
+    │ webhook / REST / WebSocket
+    ▼
+Event Bus (typed, concurrent, isolated handlers)
+    │
+    ├── Router (YAML rules → agent match)
+    │     │
+    │     ▼
+    │   Resolve Gate (budget + capacity + circuit breaker + dedup)
+    │     │
+    │     ▼
+    │   Runtime Manager
+    │     ├── tmux spawn (per-issue session)
+    │     ├── workspace manager (git worktree per task)
+    │     └── health monitor (30s interval)
+    │
+    ├── CEO Office Agent (meta-level oversight)
+    │     ├── health checks (every 30m)
+    │     ├── failure post-mortems
+    │     └── daily briefings
+    │
+    └── Hooks (10 decoupled event handlers)
+          ├── on-issue (create/update)
+          ├── on-comment (CEO follow-up, @mention dispatch)
+          ├── on-session (lifecycle tracking)
+          ├── on-completion (HANDOFF parsing, status update)
+          └── on-notifications (inbox, Discord, Telegram)`}</pre>
+        </div>
+      </section>
+
+      <section id="event-bus">
+        <h2>Event Bus</h2>
+        <p>The nervous system. All components communicate through 20+ typed events. Handlers run concurrently via <code>Promise.allSettled()</code> — a failure in one handler never affects others.</p>
+        <div class="code-block">
+          <div class="code-header">Core event types</div>
+          <pre><code>webhook:issue.created    webhook:issue.updated    webhook:comment.created
+agent:spawned           agent:idle               agent:completed
+agent:failed            agent:stuck              agent:rate-limited
+system:tick             system:health            system:budget-alert
+queue:enqueued          queue:drained
+ceo:briefing            ceo:intervention-needed</code></pre>
+        </div>
+      </section>
+
+      <section id="routing">
+        <h2>Routing</h2>
+        <p>Declarative YAML rules match incoming tasks to agents. Rules are evaluated in order; first match wins.</p>
+        <div class="code-block">
+          <div class="code-header">Example routing rules</div>
+          <pre><code><span class="t-dim"># config/routing.yaml</span>
+rules:
+  - match:
+      labels: ["bug", "fix"]
+    route: engineer
+    priority: 2
+
+  - match:
+      labels: ["strategy", "research"]
+    route: strategist
+
+  - match:
+      title: "^\\[OPS\\]"
+    route: ops
+    priority: 4</code></pre>
+        </div>
+        <p>Tasks that don't match any rule go to the default agent (configurable). See <a href="#routing-yaml">routing.yaml reference</a>.</p>
+      </section>
+
+      <section id="runtime">
+        <h2>Runtime &amp; Isolation</h2>
+        <p>Every task gets its own isolated environment:</p>
+        <ul>
+          <li><strong>tmux session</strong> — each agent runs in a dedicated tmux session, observable via <code>anc agent jump</code></li>
+          <li><strong>Git worktree</strong> — each task gets <code>~/anc-workspaces/&lt;taskId&gt;/</code>, a clean worktree from your repo</li>
+          <li><strong>Circuit breaker</strong> — 3 consecutive failures trigger exponential backoff (60s → 5m → 30m → quarantine)</li>
+          <li><strong>Capacity management</strong> — configurable <code>maxConcurrency</code> per agent role</li>
+        </ul>
+        <h3>Failure Recovery</h3>
+        <table class="ref-table">
+          <thead><tr><th>Failure</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr><td>Agent process dies</td><td>Auto-restart up to 3 times</td></tr>
+            <tr><td>Rate limited (429)</td><td>Exponential backoff with <code>delayUntil</code></td></tr>
+            <tr><td>3 consecutive failures</td><td>Circuit breaker opens, CEO Office notified</td></tr>
+            <tr><td>Budget exceeded</td><td>Agent paused, CEO alerted via Telegram</td></tr>
+            <tr><td>Stuck (no output 30m+)</td><td>CEO Office agent investigates and recovers</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="agents">
+        <h2>Agent System</h2>
+        <h3>Default Roster</h3>
+        <table class="ref-table">
+          <thead><tr><th>Role</th><th>Responsibilities</th><th>Model</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Engineer</strong></td><td>Code, architecture, testing, code review, debugging</td><td>Claude Code</td></tr>
+            <tr><td><strong>Strategist</strong></td><td>Product strategy, market research, roadmaps, content</td><td>Claude Code</td></tr>
+            <tr><td><strong>Ops</strong></td><td>System health, issue triage, failure analysis, deploys</td><td>Claude Code</td></tr>
+            <tr><td><strong>CEO Office</strong></td><td>Agent monitoring, daily briefings, failure recovery, escalation</td><td>Claude Code</td></tr>
+          </tbody>
+        </table>
+        <p>Custom roles can be added via the dashboard (Settings → Agents → + New Role) or in <a href="#agents-yaml">agents.yaml</a>.</p>
+
+        <h3>Agent Lifecycle</h3>
+        <table class="ref-table">
+          <thead><tr><th>State</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Active</strong></td><td>tmux session running, actively processing a task</td></tr>
+            <tr><td><strong>Idle</strong></td><td>Completed a task, workspace preserved, ready for next</td></tr>
+            <tr><td><strong>Suspended</strong></td><td>Paused mid-task (SUSPEND.md written), can resume</td></tr>
+            <tr><td><strong>Circuit Breaker</strong></td><td>Failed 3x, backed off exponentially</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="memory">
+        <h2>Memory &amp; Personas</h2>
+        <h3>Memory System</h3>
+        <p>Every agent maintains persistent memory that grows across tasks:</p>
+        <ul>
+          <li><strong>Personal memory</strong> — <code>~/.anc/memory/agents/&lt;role&gt;/memory.md</code> — agent-specific learnings</li>
+          <li><strong>Shared memory</strong> — <code>~/.anc/memory/shared/</code> — company-wide knowledge base</li>
+          <li><strong>Retrospectives</strong> — <code>~/.anc/memory/retrospectives/</code> — post-task reflections, 3 most recent injected per agent</li>
+        </ul>
+        <p>Memory is scored by importance and injected into agent context at spawn time. Agents append to memory during work via the <code>RETRO</code> block in their HANDOFF.md.</p>
+
+        <h3>Composable Personas</h3>
+        <p>Each agent's persona is assembled from reusable fragments at spawn time:</p>
+        <div class="code-block">
+          <div class="code-header">Persona composition order</div>
+          <pre><code>1. personas/base.md              <span class="t-dim"># shared constraints, protocols</span>
+2. personas/roles/engineer.md    <span class="t-dim"># role-specific behavior</span>
+3. personas/protocols/*.md       <span class="t-dim"># handoff, communication, memory protocols</span>
+4. Agent personal memory         <span class="t-dim"># accumulated learnings</span>
+5. Shared company memory         <span class="t-dim"># company knowledge base</span>
+6. Recent retrospectives         <span class="t-dim"># 3 most recent retros</span>
+7. Task context                  <span class="t-dim"># issue title, description, parent info</span></code></pre>
+        </div>
+        <p>See <a href="#personas-dir">Personas reference</a> for fragment structure.</p>
+      </section>
+
+      <!-- CONFIGURATION REFERENCE -->
+      <section id="config-ref">
+        <h1>Configuration Reference</h1>
+        <p class="lead">All configuration is YAML-driven. No code changes needed to customize agents, routing, budgets, review policies, or standing duties.</p>
+      </section>
+
+      <section id="agents-yaml">
+        <h2>agents.yaml</h2>
+        <p>Defines your agent roster. Located at <code>config/agents.yaml</code>.</p>
+        <div class="code-block">
+          <div class="code-header">config/agents.yaml</div>
+          <pre><code>agents:
+  engineer:
+    name: Engineer
+    model: claude-code
+    maxConcurrency: 2
+    persona:
+      - base.md
+      - roles/engineer.md
+    protocols:
+      - protocols/handoff.md
+      - protocols/communication.md
+      - protocols/memory.md
+
+  strategist:
+    name: Strategist
+    model: claude-code
+    maxConcurrency: 1
+    persona:
+      - base.md
+      - roles/strategist.md
+
+  ops:
+    name: Ops
+    model: claude-code
+    maxConcurrency: 1
+    persona:
+      - base.md
+      - roles/ops.md
+
+  ceo-office:
+    name: CEO Office
+    model: claude-code
+    maxConcurrency: 1
+    persona:
+      - base.md
+      - roles/ceo-office.md</code></pre>
+        </div>
+      </section>
+
+      <section id="routing-yaml">
+        <h2>routing.yaml</h2>
+        <p>Declarative rules for matching tasks to agents. First match wins.</p>
+        <div class="code-block">
+          <div class="code-header">config/routing.yaml</div>
+          <pre><code>defaultAgent: engineer
+
+rules:
+  - match:
+      labels: ["bug", "fix", "error"]
+    route: engineer
+    priority: 2
+
+  - match:
+      labels: ["strategy", "research", "content"]
+    route: strategist
+
+  - match:
+      labels: ["ops", "infra", "deploy"]
+    route: ops
+
+  - match:
+      title: "^\\[AUTO\\]"
+    route: ops
+    priority: 4
+
+  - match:
+      assignee: "@engineer"
+    route: engineer</code></pre>
+        </div>
+        <h3>Match fields</h3>
+        <table class="ref-table">
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>labels</code></td><td>string[]</td><td>Match if task has any of these labels</td></tr>
+            <tr><td><code>title</code></td><td>regex</td><td>Match against task title</td></tr>
+            <tr><td><code>assignee</code></td><td>string</td><td>Match by explicit agent assignment</td></tr>
+            <tr><td><code>project</code></td><td>string</td><td>Match by project name</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="budget-yaml">
+        <h2>budget.yaml</h2>
+        <p>Control API spend across your agents.</p>
+        <div class="code-block">
+          <div class="code-header">config/budget.yaml</div>
+          <pre><code>daily_limit: 50.00        <span class="t-dim"># USD per day, all agents combined</span>
+currency: USD
+
+per_agent:
+  engineer: 25.00
+  strategist: 15.00
+  ops: 10.00
+  ceo-office: 5.00
+
+alerts:
+  warn_at: 0.8             <span class="t-dim"># alert at 80% of limit</span>
+  channels:
+    - telegram
+    - dashboard</code></pre>
+        </div>
+      </section>
+
+      <section id="review-yaml">
+        <h2>review.yaml</h2>
+        <p>Configure review strictness per role, project, or task.</p>
+        <div class="code-block">
+          <div class="code-header">config/review.yaml</div>
+          <pre><code>default: normal
+
+roles:
+  engineer: strict        <span class="t-dim"># code always reviewed</span>
+  strategist: normal
+  ops: lax                <span class="t-dim"># ops moves fast</span>
+  ceo-office: autonomous  <span class="t-dim"># meta-agent, no review</span>
+
+projects:
+  marketing-q2: autonomous
+  infrastructure: strict
+
+overrides:               <span class="t-dim"># per-task, set from UI or SDK</span>
+  task-abc: peer-review</code></pre>
+        </div>
+      </section>
+
+      <section id="duties-yaml">
+        <h2>duties.yaml</h2>
+        <p>Standing duties that run on schedule without human trigger.</p>
+        <div class="code-block">
+          <div class="code-header">config/duties.yaml</div>
+          <pre><code>duties:
+  company-pulse:
+    agent: ceo-office
+    interval: 2h
+    description: "Generate company health briefing"
+
+  health-monitor:
+    agent: ceo-office
+    interval: 30m
+    description: "Check all agent sessions and recover stuck ones"
+
+  failure-postmortem:
+    agent: ops
+    trigger: on-event
+    event: agent:failed
+    description: "Analyze failure and write postmortem"</code></pre>
+        </div>
+      </section>
+
+      <section id="personas-dir">
+        <h2>Personas</h2>
+        <p>Persona fragments live in <code>personas/</code> and are composed at agent spawn time.</p>
+        <table class="ref-table">
+          <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>base.md</code></td><td>Shared instructions for all agents (constraints, company context)</td></tr>
+            <tr><td><code>roles/engineer.md</code></td><td>Engineer-specific behavior, tools, coding standards</td></tr>
+            <tr><td><code>roles/strategist.md</code></td><td>Strategy, research, content creation patterns</td></tr>
+            <tr><td><code>roles/ops.md</code></td><td>Operations, monitoring, triage protocols</td></tr>
+            <tr><td><code>roles/ceo-office.md</code></td><td>Meta-level oversight, briefing generation</td></tr>
+            <tr><td><code>protocols/handoff.md</code></td><td>How agents write HANDOFF.md on completion</td></tr>
+            <tr><td><code>protocols/communication.md</code></td><td>Comment posting, @mention, escalation rules</td></tr>
+            <tr><td><code>protocols/memory.md</code></td><td>When and how to write to personal/shared memory</td></tr>
+          </tbody>
+        </table>
+        <p>Edit these files to change agent behavior. Changes take effect on next agent spawn — no restart needed.</p>
+      </section>
+
+      <!-- CLI REFERENCE -->
+      <section id="cli">
+        <h1>CLI Reference</h1>
+        <p class="lead">The <code>anc</code> CLI for system management and the agent SDK for in-session commands.</p>
+
+        <h2>System Commands</h2>
+        <table class="ref-table">
+          <thead><tr><th>Command</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>anc setup</code></td><td>Interactive credential setup wizard</td></tr>
+            <tr><td><code>anc serve [--port 3849]</code></td><td>Start gateway + event handlers + dashboard</td></tr>
+            <tr><td><code>anc status</code></td><td>System overview (agents, queue, budget)</td></tr>
+            <tr><td><code>anc doctor</code></td><td>Verify all dependencies and configuration</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Agent Management</h2>
+        <table class="ref-table">
+          <thead><tr><th>Command</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>anc agent list</code></td><td>Show roster with health status</td></tr>
+            <tr><td><code>anc agent start &lt;role&gt; [task-id]</code></td><td>Spawn agent on a task</td></tr>
+            <tr><td><code>anc agent stop &lt;role&gt;</code></td><td>Kill all active sessions for role</td></tr>
+            <tr><td><code>anc agent suspend &lt;task-id&gt;</code></td><td>Pause and preserve workspace</td></tr>
+            <tr><td><code>anc agent resume &lt;task-id&gt;</code></td><td>Reactivate suspended session</td></tr>
+            <tr><td><code>anc agent jump &lt;role&gt;</code></td><td>Print tmux attach command</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Agent SDK (inside tmux sessions)</h2>
+        <table class="ref-table">
+          <thead><tr><th>Command</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>anc comment [task-id] &lt;message&gt;</code></td><td>Post comment as agent</td></tr>
+            <tr><td><code>anc read-issue [task-id]</code></td><td>Fetch task details and comments</td></tr>
+            <tr><td><code>anc create-sub &lt;parent&gt; &lt;title&gt;</code></td><td>Create sub-task</td></tr>
+            <tr><td><code>anc dispatch &lt;role&gt; &lt;title&gt;</code></td><td>Trigger another agent</td></tr>
+            <tr><td><code>anc ask &lt;prompt&gt;</code></td><td>Ask CEO a question (Telegram notification)</td></tr>
+            <tr><td><code>anc status [state]</code></td><td>Update task status</td></tr>
+            <tr><td><code>anc list-issues [filter]</code></td><td>Query tasks by status/label</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- API REFERENCE -->
+      <section id="api">
+        <h1>API Reference</h1>
+        <p class="lead">REST API on <code>localhost:3849/api/v1/</code>. WebSocket on <code>/ws</code>. Localhost is trusted; remote access requires Bearer token.</p>
+
+        <h2>Agents</h2>
+        <table class="ref-table">
+          <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET</code></td><td><code>/agents</code></td><td>List all agents with status</td></tr>
+            <tr><td><code>GET</code></td><td><code>/agents/:role</code></td><td>Agent detail (capacity, memory, cost, sessions)</td></tr>
+            <tr><td><code>POST</code></td><td><code>/agents/:role/start</code></td><td>Spawn agent on a task</td></tr>
+            <tr><td><code>POST</code></td><td><code>/agents/:role/stop</code></td><td>Kill all sessions</td></tr>
+            <tr><td><code>POST</code></td><td><code>/agents/:role/talk</code></td><td>Send message to active session</td></tr>
+            <tr><td><code>GET</code></td><td><code>/agents/:role/output</code></td><td>Last tmux output</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Tasks</h2>
+        <table class="ref-table">
+          <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET</code></td><td><code>/tasks</code></td><td>List tasks (filter by status, agent, label)</td></tr>
+            <tr><td><code>POST</code></td><td><code>/tasks</code></td><td>Create task</td></tr>
+            <tr><td><code>PATCH</code></td><td><code>/tasks/:id</code></td><td>Update task</td></tr>
+            <tr><td><code>DELETE</code></td><td><code>/tasks/:id</code></td><td>Archive task</td></tr>
+            <tr><td><code>GET</code></td><td><code>/tasks/:id/children</code></td><td>List sub-tasks</td></tr>
+            <tr><td><code>POST</code></td><td><code>/tasks/batch</code></td><td>Create multiple tasks</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Queue, Budget, Memory, System</h2>
+        <table class="ref-table">
+          <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET</code></td><td><code>/queue</code></td><td>Pending items with priority</td></tr>
+            <tr><td><code>GET</code></td><td><code>/budget</code></td><td>Today's spend + limits</td></tr>
+            <tr><td><code>GET</code></td><td><code>/budget/history</code></td><td>Last 30 days</td></tr>
+            <tr><td><code>GET</code></td><td><code>/memory/shared</code></td><td>Company knowledge base</td></tr>
+            <tr><td><code>GET</code></td><td><code>/memory/agents/:role</code></td><td>Agent's personal memory</td></tr>
+            <tr><td><code>GET</code></td><td><code>/memory/search?q=...</code></td><td>Search all memory</td></tr>
+            <tr><td><code>GET</code></td><td><code>/briefings</code></td><td>CEO briefings</td></tr>
+            <tr><td><code>GET</code></td><td><code>/health</code></td><td>System status</td></tr>
+            <tr><td><code>GET</code></td><td><code>/health/detailed</code></td><td>Sessions, queues, breakers, budget</td></tr>
+            <tr><td><code>GET</code></td><td><code>/events</code></td><td>Event log (filter by type, limit, offset)</td></tr>
+          </tbody>
+        </table>
+
+        <h2>WebSocket</h2>
+        <p>Connect to <code>ws://localhost:3849/ws</code> to receive real-time bus events. All typed events are broadcast as JSON frames.</p>
+      </section>
+
+      <!-- INTEGRATIONS -->
+      <section id="integrations">
+        <h1>Integrations</h1>
+        <p class="lead">ANC works standalone. These integrations are optional — add them when you're ready.</p>
+        <table class="ref-table">
+          <thead><tr><th>Service</th><th>Direction</th><th>How</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Linear</strong></td><td>Bidirectional</td><td>Webhooks on issue/comment events → ANC routes and dispatches. Agents post updates back to Linear via API.</td></tr>
+            <tr><td><strong>Discord</strong></td><td>Bidirectional</td><td>Bot listens to @mentions and reactions. ANC posts summaries, status updates, alerts. Agents can react.</td></tr>
+            <tr><td><strong>Telegram</strong></td><td>Outbound</td><td>CEO alert notifications — critical issues, budget warnings, escalations, daily briefings.</td></tr>
+            <tr><td><strong>GitHub</strong></td><td>Planned</td><td>Agents commit + push code, open PRs with descriptions. Coming in v0.2.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <strong>Plugin system:</strong> ANC supports a plugin architecture for custom integrations. Plugins live in <code>config/plugins/</code> with a YAML manifest and a TypeScript entry point. See the <a href="https://github.com/zzhiyuann/anc/blob/main/docs/plugin-system-spec.md">plugin spec</a> for details.
+        </div>
+      </section>
+
+      <!-- ROADMAP -->
+      <section id="roadmap">
+        <h1>Roadmap</h1>
+        <p class="lead">Where ANC is headed.</p>
+        <div class="roadmap-grid">
+          <div class="roadmap-phase done">
+            <h3>Phase A — Go Live</h3>
+            <p>Setup automation, Linear API integration, SQLite persistence, graceful shutdown, webhook tunneling.</p>
+            <span class="roadmap-status">Complete</span>
+          </div>
+          <div class="roadmap-phase done">
+            <h3>Phase B — Hardening</h3>
+            <p>Structured logging, error audit, rate limiting, integration tests, company mode.</p>
+            <span class="roadmap-status">Complete</span>
+          </div>
+          <div class="roadmap-phase current">
+            <h3>Phase C — Intelligence</h3>
+            <p>Cost tracking, performance metrics, smart alerts, self-healing CEO Office agent.</p>
+            <span class="roadmap-status current-label">In Progress</span>
+          </div>
+          <div class="roadmap-phase">
+            <h3>Phase D — Evolution</h3>
+            <p>Multi-model runtime (Aider, Gemini CLI), dynamic roles, knowledge graph, prompt optimization.</p>
+            <span class="roadmap-status">Planned</span>
+          </div>
+          <div class="roadmap-phase">
+            <h3>Phase E — Product</h3>
+            <p>Native macOS + iOS app, Docker deployment, CI/CD, plugin marketplace, multi-tenancy.</p>
+            <span class="roadmap-status">Planned</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="docs-footer">
+        <p>Can't find what you need? <a href="https://github.com/zzhiyuann/anc/issues">Open an issue</a> or check the <a href="https://github.com/zzhiyuann/anc">source code</a>.</p>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  // Active section tracking
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        document.querySelectorAll('.sidebar-link').forEach((link) => {
+          link.classList.toggle('active', link.getAttribute('data-section') === entry.target.id);
+        });
+      }
+    });
+  }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+
+  document.querySelectorAll('.docs-content > section').forEach((section) => {
+    observer.observe(section);
+  });
+</script>
+
+<style>
+  /* Layout */
+  .docs-layout {
+    display: flex;
+    min-height: 100vh;
+    padding-top: 56px;
+  }
+
+  /* Nav (inline copy, scoped) */
+  .nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    background: rgba(10, 10, 10, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .nav-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .logo-mark { font-size: 15px; font-weight: 700; letter-spacing: 0.08em; }
+  .nav-links { display: flex; align-items: center; gap: 32px; }
+  .nav-links a { font-size: 14px; color: var(--gray-9); transition: color 0.2s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--gray-12); }
+  .nav-github { display: flex; align-items: center; opacity: 0.6; transition: opacity 0.2s; }
+  .nav-github:hover { opacity: 1; }
+
+  /* Sidebar */
+  .sidebar {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    width: 240px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+    border-right: 1px solid var(--gray-3);
+    background: var(--gray-1);
+    padding: 24px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gray-4) transparent;
+  }
+
+  .sidebar-inner {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-link {
+    font-size: 13px;
+    color: var(--gray-8);
+    padding: 6px 24px;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+
+  .sidebar-link:hover {
+    color: var(--gray-11);
+    background: var(--gray-2);
+  }
+
+  .sidebar-link.active {
+    color: var(--gray-12);
+    border-left-color: var(--accent);
+    background: rgba(59, 130, 246, 0.06);
+  }
+
+  .sidebar-divider {
+    height: 1px;
+    background: var(--gray-3);
+    margin: 12px 24px;
+  }
+
+  /* Content */
+  .docs-content {
+    margin-left: 240px;
+    flex: 1;
+    max-width: 800px;
+    padding: 48px 56px 120px;
+  }
+
+  .docs-content section {
+    margin-bottom: 56px;
+    scroll-margin-top: 80px;
+  }
+
+  .docs-content h1 {
+    font-size: 32px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    padding-top: 8px;
+  }
+
+  .docs-content h2 {
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+    padding-top: 4px;
+  }
+
+  .docs-content h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-top: 28px;
+    margin-bottom: 8px;
+  }
+
+  .lead {
+    font-size: 17px;
+    color: var(--gray-9);
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+
+  .docs-content p {
+    font-size: 15px;
+    color: var(--gray-10);
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+
+  .docs-content ul {
+    margin: 0 0 16px 0;
+    padding-left: 20px;
+  }
+
+  .docs-content li {
+    font-size: 15px;
+    color: var(--gray-10);
+    line-height: 1.7;
+    margin-bottom: 8px;
+  }
+
+  .docs-content a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: rgba(59, 130, 246, 0.3);
+  }
+
+  .docs-content a:hover {
+    text-decoration-color: var(--accent);
+  }
+
+  .docs-content code {
+    font-size: 13px;
+    background: var(--gray-3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--gray-12);
+  }
+
+  /* Code blocks */
+  .code-block {
+    background: var(--gray-2);
+    border: 1px solid var(--gray-4);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .code-header {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-8);
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--gray-4);
+    background: var(--gray-3);
+  }
+
+  .code-block pre {
+    padding: 16px;
+    overflow-x: auto;
+    margin: 0;
+  }
+
+  .code-block code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    background: none;
+    padding: 0;
+    color: var(--gray-11);
+  }
+
+  .code-block.terminal {
+    background: var(--gray-1);
+    border-color: var(--gray-3);
+  }
+
+  .t-green { color: var(--green); }
+  .t-dim { color: var(--gray-7); }
+
+  /* Tables */
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .ref-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-8);
+    border-bottom: 1px solid var(--gray-4);
+    background: var(--gray-2);
+  }
+
+  .ref-table td {
+    padding: 10px 14px;
+    color: var(--gray-10);
+    border-bottom: 1px solid var(--gray-3);
+    vertical-align: top;
+  }
+
+  .ref-table td code {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* Callout */
+  .callout {
+    background: rgba(59, 130, 246, 0.06);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: var(--gray-10);
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .callout strong {
+    color: var(--gray-12);
+  }
+
+  /* Method cards */
+  .method-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .method-card {
+    background: var(--gray-2);
+    border: 1px solid var(--gray-4);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .method-card h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .method-card p {
+    font-size: 14px !important;
+    color: var(--gray-9) !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Status flow */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0 20px;
+    flex-wrap: wrap;
+  }
+
+  .flow-step {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--gray-3);
+    color: var(--gray-9);
+    border: 1px solid var(--gray-4);
+  }
+
+  .flow-step.active {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: var(--accent);
+  }
+
+  .flow-step.done {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: var(--green);
+  }
+
+  .flow-arrow {
+    color: var(--gray-6);
+    font-size: 14px;
+  }
+
+  /* Architecture ASCII */
+  .arch-ascii {
+    background: var(--gray-2);
+    border: 1px solid var(--gray-4);
+    border-radius: 10px;
+    padding: 24px;
+    overflow-x: auto;
+    margin-bottom: 24px;
+  }
+
+  .arch-ascii pre {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--gray-10);
+    margin: 0;
+    white-space: pre;
+  }
+
+  /* Roadmap */
+  .roadmap-grid {
+    display: grid;
+    gap: 16px;
+  }
+
+  .roadmap-phase {
+    background: var(--gray-2);
+    border: 1px solid var(--gray-4);
+    border-radius: 10px;
+    padding: 24px;
+    position: relative;
+  }
+
+  .roadmap-phase.done {
+    border-color: rgba(34, 197, 94, 0.2);
+  }
+
+  .roadmap-phase.current {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.04);
+  }
+
+  .roadmap-phase h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 8px;
+  }
+
+  .roadmap-phase p {
+    font-size: 14px !important;
+    color: var(--gray-9) !important;
+    margin: 0 !important;
+  }
+
+  .roadmap-status {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gray-7);
+  }
+
+  .roadmap-status.current-label {
+    color: var(--accent);
+  }
+
+  /* Footer */
+  .docs-footer {
+    border-top: 1px solid var(--gray-3);
+    padding-top: 32px;
+    margin-top: 64px;
+  }
+
+  .docs-footer p {
+    font-size: 14px;
+    color: var(--gray-8);
+  }
+
+  /* Mobile */
+  @media (max-width: 900px) {
+    .sidebar {
+      display: none;
+    }
+
+    .docs-content {
+      margin-left: 0;
+      padding: 32px 20px 80px;
+    }
+
+    .method-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

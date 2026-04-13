@@ -136,8 +136,17 @@ export function processHookEvent(
     }
   }
 
-  // Agent reply auto-comment removed: agents decide when to communicate
-  // via `anc task comment`. Event logging above provides observability.
+  // Auto-post agent's response as a task comment so the CEO sees the
+  // conversation in the dashboard. This is the interactive-mode reply path:
+  // agent finishes a turn (Stop event with last_assistant_message) → comment.
+  // Not spam — this IS the agent's actual response to CEO input.
+  if (event.hook_event_name === 'Stop') {
+    try {
+      maybePostAgentReply(taskId, role, event);
+    } catch (err) {
+      log.warn(`agent reply comment failed: ${(err as Error).message}`);
+    }
+  }
 
   return { ok: true, eventType, spilled };
 }
