@@ -233,6 +233,204 @@ struct WsMessage: Codable {
     let ts: Double?
 }
 
+// MARK: - Task Detail (Full)
+
+struct TaskDetailResponse: Codable {
+    let task: ANCTask
+    let sessions: [SessionOnTask]
+    let events: [TaskEvent]
+    let comments: [TaskComment]
+    let attachments: [TaskAttachment]
+    let cost: TaskCost
+    let children: [ANCTask]
+    let handoff: TaskHandoff?
+}
+
+struct SessionOnTask: Codable, Identifiable, Hashable {
+    var id: String { issueKey }
+    let issueKey: String
+    let state: String
+
+    enum CodingKeys: String, CodingKey {
+        case issueKey, state
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        issueKey = (try? c.decode(String.self, forKey: .issueKey)) ?? ""
+        state = (try? c.decode(String.self, forKey: .state)) ?? "unknown"
+    }
+}
+
+struct TaskEvent: Codable, Identifiable, Hashable {
+    let id: Int
+    let taskId: String
+    let role: String?
+    let type: String
+    let payload: String?
+    let createdAt: Double
+
+    enum CodingKeys: String, CodingKey {
+        case id, taskId, role, type, payload, createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(Int.self, forKey: .id)) ?? 0
+        taskId = (try? c.decode(String.self, forKey: .taskId)) ?? ""
+        role = try? c.decodeIfPresent(String.self, forKey: .role)
+        type = (try? c.decode(String.self, forKey: .type)) ?? ""
+        payload = try? c.decodeIfPresent(String.self, forKey: .payload)
+        createdAt = (try? c.decode(Double.self, forKey: .createdAt)) ?? 0
+    }
+}
+
+struct TaskComment: Codable, Identifiable, Hashable {
+    let id: String
+    let taskId: String
+    let author: String
+    let body: String
+    let createdAt: Double
+
+    enum CodingKeys: String, CodingKey {
+        case id, taskId, author, body, createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        taskId = (try? c.decode(String.self, forKey: .taskId)) ?? ""
+        author = (try? c.decode(String.self, forKey: .author)) ?? "unknown"
+        body = (try? c.decode(String.self, forKey: .body)) ?? ""
+        createdAt = (try? c.decode(Double.self, forKey: .createdAt)) ?? 0
+    }
+}
+
+struct TaskAttachment: Codable, Identifiable, Hashable {
+    var id: String { name }
+    let name: String
+    let size: Int
+    let mtime: Double
+    let kind: String
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = (try? c.decode(String.self, forKey: .name)) ?? "unknown"
+        size = (try? c.decode(Int.self, forKey: .size)) ?? 0
+        mtime = (try? c.decode(Double.self, forKey: .mtime)) ?? 0
+        kind = (try? c.decode(String.self, forKey: .kind)) ?? "file"
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, size, mtime, kind
+    }
+}
+
+struct TaskCost: Codable, Hashable {
+    let totalUsd: Double
+    let byAgent: [AgentCost]
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        totalUsd = (try? c.decode(Double.self, forKey: .totalUsd)) ?? 0
+        byAgent = (try? c.decode([AgentCost].self, forKey: .byAgent)) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case totalUsd, byAgent
+    }
+}
+
+struct AgentCost: Codable, Hashable {
+    let role: String
+    let usd: Double
+    let tokens: Int?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        role = (try? c.decode(String.self, forKey: .role)) ?? ""
+        usd = (try? c.decode(Double.self, forKey: .usd)) ?? 0
+        tokens = try? c.decodeIfPresent(Int.self, forKey: .tokens)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case role, usd, tokens
+    }
+}
+
+struct TaskHandoff: Codable, Hashable {
+    let summary: String?
+    let nextSteps: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case summary
+        case nextSteps = "next_steps"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        summary = try? c.decodeIfPresent(String.self, forKey: .summary)
+        nextSteps = try? c.decodeIfPresent([String].self, forKey: .nextSteps)
+    }
+}
+
+// MARK: - Create / Patch payloads
+
+struct CreateTaskPayload: Encodable {
+    let title: String
+    var description: String?
+    var assignee: String?
+    var priority: Int = 3
+    var projectId: String?
+    var source: String = "dashboard"
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, assignee, priority, source
+        case projectId = "project_id"
+    }
+}
+
+struct PatchTaskPayload: Encodable {
+    var title: String?
+    var description: String?
+    var state: String?
+    var priority: Int?
+    var assignee: String?
+    var labels: [String]?
+    var projectId: String?
+    var dueDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, state, priority, assignee, labels
+        case projectId = "project_id"
+        case dueDate = "due_date"
+    }
+}
+
+struct CreateCommentPayload: Encodable {
+    let body: String
+    let author: String
+}
+
+struct SingleTaskResponse: Codable {
+    let task: ANCTask
+}
+
+struct DeleteResponse: Codable {
+    let ok: Bool?
+    let deleted: Bool?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ok = try? c.decodeIfPresent(Bool.self, forKey: .ok)
+        deleted = try? c.decodeIfPresent(Bool.self, forKey: .deleted)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case ok, deleted
+    }
+}
+
 // MARK: - Navigation
 
 enum NavItem: String, Hashable, Identifiable, CaseIterable {

@@ -13,6 +13,8 @@ final class AppStore: ObservableObject {
     @Published var notifications: [ANCNotification] = []
 
     @Published var selectedTaskId: String? = nil
+    @Published var selectedTaskDetail: TaskDetailResponse? = nil
+    @Published var showCreateTask: Bool = false
 
     private let api = APIClient.shared
     private var ws: WebSocketClient?
@@ -88,9 +90,92 @@ final class AppStore: ObservableObject {
         }
         if t.hasPrefix("task:") || t == "snapshot" {
             Task { await self.refreshTasks() }
+            // Refresh detail if we have one selected
+            if let id = self.selectedTaskId {
+                Task { await self.fetchTaskDetail(id) }
+            }
         }
         if t.hasPrefix("notification:") {
             Task { await self.refreshNotifications() }
+        }
+    }
+
+    // MARK: - Task CRUD
+
+    func selectTask(_ id: String?) {
+        self.selectedTaskId = id
+        if let id {
+            Task { await fetchTaskDetail(id) }
+        } else {
+            self.selectedTaskDetail = nil
+        }
+    }
+
+    func fetchTaskDetail(_ id: String) async {
+        do {
+            let res: TaskDetailResponse = try await api.fetch("tasks/\(id)")
+            if self.selectedTaskId == id {
+                self.selectedTaskDetail = res
+            }
+        } catch {
+            // non-fatal: keep stale detail
+        }
+    }
+
+    func createTask(title: String, description: String?, assignee: String?, priority: Int, projectId: String?) async {
+        let payload = CreateTaskPayload(
+            title: title,
+            description: description,
+            assignee: assignee,
+            priority: priority,
+            projectId: projectId
+        )
+        do {
+            let res: SingleTaskResponse = try await api.post("tasks", body: payload)
+            await refreshTasks()
+            selectTask(res.task.id)
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func updateTask(id: String, patch: PatchTaskPayload) async {
+        // Optimistic: update local list
+        if let idx = tasks.firstIndex(where: { $0.id == id }) {
+            // We cannot mutate ANCTask easily; just fire PATCH and refresh
+            _ = idx
+        }
+        do {
+            let _: SingleTaskResponse = try await api.patch("tasks/\(id)", body: patch)
+            await refreshTasks()
+            if selectedTaskId == id {
+                await fetchTaskDetail(id)
+            }
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func deleteTask(id: String) async {
+        do {
+            let _: DeleteResponse = try await api.delete("tasks/\(id)")
+            tasks.removeAll { $0.id == id }
+            if selectedTaskId == id {
+                selectedTaskId = nil
+                selectedTaskDetail = nil
+            }
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func postComment(taskId: String, body: String) async {
+        let payload = CreateCommentPayload(body: body, author: "ceo")
+        do {
+            let _: TaskComment = try await api.post("tasks/\(taskId)/comments", body: payload)
+            await fetchTaskDetail(taskId)
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
 }

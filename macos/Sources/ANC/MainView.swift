@@ -9,11 +9,29 @@ struct MainView: View {
             SidebarView(selection: $selection)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } content: {
-            ContentPane(selection: selection ?? .tasks)
-                .navigationSplitViewColumnWidth(min: 400, ideal: 700)
+            if selection == .tasks {
+                // Tasks: left = task list, center = detail
+                HSplitView {
+                    TaskListView()
+                        .frame(minWidth: 280, idealWidth: 320, maxWidth: 450)
+                        .environmentObject(store)
+                    TaskDetailView()
+                        .frame(minWidth: 350)
+                        .environmentObject(store)
+                }
+                .navigationSplitViewColumnWidth(min: 600, ideal: 800)
+            } else {
+                ContentPane(selection: selection ?? .tasks)
+                    .navigationSplitViewColumnWidth(min: 400, ideal: 700)
+            }
         } detail: {
-            InspectorPane()
-                .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 420)
+            if selection == .tasks {
+                TaskInspectorView()
+                    .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
+            } else {
+                InspectorPane()
+                    .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 420)
+            }
         }
         .navigationSplitViewStyle(.balanced)
         .task { await store.bootstrap() }
