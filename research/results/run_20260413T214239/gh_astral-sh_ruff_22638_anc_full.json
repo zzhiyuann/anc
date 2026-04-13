@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "anc_full",
+    "memory": "full",
+    "ceo_office": true,
+    "review_policy": "normal"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22638",
+    "title": "Markdown formatting options based on code block language",
+    "description": "Repository: astral-sh/ruff\nIssue #22638\n\n`````\n\n```py\n...\n```\n\nvs\n\n```pyi\n```\n\n`````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22638",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever — no code, no analysis, no HANDOFF.md, no communication. A low-complexity task in a well-known repository should have at minimum yielded an investigation summary or a proposed approach. This is a total failure to execute; the task needs to be reassigned or the agent session debugged for why it stalled silently.",
+    "timestamp": "2026-04-13T22:07:34.042Z"
+  },
+  "duration_ms": 814707,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

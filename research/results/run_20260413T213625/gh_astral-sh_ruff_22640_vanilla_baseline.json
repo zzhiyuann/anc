@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22640",
+    "title": "LSP formatting support for markdown files",
+    "description": "Repository: astral-sh/ruff\nIssue #22640\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22640",
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 3,
+    "communication_quality": 3,
+    "autonomy_score": 3,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced a detailed design document describing what changes should be made across 8 files, but the output is truncated mid-sentence in file 7 of 8 — the actual implementation was never completed or delivered as working code. This is a plan, not a finished task. No tests were written, no PR was opened, and there's no evidence the code was ever run or verified. Communication style is clear but the fundamental job — shipping working code — was not done.",
+    "timestamp": "2026-04-13T22:01:16.135Z"
+  },
+  "duration_ms": 279949,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

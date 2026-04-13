@@ -1,7 +1,7 @@
-default: autonomous
+default: normal
 
 roles:
-  engineer: autonomous
-  strategist: autonomous
-  ops: autonomous
+  engineer: normal
+  strategist: normal
+  ops: normal
   ceo-office: autonomous
