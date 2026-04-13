@@ -23,17 +23,11 @@ function isDutyIssue(issueKey: string): boolean {
 const startedCommented = new Set<string>();
 
 export function registerLifecycleHandlers(): void {
-  // --- SPAWNED: comment (once only) ---
+  // --- SPAWNED: log only (agent decides whether to announce) ---
   bus.on('agent:spawned', async ({ role, issueKey }) => {
     if (isDutyIssue(issueKey)) return;
-
-    if (!startedCommented.has(issueKey)) {
-      startedCommented.add(issueKey);
-      await addComment(issueKey, `**${role}** picked up this issue.`, role).catch(() => {});
-      // Post to local task_comments for dashboard visibility
-      const taskId = resolveTaskIdFromIssueKey(issueKey);
-      if (taskId) addTaskComment(taskId, `agent:${role}`, 'Starting work on this task.');
-    }
+    // Track for dedup on completion — no auto-comment, agent decides if/when to announce.
+    startedCommented.add(issueKey);
   });
 
   // --- FAILED: comment + notify Discord ---

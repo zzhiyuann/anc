@@ -61,13 +61,9 @@ beforeEach(() => {
 // ---- Agent auto-comments with correct attribution ----
 
 describe('Agent Auto-Comments (task_comments)', () => {
-  it('posts "Starting work" comment with agent:role author on spawn', async () => {
+  it('does NOT auto-post "Starting work" on spawn (agent decides)', async () => {
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-42', tmuxSession: 't' });
-    expect(addTaskCommentMock).toHaveBeenCalledWith(
-      'task-123',
-      'agent:engineer',
-      'Starting work on this task.',
-    );
+    expect(addTaskCommentMock).not.toHaveBeenCalled();
   });
 
   it('posts error comment with agent:role author on failure', async () => {
@@ -107,8 +103,8 @@ describe('Agent Auto-Comments (task_comments)', () => {
     expect(addTaskCommentMock).not.toHaveBeenCalled();
   });
 
-  it('author format is agent:<role>, never just the role name', async () => {
-    await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-10', tmuxSession: 't' });
+  it('author format is agent:<role> on failure comments', async () => {
+    await bus.emit('agent:failed', { role: 'engineer', issueKey: 'ANC-10', error: 'test' });
     const author = addTaskCommentMock.mock.calls[0][1];
     expect(author).toBe('agent:engineer');
     expect(author).toMatch(/^agent:/);

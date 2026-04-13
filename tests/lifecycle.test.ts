@@ -42,9 +42,9 @@ beforeEach(() => {
 // ---- Lifecycle Comments ----
 
 describe('Lifecycle Comments', () => {
-  it('posts comment on agent:spawned', async () => {
+  it('does NOT auto-post comment on agent:spawned (agent decides)', async () => {
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 'anc-engineer-ANC-1' });
-    expect(mockedAddComment).toHaveBeenCalledWith('ANC-1', expect.stringContaining('picked up'), 'engineer');
+    expect(mockedAddComment).not.toHaveBeenCalled();
   });
 
   it('posts comment on agent:failed with error detail', async () => {
@@ -71,26 +71,22 @@ describe('Lifecycle Comments', () => {
     expect(mockedAddComment).not.toHaveBeenCalled();
   });
 
-  it('skips spawned comment on re-spawn (dedup)', async () => {
+  it('tracks spawned issues for dedup (no comment posted)', async () => {
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
-    expect(mockedAddComment).toHaveBeenCalledOnce();
-    vi.clearAllMocks();
+    // No auto-comment — agent decides
+    expect(mockedAddComment).not.toHaveBeenCalled();
+    // Re-spawn should also not post
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't2' });
     expect(mockedAddComment).not.toHaveBeenCalled();
   });
 
-  it('re-allows spawned comment after completed (issue reopened)', async () => {
+  it('clears tracking after completed so re-spawn is tracked fresh', async () => {
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't' });
-    vi.clearAllMocks();
     await bus.emit('agent:completed', { role: 'engineer', issueKey: 'ANC-1', handoff: 'done' });
     vi.clearAllMocks();
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-1', tmuxSession: 't3' });
-    expect(mockedAddComment).toHaveBeenCalledWith('ANC-1', expect.stringContaining('picked up'), 'engineer');
-  });
-
-  it('uses agent role as comment identity (third arg)', async () => {
-    await bus.emit('agent:spawned', { role: 'strategist', issueKey: 'ANC-5', tmuxSession: 't' });
-    expect(mockedAddComment).toHaveBeenCalledWith('ANC-5', expect.any(String), 'strategist');
+    // Still no auto-comment — agent decides
+    expect(mockedAddComment).not.toHaveBeenCalled();
   });
 });
 
@@ -126,10 +122,9 @@ describe('Duty Session Filtering', () => {
 // ---- Comment Content Format ----
 
 describe('Comment Content Format', () => {
-  it('spawned comment includes bold role name', async () => {
+  it('does not auto-post on spawn (agent decides)', async () => {
     await bus.emit('agent:spawned', { role: 'engineer', issueKey: 'ANC-10', tmuxSession: 't' });
-    const body = mockedAddComment.mock.calls[0][1];
-    expect(body).toContain('**engineer**');
+    expect(mockedAddComment).not.toHaveBeenCalled();
   });
 
   it('failed comment includes backtick-wrapped error', async () => {

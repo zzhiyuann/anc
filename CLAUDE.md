@@ -80,7 +80,7 @@ cd apps/web && npx tsc --noEmit  # frontend typecheck
 ### Personas (personas/)
 - `base.md` — Shared base persona (all agents)
 - `roles/*.md` — Per-agent persona (engineer, strategist, ops, ceo-office)
-- `protocols/*.md` — Shared protocols (handoff, status-reporting, communication)
+- `protocols/*.md` — Shared protocols (handoff, communication, completion, memory, retrospective)
 
 ## Key Principles
 

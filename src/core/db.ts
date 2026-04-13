@@ -257,6 +257,9 @@ export function getDb(): Database.Database {
   if (!taskCols.some(c => c.name === 'due_date')) {
     db.prepare("ALTER TABLE tasks ADD COLUMN due_date TEXT").run();
   }
+  if (!taskCols.some(c => c.name === 'progress')) {
+    db.prepare("ALTER TABLE tasks ADD COLUMN progress INTEGER DEFAULT 0").run();
+  }
 
   // Seed default labels if labels table is empty
   const labelCount = db.prepare('SELECT COUNT(*) AS c FROM labels').get() as { c: number };

@@ -250,6 +250,171 @@ export async function taskCommentCommand(taskId: string, message: string): Promi
   console.log(`✓ Comment posted on task ${taskId} as ${author}`);
 }
 
+/** Helper to call local ANC API */
+async function ancApi(
+  method: string,
+  path: string,
+  body?: Record<string, unknown>,
+): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
+  const port = process.env.ANC_API_PORT ?? '3849';
+  const base = process.env.ANC_API_BASE ?? `http://127.0.0.1:${port}`;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = process.env.ANC_API_TOKEN;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${base}/api/v1${path}`, {
+    method,
+    headers,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const text = await res.text();
+  let data: Record<string, unknown> = {};
+  try { data = JSON.parse(text) as Record<string, unknown>; } catch { /**/ }
+  return { ok: res.ok, status: res.status, data };
+}
+
+/**
+ * Ask a person or agent a question via the local ANC API.
+ * If target is @ceo, creates a high-priority notification.
+ * If target is @<role>, dispatches that agent as a contributor.
+ */
+export async function askCommand(taskId: string, target: string, question: string): Promise<void> {
+  if (!taskId || !target || !question) {
+    throw new Error('Usage: anc ask <@person> <question>');
+  }
+  const role = process.env.AGENT_ROLE;
+  const author = role ? `agent:${role}` : 'ceo';
+  const result = await ancApi('POST', `/tasks/${encodeURIComponent(taskId)}/ask`, {
+    target: target.replace(/^@/, ''),
+    question,
+    author,
+  });
+  if (!result.ok) throw new Error(`ask failed (${result.status}): ${JSON.stringify(result.data)}`);
+  console.log(`✓ Asked ${target}: ${question.substring(0, 60)}${question.length > 60 ? '...' : ''}`);
+}
+
+/**
+ * Attach a file from the workspace to a task.
+ */
+export async function attachCommand(taskId: string, filepath: string, description?: string): Promise<void> {
+  if (!taskId || !filepath) {
+    throw new Error('Usage: anc attach <taskId> <filepath> [description]');
+  }
+  const role = process.env.AGENT_ROLE;
+  const author = role ? `agent:${role}` : 'ceo';
+  const result = await ancApi('POST', `/tasks/${encodeURIComponent(taskId)}/attach`, {
+    path: filepath,
+    description: description ?? null,
+    author,
+  });
+  if (!result.ok) throw new Error(`attach failed (${result.status}): ${JSON.stringify(result.data)}`);
+  console.log(`✓ Attached ${filepath} to task ${taskId}`);
+}
+
+/**
+ * Update task progress with a message and optional percent.
+ */
+export async function progressCommand(taskId: string, message: string, percent?: number): Promise<void> {
+  if (!taskId || !message) {
+    throw new Error('Usage: anc progress <taskId> <message> [--percent N]');
+  }
+  const role = process.env.AGENT_ROLE;
+  const author = role ? `agent:${role}` : 'ceo';
+  const body: Record<string, unknown> = { message, author };
+  if (percent !== undefined) body.percent = percent;
+  const result = await ancApi('PATCH', `/tasks/${encodeURIComponent(taskId)}/progress`, body);
+  if (!result.ok) throw new Error(`progress failed (${result.status}): ${JSON.stringify(result.data)}`);
+  const pct = percent !== undefined ? ` (${percent}%)` : '';
+  console.log(`✓ Progress updated on task ${taskId}${pct}`);
+}
+
+/**
+ * Record a decision linked to a task.
+ */
+export async function decisionCommand(
+  taskId: string,
+  title: string,
+  rationale: string,
+  tag?: string,
+): Promise<void> {
+  if (!taskId || !title || !rationale) {
+    throw new Error('Usage: anc decision <taskId> <title> --rationale <text>');
+  }
+  const role = process.env.AGENT_ROLE;
+  const decidedBy = role ? `agent:${role}` : 'ceo';
+  const tags = tag ? [tag] : [];
+
+  // Create decision via the pulse/decisions API
+  const decResult = await ancApi('POST', '/pulse/decisions', {
+    title,
+    rationale,
+    decidedBy,
+    tags,
+  });
+  if (!decResult.ok) throw new Error(`decision create failed (${decResult.status}): ${JSON.stringify(decResult.data)}`);
+
+  // Also post a comment on the task
+  const author = role ? `agent:${role}` : 'ceo';
+  await ancApi('POST', `/tasks/${encodeURIComponent(taskId)}/comments`, {
+    body: `Decision: **${title}**\n\nRationale: ${rationale}${tag ? `\nTag: ${tag}` : ''}`,
+    author,
+  });
+
+  console.log(`✓ Decision recorded: ${title}`);
+}
+
+/**
+ * Flag a risk or finding for the CEO.
+ */
+export async function flagCommand(
+  taskId: string,
+  message: string,
+  severity: 'warning' | 'critical' = 'warning',
+): Promise<void> {
+  if (!taskId || !message) {
+    throw new Error('Usage: anc flag <taskId> <message> [--severity warning|critical]');
+  }
+  const role = process.env.AGENT_ROLE;
+  const author = role ? `agent:${role}` : 'ceo';
+  const result = await ancApi('POST', `/tasks/${encodeURIComponent(taskId)}/flag`, {
+    message,
+    severity,
+    author,
+  });
+  if (!result.ok) throw new Error(`flag failed (${result.status}): ${JSON.stringify(result.data)}`);
+  console.log(`✓ Flagged [${severity}]: ${message.substring(0, 60)}`);
+}
+
+/**
+ * Hand off to another agent with explicit context.
+ */
+export async function handoffCommand(
+  taskId: string,
+  targetRole: string,
+  context: string,
+): Promise<void> {
+  if (!taskId || !targetRole || !context) {
+    throw new Error('Usage: anc handoff <taskId> @<target-role> <context>');
+  }
+  const role = process.env.AGENT_ROLE;
+  const author = role ? `agent:${role}` : 'ceo';
+  const target = targetRole.replace(/^@/, '');
+
+  // Post handoff comment
+  await ancApi('POST', `/tasks/${encodeURIComponent(taskId)}/comments`, {
+    body: `Handing off to @${target}: ${context}`,
+    author,
+  });
+
+  // Dispatch target agent via the task dispatch endpoint
+  const result = await ancApi('POST', `/tasks/${encodeURIComponent(taskId)}/dispatch`, {
+    role: target,
+    context: `Handoff from ${author}: ${context}`,
+    from: author,
+  });
+  if (!result.ok) throw new Error(`handoff dispatch failed (${result.status}): ${JSON.stringify(result.data)}`);
+  console.log(`✓ Handed off to @${target} on task ${taskId}`);
+}
+
 export async function planCommand(issueKey: string | undefined, summary: string): Promise<void> {
   const key = getIssueKey(issueKey);
   const role = getAgentRole();

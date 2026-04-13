@@ -197,48 +197,30 @@ describe('maybePostAgentReply', () => {
 
 // --- Integration via processHookEvent ---
 
-describe('processHookEvent → agent reply comment', () => {
-  it('Stop event with reply posts comment via processHookEvent', () => {
+describe('processHookEvent no longer auto-posts agent reply comments', () => {
+  it('Stop event does NOT auto-post comment (agent decides via anc task comment)', () => {
     insertTask('task-int-1');
     processHookEvent('task-int-1', 'engineer', {
       hook_event_name: 'Stop',
       stop_hook_active: false,
       last_assistant_message: '2 + 2 = 4',
     });
+    // No auto-comment — agent should use `anc task comment` explicitly
     const comments = getComments('task-int-1');
-    expect(comments).toHaveLength(1);
-    expect(comments[0].author).toBe('agent:engineer');
-    expect(comments[0].body).toBe('2 + 2 = 4');
+    expect(comments).toHaveLength(0);
   });
 
-  it('SessionEnd event does NOT post reply comment (lifecycle handles it)', () => {
+  it('event logging still works even though auto-comment is removed', () => {
     insertTask('task-int-2');
-    processHookEvent('task-int-2', 'engineer', {
-      hook_event_name: 'SessionEnd',
+    const result = processHookEvent('task-int-2', 'engineer', {
+      hook_event_name: 'Stop',
+      stop_hook_active: false,
       last_assistant_message: 'Final summary here',
     });
-    const comments = getComments('task-int-2');
-    expect(comments).toHaveLength(0);
-  });
-
-  it('Stop mid-tool-call does NOT post reply comment', () => {
-    insertTask('task-int-3');
-    processHookEvent('task-int-3', 'ops', {
-      hook_event_name: 'Stop',
-      stop_hook_active: true,
-      last_assistant_message: 'Let me check that file.',
-    });
-    const comments = getComments('task-int-3');
-    expect(comments).toHaveLength(0);
-  });
-
-  it('non-Stop events do not post reply comments', () => {
-    insertTask('task-int-4');
-    processHookEvent('task-int-4', 'engineer', {
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Bash',
-      tool_input: { command: 'ls' },
-    });
-    expect(getComments('task-int-4')).toHaveLength(0);
+    expect(result.ok).toBe(true);
+    expect(result.eventType).toBe('agent:session-stop');
+    // Event is logged to task_events
+    const events = testDb.prepare('SELECT * FROM task_events WHERE task_id = ?').all('task-int-2');
+    expect(events.length).toBeGreaterThan(0);
   });
 });

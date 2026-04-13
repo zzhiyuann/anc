@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { getDb } from './db.js';
 import { bus } from '../bus.js';
 
-export type TaskState = 'todo' | 'running' | 'review' | 'done' | 'failed' | 'canceled' | 'suspended';
+export type TaskState = 'todo' | 'running' | 'review' | 'done' | 'failed' | 'canceled' | 'suspended' | 'awaiting-input';
 export type TaskSource = 'dashboard' | 'linear' | 'dispatch' | 'duty';
 
 export interface Task {
@@ -28,6 +28,7 @@ export interface Task {
   handoffSummary: string | null;
   assignee: string | null;
   dueDate: string | null;
+  progress: number;
 }
 
 function rowToTask(r: Record<string, unknown>): Task {
@@ -47,6 +48,7 @@ function rowToTask(r: Record<string, unknown>): Task {
     handoffSummary: (r.handoff_summary as string | null) ?? null,
     assignee: (r.assignee as string | null) ?? null,
     dueDate: (r.due_date as string | null) ?? null,
+    progress: (r.progress as number | null) ?? 0,
   };
 }
 
@@ -62,8 +64,8 @@ export function createTask(input: Partial<Task> & { title: string }): Task {
     INSERT INTO tasks (
       id, project_id, title, description, state, priority, source,
       parent_task_id, created_by, linear_issue_key, created_at, completed_at, handoff_summary,
-      assignee, due_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      assignee, due_date, progress
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     input.projectId ?? null,
@@ -80,6 +82,7 @@ export function createTask(input: Partial<Task> & { title: string }): Task {
     input.handoffSummary ?? null,
     input.assignee ?? null,
     input.dueDate ?? null,
+    input.progress ?? 0,
   );
 
   return getTask(id)!;
@@ -131,6 +134,7 @@ export function updateTask(id: string, patch: Partial<Task>): Task | null {
     handoffSummary: 'handoff_summary',
     assignee: 'assignee',
     dueDate: 'due_date',
+    progress: 'progress',
   };
 
   const sets: string[] = [];
@@ -164,9 +168,10 @@ export function setTaskState(id: string, state: TaskState, completedAt?: number)
  */
 const LEGAL_TRANSITIONS: Record<TaskState, ReadonlySet<TaskState>> = {
   todo: new Set<TaskState>(['running', 'canceled']),
-  running: new Set<TaskState>(['review', 'done', 'failed', 'suspended', 'canceled']),
+  running: new Set<TaskState>(['review', 'done', 'failed', 'suspended', 'canceled', 'awaiting-input']),
   review: new Set<TaskState>(['done', 'running', 'canceled']),
   suspended: new Set<TaskState>(['running', 'canceled']),
+  'awaiting-input': new Set<TaskState>(['running', 'canceled', 'failed']),
   done: new Set<TaskState>(),
   failed: new Set<TaskState>(),
   canceled: new Set<TaskState>(),
@@ -304,6 +309,35 @@ export function addTaskComment(taskId: string, author: string, body: string): nu
   } catch {
     return null;
   }
+}
+
+/**
+ * Update task progress percentage (0-100) and emit a progress event.
+ */
+export function setTaskProgress(id: string, percent: number, message?: string): Task | null {
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  getDb().prepare('UPDATE tasks SET progress = ? WHERE id = ?').run(clamped, id);
+  const task = getTask(id);
+  if (task) {
+    void bus.emit('task:progress' as never, { taskId: id, percent: clamped, message } as never);
+  }
+  return task;
+}
+
+/**
+ * Flag a task — creates a notification for the CEO and posts a comment.
+ */
+export function flagTask(
+  id: string,
+  message: string,
+  opts: { severity?: 'warning' | 'critical'; author?: string } = {},
+): void {
+  const task = getTask(id);
+  if (!task) throw new Error(`task not found: ${id}`);
+  const author = opts.author ?? 'system';
+  addTaskComment(id, author, `FLAG: ${message}`);
+  // Notification import is deferred to avoid circular deps at module load.
+  // The caller (routes.ts / sdk.ts) handles notification creation.
 }
 
 /** Resolve task_id from either a direct taskId or a linear_issue_key. */

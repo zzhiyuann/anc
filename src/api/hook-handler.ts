@@ -136,21 +136,8 @@ export function processHookEvent(
     }
   }
 
-  // Agent reply auto-comment: when a Stop event carries a meaningful
-  // last_assistant_message (the text the agent just said), post it as a
-  // task comment so the CEO sees the response in the Activity stream.
-  //
-  // Filters:
-  //   - Only on Stop events (SessionEnd is handled by the lifecycle auto-comment agent)
-  //   - stop_hook_active must be false (true = mid-tool-call, agent hasn't paused yet)
-  //   - last_assistant_message must be a non-empty string
-  if (event.hook_event_name === 'Stop') {
-    try {
-      maybePostAgentReply(taskId, role, event);
-    } catch (err) {
-      log.warn(`agent reply comment failed for ${taskId}: ${(err as Error).message}`);
-    }
-  }
+  // Agent reply auto-comment removed: agents decide when to communicate
+  // via `anc task comment`. Event logging above provides observability.
 
   return { ok: true, eventType, spilled };
 }
