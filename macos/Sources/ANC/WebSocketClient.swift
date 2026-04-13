@@ -7,6 +7,7 @@ final class WebSocketClient: NSObject {
     private var session: URLSession!
     private var reconnectAttempts = 0
     private var isClosed = false
+    private var pingTimer: Timer?
 
     let events = PassthroughSubject<WsMessage, Never>()
     let connectionState = CurrentValueSubject<Bool, Never>(false)
@@ -24,13 +25,30 @@ final class WebSocketClient: NSObject {
         self.task = task
         task.resume()
         receiveLoop()
+        startHeartbeat()
     }
 
     func close() {
         isClosed = true
+        pingTimer?.invalidate()
+        pingTimer = nil
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
         connectionState.send(false)
+    }
+
+    private func startHeartbeat() {
+        pingTimer?.invalidate()
+        pingTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.task?.sendPing { error in
+                if error != nil {
+                    DispatchQueue.main.async {
+                        self?.connectionState.send(false)
+                        self?.scheduleReconnect()
+                    }
+                }
+            }
+        }
     }
 
     private func receiveLoop() {
@@ -62,7 +80,9 @@ final class WebSocketClient: NSObject {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let type = obj["type"] as? String else { return }
         let ts = obj["ts"] as? Double
-        events.send(WsMessage(type: type, ts: ts))
+        let taskId = obj["taskId"] as? String
+        let role = obj["role"] as? String
+        events.send(WsMessage(type: type, ts: ts, taskId: taskId, role: role))
     }
 
     private func scheduleReconnect() {

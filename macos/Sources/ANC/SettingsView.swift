@@ -8,6 +8,8 @@ struct SettingsView: View {
     @State private var isSaving = false
     @State private var editingPersonaRole: String? = nil
     @State private var personaDraft = ""
+    @State private var agentConcurrency: [String: Int] = [:]
+    @State private var agentDutySlots: [String: Int] = [:]
 
     var body: some View {
         ScrollView {
@@ -223,35 +225,90 @@ struct SettingsView: View {
                         .foregroundColor(.ancMuted)
                 } else {
                     ForEach(store.agents) { agent in
-                        HStack(spacing: 8) {
-                            Image(systemName: "person.circle.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(.ancAccent)
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.ancAccent)
 
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(agent.name)
-                                    .font(.system(size: 12, weight: .medium))
-                                Text("@\(agent.role)")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.ancMuted)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(agent.name)
+                                        .font(.system(size: 12, weight: .medium))
+                                    Text("@\(agent.role)")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.ancMuted)
+                                }
+
+                                Spacer()
+
+                                // Status pill
+                                let statusText = agent.activeSessions > 0 ? "Active" : (agent.idleSessions > 0 ? "Idle" : "Offline")
+                                let statusColor: Color = agent.activeSessions > 0 ? .green : (agent.idleSessions > 0 ? .yellow : .gray)
+                                Text(statusText)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(statusColor.opacity(0.15))
+                                    .foregroundColor(statusColor)
+                                    .clipShape(Capsule())
+
+                                Button("Edit Persona") {
+                                    editingPersonaRole = agent.role
+                                    Task {
+                                        await store.fetchAgentPersona(agent.role)
+                                        personaDraft = store.agentPersona ?? ""
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
 
-                            Spacer()
+                            // Editable config row
+                            HStack(spacing: 16) {
+                                HStack(spacing: 4) {
+                                    Text("Max Sessions")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.ancMuted)
+                                    Stepper(value: concurrencyBinding(agent.role), in: 1...10) {
+                                        Text("\(agentConcurrency[agent.role] ?? agent.maxConcurrency)")
+                                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                            .frame(width: 20)
+                                    }
+                                    .controlSize(.small)
+                                }
 
-                            // Session count
-                            Text("\(agent.activeSessions)/\(agent.maxConcurrency)")
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundColor(.ancMuted)
+                                HStack(spacing: 4) {
+                                    Text("Duty Slots")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.ancMuted)
+                                    Stepper(value: dutySlotsBinding(agent.role), in: 0...5) {
+                                        Text("\(agentDutySlots[agent.role] ?? 0)")
+                                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                            .frame(width: 20)
+                                    }
+                                    .controlSize(.small)
+                                }
 
-                            Button("Edit Persona") {
-                                editingPersonaRole = agent.role
-                                Task {
-                                    await store.fetchAgentPersona(agent.role)
-                                    personaDraft = store.agentPersona ?? ""
+                                Spacer()
+
+                                // Only show save button if changed
+                                if agentConcurrency[agent.role] != nil || agentDutySlots[agent.role] != nil {
+                                    Button("Save") {
+                                        Task {
+                                            await store.updateAgentConfig(
+                                                role: agent.role,
+                                                maxConcurrency: agentConcurrency[agent.role],
+                                                dutySlots: agentDutySlots[agent.role]
+                                            )
+                                            agentConcurrency.removeValue(forKey: agent.role)
+                                            agentDutySlots.removeValue(forKey: agent.role)
+                                        }
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
                                 }
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            .padding(.leading, 24)
                         }
 
                         if agent.role != store.agents.last?.role {
@@ -287,7 +344,11 @@ struct SettingsView: View {
                     Spacer()
                     Button("Cancel") { editingPersonaRole = nil }
                     Button("Save") {
-                        // Would call PUT /personas/:role
+                        if let role = editingPersonaRole {
+                            Task {
+                                await store.saveAgentPersona(role, body: personaDraft)
+                            }
+                        }
                         editingPersonaRole = nil
                     }
                     .buttonStyle(.borderedProminent)
@@ -385,6 +446,20 @@ struct SettingsView: View {
         Binding(
             get: { reviewRoles[role] ?? "normal" },
             set: { reviewRoles[role] = $0 }
+        )
+    }
+
+    private func concurrencyBinding(_ role: String) -> Binding<Int> {
+        Binding(
+            get: { agentConcurrency[role] ?? store.agents.first(where: { $0.role == role })?.maxConcurrency ?? 3 },
+            set: { agentConcurrency[role] = $0 }
+        )
+    }
+
+    private func dutySlotsBinding(_ role: String) -> Binding<Int> {
+        Binding(
+            get: { agentDutySlots[role] ?? 0 },
+            set: { agentDutySlots[role] = $0 }
         )
     }
 }

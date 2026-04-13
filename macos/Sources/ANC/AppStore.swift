@@ -35,6 +35,7 @@ final class AppStore: ObservableObject {
     @Published var reviewConfig: ReviewConfigResponse? = nil
     @Published var killSwitchPaused: Bool = false
     @Published var selectedNotificationId: Int? = nil
+    @Published var toast: Toast? = nil
 
     // Phase 4: Search + navigation
     @Published var showSearch: Bool = false
@@ -131,13 +132,24 @@ final class AppStore: ObservableObject {
         }
         if t.hasPrefix("task:") || t == "snapshot" {
             Task { await self.refreshTasks() }
-            // Refresh detail if we have one selected
+            // Targeted refresh: if this event is for the selected task, refresh detail
             if let id = self.selectedTaskId {
-                Task { await self.fetchTaskDetail(id) }
+                if msg.taskId == nil || msg.taskId == id {
+                    Task { await self.fetchTaskDetail(id) }
+                }
             }
         }
         if t.hasPrefix("notification:") {
             Task { await self.refreshNotifications() }
+        }
+        if t == "config:updated" || t == "agent:config-changed" {
+            Task {
+                await self.refreshAgents()
+                if t == "config:updated" {
+                    await self.refreshBudgetConfig()
+                    await self.refreshReviewConfig()
+                }
+            }
         }
     }
 
@@ -175,8 +187,10 @@ final class AppStore: ObservableObject {
             let res: SingleTaskResponse = try await api.post("tasks", body: payload)
             await refreshTasks()
             selectTask(res.task.id)
+            toast = Toast(message: "Task created", style: .success)
         } catch {
             self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            toast = Toast(message: "Failed to create task", style: .error)
         }
     }
 
@@ -205,8 +219,10 @@ final class AppStore: ObservableObject {
                 selectedTaskId = nil
                 selectedTaskDetail = nil
             }
+            toast = Toast(message: "Task deleted", style: .success)
         } catch {
             self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            toast = Toast(message: "Failed to delete task", style: .error)
         }
     }
 
@@ -215,6 +231,7 @@ final class AppStore: ObservableObject {
         do {
             let _: TaskComment = try await api.post("tasks/\(taskId)/comments", body: payload)
             await fetchTaskDetail(taskId)
+            toast = Toast(message: "Comment posted", style: .success)
 
             // Check for @mentions and dispatch
             let mentionPattern = /@(\w+)/
@@ -227,13 +244,16 @@ final class AppStore: ObservableObject {
             }
         } catch {
             self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            toast = Toast(message: "Failed to post comment", style: .error)
         }
     }
 
     func dispatch(role: String, taskId: String?, message: String?) async {
-        let payload = DispatchPayload(role: role, taskId: taskId, message: message)
+        guard let taskId else { return }
+        struct DispatchBody: Encodable { let role: String; let context: String? }
+        let payload = DispatchBody(role: role, context: message)
         do {
-            let _: OkResponse = try await api.post("dispatch", body: payload)
+            let _: OkResponse = try await api.post("tasks/\(taskId)/dispatch", body: payload)
         } catch {
             // non-fatal
         }
@@ -258,8 +278,35 @@ final class AppStore: ObservableObject {
             let _: SingleProjectResponse = try await api.post("projects", body: payload)
             await refreshProjects()
             await refreshProjectsWithStats()
+            toast = Toast(message: "Project created", style: .success)
         } catch {
             self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            toast = Toast(message: "Failed to create project", style: .error)
+        }
+    }
+
+    func updateProject(id: String, patch: PatchProjectPayload) async {
+        do {
+            let _: SingleProjectResponse = try await api.patch("projects/\(id)", body: patch)
+            await refreshProjects()
+            await refreshProjectsWithStats()
+            toast = Toast(message: "Project updated", style: .success)
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            toast = Toast(message: "Failed to update project", style: .error)
+        }
+    }
+
+    func deleteProject(id: String) async {
+        do {
+            let _: DeleteResponse = try await api.delete("projects/\(id)")
+            projectsWithStats.removeAll { $0.id == id }
+            projects.removeAll { $0.id == id }
+            if selectedProjectId == id { selectedProjectId = nil }
+            toast = Toast(message: "Project deleted", style: .success)
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            toast = Toast(message: "Failed to delete project", style: .error)
         }
     }
 
@@ -290,8 +337,10 @@ final class AppStore: ObservableObject {
         do {
             let _: PersonaResponse = try await api.patch("personas/\(role)", body: PersonaBody(body: body))
             self.agentPersona = body
+            toast = Toast(message: "Persona saved", style: .success)
         } catch {
             self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            toast = Toast(message: "Failed to save persona", style: .error)
         }
     }
 
@@ -463,6 +512,23 @@ final class AppStore: ObservableObject {
             self.killSwitchPaused.toggle()
         } catch {
             self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    // MARK: - Agent Config
+
+    func updateAgentConfig(role: String, maxConcurrency: Int?, dutySlots: Int?) async {
+        struct PatchBody: Encodable {
+            let maxConcurrency: Int?
+            let dutySlots: Int?
+        }
+        do {
+            let _: OkResponse = try await api.patch("agents/roles/\(role)", body: PatchBody(maxConcurrency: maxConcurrency, dutySlots: dutySlots))
+            await refreshAgents()
+            toast = Toast(message: "\(role) config updated", style: .success)
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            toast = Toast(message: "Failed to update agent config", style: .error)
         }
     }
 

@@ -23,8 +23,8 @@ actor APIClient {
 
     init() {
         let cfg = URLSessionConfiguration.default
-        cfg.timeoutIntervalForRequest = 10
-        cfg.waitsForConnectivity = false
+        cfg.timeoutIntervalForRequest = 30
+        cfg.waitsForConnectivity = true
         self.session = URLSession(configuration: cfg)
         self.decoder = JSONDecoder()
     }

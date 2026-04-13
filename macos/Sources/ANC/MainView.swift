@@ -101,6 +101,7 @@ struct MainView: View {
                 .help("Inbox (\(store.unreadCount) unread)")
             }
         }
+        .toast($store.toast)
         .animation(.spring(duration: 0.2), value: selection)
         .task { await store.bootstrap() }
         // Search sheet

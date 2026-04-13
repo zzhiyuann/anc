@@ -128,6 +128,13 @@ struct InboxView: View {
         .task {
             await store.refreshNotifications()
         }
+        .onChange(of: selectedId) { _, newId in
+            guard let newId else { return }
+            // Auto-mark as read when selected
+            if let notif = store.notifications.first(where: { $0.id == newId }), notif.readAt == nil {
+                Task { await store.markNotificationRead(newId) }
+            }
+        }
     }
 
     // MARK: - Detail

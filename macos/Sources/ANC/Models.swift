@@ -85,25 +85,6 @@ struct ANCTask: Codable, Identifiable, Hashable {
     let labels: [String]?
     let dueDate: String?
 
-    enum CodingKeys: String, CodingKey {
-        case id
-        case projectId = "project_id"
-        case title
-        case description
-        case state
-        case priority
-        case source
-        case parentTaskId = "parent_task_id"
-        case createdBy = "created_by"
-        case linearIssueKey = "linear_issue_key"
-        case createdAt = "created_at"
-        case completedAt = "completed_at"
-        case handoffSummary = "handoff_summary"
-        case assignee
-        case labels
-        case dueDate = "due_date"
-    }
-
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
@@ -139,11 +120,6 @@ struct ANCProject: Codable, Identifiable, Hashable {
     let state: ProjectState?
     let createdAt: Double?
 
-    enum CodingKeys: String, CodingKey {
-        case id, name, description, color, state
-        case createdAt = "created_at"
-    }
-
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
@@ -168,13 +144,6 @@ struct AgentStatus: Codable, Identifiable, Hashable {
     let activeSessions: Int
     let idleSessions: Int
     let maxConcurrency: Int
-
-    enum CodingKeys: String, CodingKey {
-        case role, name
-        case activeSessions = "active_sessions"
-        case idleSessions = "idle_sessions"
-        case maxConcurrency = "max_concurrency"
-    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -202,13 +171,6 @@ struct ANCNotification: Codable, Identifiable, Hashable {
     let readAt: Double?
     let createdAt: Double
 
-    enum CodingKeys: String, CodingKey {
-        case id, kind, severity, title, body
-        case taskId = "task_id"
-        case readAt = "read_at"
-        case createdAt = "created_at"
-    }
-
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(Int.self, forKey: .id)
@@ -231,6 +193,8 @@ struct NotificationsResponse: Codable {
 struct WsMessage: Codable {
     let type: String
     let ts: Double?
+    let taskId: String?
+    let role: String?
 }
 
 // MARK: - Task Detail (Full)
@@ -362,11 +326,6 @@ struct TaskHandoff: Codable, Hashable {
     let summary: String?
     let nextSteps: [String]?
 
-    enum CodingKeys: String, CodingKey {
-        case summary
-        case nextSteps = "next_steps"
-    }
-
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         summary = try? c.decodeIfPresent(String.self, forKey: .summary)
@@ -384,10 +343,6 @@ struct CreateTaskPayload: Encodable {
     var projectId: String?
     var source: String = "dashboard"
 
-    enum CodingKeys: String, CodingKey {
-        case title, description, assignee, priority, source
-        case projectId = "project_id"
-    }
 }
 
 struct PatchTaskPayload: Encodable {
@@ -399,12 +354,17 @@ struct PatchTaskPayload: Encodable {
     var labels: [String]?
     var projectId: String?
     var dueDate: String?
+}
 
-    enum CodingKeys: String, CodingKey {
-        case title, description, state, priority, assignee, labels
-        case projectId = "project_id"
-        case dueDate = "due_date"
-    }
+struct PatchProjectPayload: Encodable {
+    var name: String?
+    var description: String?
+    var color: String?
+    var priority: Int?
+    var state: String?
+    var health: String?
+    var lead: String?
+    var targetDate: String?
 }
 
 struct CreateCommentPayload: Encodable {
@@ -448,14 +408,7 @@ struct ProjectWithStats: Codable, Identifiable, Hashable {
     let targetDate: String?
     let stats: ProjectStats?
 
-    enum CodingKeys: String, CodingKey {
-        case id, name, description, color, icon, state
-        case createdBy = "createdBy"
-        case createdAt = "createdAt"
-        case health, priority, lead
-        case targetDate = "targetDate"
-        case stats
-    }
+    // All fields are camelCase matching the API response — no custom CodingKeys needed
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)

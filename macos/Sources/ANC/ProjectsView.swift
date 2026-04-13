@@ -12,6 +12,10 @@ struct ProjectsView: View {
     @State private var sortOrder = [KeyPathComparator(\ProjectWithStats.name)]
     @State private var selectedProjectId: String? = nil
     @State private var showCreateProject = false
+    @State private var showEditProject = false
+    @State private var showDeleteConfirm = false
+    @State private var editingProject: ProjectWithStats? = nil
+    @State private var projectToDelete: ProjectWithStats? = nil
     @State private var sortColumn: ProjectSortColumn = .name
     @State private var sortAscending = true
 
@@ -116,6 +120,25 @@ struct ProjectsView: View {
             CreateProjectSheet()
                 .environmentObject(store)
         }
+        .sheet(isPresented: $showEditProject) {
+            if let project = editingProject {
+                EditProjectSheet(project: project)
+                    .environmentObject(store)
+            }
+        }
+        .alert("Delete Project?", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                if let project = projectToDelete {
+                    Task {
+                        await store.deleteProject(id: project.id)
+                        if selectedProjectId == project.id { selectedProjectId = nil }
+                    }
+                }
+            }
+        } message: {
+            Text("This will permanently delete \"\(projectToDelete?.name ?? "")\". This action cannot be undone.")
+        }
     }
 
     private var projectsTable: some View {
@@ -140,6 +163,20 @@ struct ProjectsView: View {
                 ForEach(sortedProjects) { project in
                     ProjectRowView(project: project)
                         .tag(project.id)
+                        .contextMenu {
+                            Button("Edit") {
+                                editingProject = project
+                                showEditProject = true
+                            }
+                            Divider()
+                            Button("Archive") {
+                                Task { await store.updateProject(id: project.id, patch: PatchProjectPayload(state: "archived")) }
+                            }
+                            Button("Delete", role: .destructive) {
+                                projectToDelete = project
+                                showDeleteConfirm = true
+                            }
+                        }
                 }
             }
             .listStyle(.inset(alternatesRowBackgrounds: true))
@@ -290,7 +327,7 @@ struct CreateProjectSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var description = ""
-    @State private var color = "#3B82F6"
+    @State private var pickerColor = Color(hex: "#3B82F6")
     @State private var priority = 3
 
     var body: some View {
@@ -326,6 +363,12 @@ struct CreateProjectSheet: View {
                 }
 
                 HStack {
+                    Text("Color").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    ColorPicker("", selection: $pickerColor, supportsOpacity: false)
+                        .labelsHidden()
+                }
+
+                HStack {
                     Text("Priority").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
                     Picker("", selection: $priority) {
                         ForEach(TaskPriority.allCases, id: \.self) { p in
@@ -349,7 +392,7 @@ struct CreateProjectSheet: View {
                         await store.createProject(
                             name: name.trimmingCharacters(in: .whitespaces),
                             description: description.isEmpty ? nil : description,
-                            color: color,
+                            color: pickerColor.toHex(),
                             priority: priority
                         )
                         dismiss()
@@ -361,13 +404,132 @@ struct CreateProjectSheet: View {
             }
             .padding(16)
         }
-        .frame(width: 420, height: 340)
+        .frame(width: 420, height: 380)
+    }
+}
+
+// MARK: - Edit Project Sheet
+
+struct EditProjectSheet: View {
+    @EnvironmentObject var store: AppStore
+    @Environment(\.dismiss) private var dismiss
+    let project: ProjectWithStats
+
+    @State private var name = ""
+    @State private var description = ""
+    @State private var pickerColor = Color(hex: "#3B82F6")
+    @State private var priority = 3
+    @State private var state = "active"
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Edit Project")
+                    .font(.system(size: 16, weight: .semibold))
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.ancMuted)
+                }
+                .buttonStyle(.borderless)
+            }
+            .padding(16)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Name").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted)
+                    TextField("Project name", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 13))
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Description").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted)
+                    TextField("Optional description", text: $description)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 13))
+                }
+
+                HStack {
+                    Text("Color").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    ColorPicker("", selection: $pickerColor, supportsOpacity: false)
+                        .labelsHidden()
+                }
+
+                HStack {
+                    Text("Priority").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    Picker("", selection: $priority) {
+                        ForEach(TaskPriority.allCases, id: \.self) { p in
+                            Text("\(priorityGlyph(p.rawValue)) \(p.displayName)").tag(p.rawValue)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
+
+                HStack {
+                    Text("State").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    Picker("", selection: $state) {
+                        Text("Active").tag("active")
+                        Text("Paused").tag("paused")
+                        Text("Archived").tag("archived")
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
+            }
+            .padding(16)
+
+            Spacer()
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Save") {
+                    Task {
+                        await store.updateProject(id: project.id, patch: PatchProjectPayload(
+                            name: name.trimmingCharacters(in: .whitespaces),
+                            description: description.isEmpty ? nil : description,
+                            color: pickerColor.toHex(),
+                            priority: priority,
+                            state: state
+                        ))
+                        dismiss()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(16)
+        }
+        .frame(width: 420, height: 440)
+        .onAppear {
+            name = project.name
+            description = project.description ?? ""
+            if let hex = project.color { pickerColor = Color(hex: hex) }
+            priority = project.priority ?? 3
+            state = project.state?.rawValue ?? "active"
+        }
     }
 }
 
 // MARK: - Color hex extension
 
 extension Color {
+    func toHex() -> String {
+        let nsColor = NSColor(self)
+        guard let rgb = nsColor.usingColorSpace(.sRGB) else { return "#3B82F6" }
+        let r = Int(rgb.redComponent * 255)
+        let g = Int(rgb.greenComponent * 255)
+        let b = Int(rgb.blueComponent * 255)
+        return String(format: "#%02X%02X%02X", r, g, b)
+    }
+
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         var int: UInt64 = 0
