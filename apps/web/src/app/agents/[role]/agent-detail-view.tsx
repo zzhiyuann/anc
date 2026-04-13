@@ -1,28 +1,47 @@
 "use client";
 
-import { useState } from "react";
+/**
+ * AgentDetailView — full per-agent workspace page (Linear-parity).
+ *
+ * Layout:
+ *   header  : avatar + name + handle + status pill + "Dispatch a task"
+ *   stats   : N active · M idle · K done 7d · $X today · capacity %
+ *   tabs    : Persona · Terminal · Memory · Sessions · Cost · Activity
+ *
+ * Real-time: re-fetches detail + outputs whenever the WS pushes any
+ * agent:* event for this role.
+ */
+
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { TerminalOutput } from "@/components/terminal-output";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PersonaTab } from "@/components/agents/persona-tab";
+import { SessionsTab } from "@/components/agents/sessions-tab";
+import { CostTab } from "@/components/agents/cost-tab";
+import { ActivityTab } from "@/components/agents/activity-tab";
+import { MemoryTab } from "@/components/agents/memory-tab";
+import { DispatchTaskDialog } from "@/components/members/dispatch-task-dialog";
+import { colorForRole } from "@/components/members/members-table";
 import { api, ApiError } from "@/lib/api";
+import { useWebSocket } from "@/lib/use-websocket";
 import {
   agentInitial,
   cn,
   deriveAgentStatus,
   formatUptime,
-  primaryActiveSession,
 } from "@/lib/utils";
-import type { AgentOutput, AgentStatusDetail } from "@/lib/types";
+import type {
+  AgentOutput,
+  AgentStatusDetail,
+  EventRow,
+} from "@/lib/types";
 
-const avatarColors: Record<string, string> = {
-  engineer: "bg-blue-500/20 text-blue-400",
-  strategist: "bg-purple-500/20 text-purple-400",
-  ops: "bg-amber-500/20 text-amber-400",
-};
+const ONE_WEEK_MS = 7 * 24 * 3600 * 1000;
 
 interface AgentDetailViewProps {
   role: string;
@@ -33,9 +52,7 @@ interface AgentDetailViewProps {
 }
 
 function joinOutputs(outputs: AgentOutput[]): string[] {
-  if (outputs.length === 0) {
-    return ["(no active sessions — start one from the Tasks page)"];
-  }
+  if (outputs.length === 0) return ["No active terminal."];
   const lines: string[] = [];
   for (const o of outputs) {
     lines.push(`# ${o.issueKey}  (${o.tmuxSession})`);
@@ -45,22 +62,117 @@ function joinOutputs(outputs: AgentOutput[]): string[] {
   return lines;
 }
 
+function statusLabel(state: ReturnType<typeof deriveAgentStatus>): string {
+  switch (state) {
+    case "active":
+      return "Online";
+    case "suspended":
+      return "Suspended";
+    case "idle":
+      return "Idle";
+    default:
+      return "Idle";
+  }
+}
+
 export function AgentDetailView({
   role,
-  detail,
-  outputs,
+  detail: initialDetail,
+  outputs: initialOutputs,
   memoryFiles,
   live,
 }: AgentDetailViewProps) {
+  const [detail, setDetail] = useState<AgentStatusDetail>(initialDetail);
+  const [outputs, setOutputs] = useState<AgentOutput[]>(initialOutputs);
+  const [doneThisWeek, setDoneThisWeek] = useState<number>(0);
+  const [costToday, setCostToday] = useState<number>(0);
+  const [showDispatch, setShowDispatch] = useState(false);
+
+  // Terminal send-message form state.
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<
     { kind: "ok" | "error"; text: string } | null
   >(null);
 
+  // WS: re-fetch detail + outputs when any agent event lands. Keeps Terminal
+  // and Stats live without polling.
+  const { lastMessage } = useWebSocket();
+  const refresh = useCallback(async () => {
+    try {
+      const [d, out] = await Promise.all([
+        api.agents.get(role),
+        api.agents.output(role, 200).catch(() => [] as AgentOutput[]),
+      ]);
+      setDetail(d);
+      setOutputs(out);
+    } catch {
+      // Keep last good state on transient errors.
+    }
+  }, [role]);
+  useEffect(() => {
+    if (!lastMessage) return;
+    if (
+      lastMessage.type.startsWith("agent:") ||
+      lastMessage.type === "snapshot"
+    ) {
+      void refresh();
+    }
+  }, [lastMessage, refresh]);
+
+  // Periodic refresh of the terminal panel so the captured tmux output stays
+  // current even when no WS events fire (e.g. agent is mid-stream).
+  useEffect(() => {
+    const id = setInterval(() => {
+      void api.agents
+        .output(role, 200)
+        .then(setOutputs)
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(id);
+  }, [role]);
+
+  // Derive "done this week" + "cost today" from real endpoints.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const events = await api.events.list(500);
+        if (cancelled) return;
+        const cutoff = Date.now() - ONE_WEEK_MS;
+        const count = events.filter((e: EventRow) => {
+          if (e.eventType !== "agent:completed") return false;
+          if (e.role !== role) return false;
+          const tsMs = new Date(e.createdAt.replace(" ", "T") + "Z").getTime();
+          return tsMs >= cutoff;
+        }).length;
+        setDoneThisWeek(count);
+      } catch {
+        /* ignore */
+      }
+      try {
+        const cfg = await api.config.getBudget();
+        if (cancelled) return;
+        setCostToday(cfg.summary.perAgent?.[role]?.spent ?? 0);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+
   const status = deriveAgentStatus(detail);
-  const active = primaryActiveSession(detail);
   const lines = joinOutputs(outputs);
+  const capacityPct =
+    detail.maxConcurrency > 0
+      ? Math.round(
+          ((detail.activeSessions + detail.idleSessions) /
+            detail.maxConcurrency) *
+            100,
+        )
+      : 0;
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,19 +201,12 @@ export function AgentDetailView({
 
   return (
     <div className="p-6">
+      {/* Breadcrumb */}
       <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/agents" className="transition-colors hover:text-foreground">
-          Agents
+        <Link href="/members" className="transition-colors hover:text-foreground">
+          Members
         </Link>
-        <svg
-          className="size-3"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M6 4l4 4-4 4" />
-        </svg>
+        <ChevronRight className="size-3.5" />
         <span className="text-foreground">{detail.name}</span>
         {!live && (
           <span className="ml-auto rounded-md bg-status-failed/10 px-2 py-0.5 text-xs text-status-failed">
@@ -110,42 +215,59 @@ export function AgentDetailView({
         )}
       </div>
 
-      {/* Agent header */}
-      <div className="flex items-start gap-4">
-        <div
-          className={cn(
-            "flex size-14 shrink-0 items-center justify-center rounded-xl text-2xl font-bold",
-            avatarColors[role] ?? "bg-muted text-muted-foreground",
-          )}
-        >
-          {agentInitial(role)}
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold tracking-tight">{detail.name}</h1>
-            <StatusBadge status={status} />
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {detail.activeSessions}/{detail.maxConcurrency} active,{" "}
-            {detail.idleSessions} idle, {detail.suspendedSessions} suspended
-          </p>
-          <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="font-mono">{detail.model}</span>
-            <span>Duty slots: {detail.dutySlots}</span>
-            {active && (
-              <span>
-                Working on{" "}
-                <span className="font-mono text-foreground">{active.issueKey}</span>{" "}
-                ({formatUptime(active.uptime)})
-              </span>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div
+            className={cn(
+              "flex size-14 shrink-0 items-center justify-center rounded-xl text-2xl font-bold",
+              colorForRole(role),
             )}
+          >
+            {agentInitial(role)}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-semibold tracking-tight">
+                {detail.name}
+              </h1>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary/60 px-2 py-0.5 text-[11px]">
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    status === "active" ? "bg-status-active" : "bg-status-idle",
+                  )}
+                />
+                {statusLabel(status)}
+              </span>
+            </div>
+            <p className="mt-0.5 font-mono text-[12px] text-muted-foreground">
+              @{role}
+            </p>
+            <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="font-mono">{detail.model}</span>
+              <span>Duty slots: {detail.dutySlots}</span>
+            </div>
           </div>
         </div>
+        <Button onClick={() => setShowDispatch(true)} className="gap-1.5">
+          Dispatch a task
+        </Button>
       </div>
 
-      {/* Tabs: Terminal / Memory / Sessions */}
-      <Tabs defaultValue="terminal" className="mt-6">
+      {/* Stats bar */}
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <Stat label="Active" value={detail.activeSessions} />
+        <Stat label="Idle" value={detail.idleSessions} />
+        <Stat label="Done 7d" value={doneThisWeek} />
+        <Stat label="Cost today" value={`$${costToday.toFixed(2)}`} />
+        <Stat label="Capacity" value={`${capacityPct}%`} />
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="persona" className="mt-6">
         <TabsList>
+          <TabsTrigger value="persona">Persona</TabsTrigger>
           <TabsTrigger value="terminal">Terminal</TabsTrigger>
           <TabsTrigger value="memory">
             Memory
@@ -159,11 +281,22 @@ export function AgentDetailView({
               {detail.sessions.length}
             </span>
           </TabsTrigger>
+          <TabsTrigger value="cost">Cost</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
-        {/* Terminal panel */}
+        <TabsContent value="persona" className="mt-4">
+          <PersonaTab role={role} />
+        </TabsContent>
+
         <TabsContent value="terminal" className="mt-4">
-          <TerminalOutput lines={lines} className="h-[400px]" />
+          {outputs.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+              No active terminal.
+            </div>
+          ) : (
+            <TerminalOutput lines={lines} className="h-[420px]" />
+          )}
 
           <form className="mt-3 flex gap-2" onSubmit={handleSend}>
             <Input
@@ -171,9 +304,13 @@ export function AgentDetailView({
               onChange={(e) => setMessage(e.target.value)}
               placeholder={`Send message to ${detail.name}...`}
               className="font-mono text-sm"
-              disabled={sending}
+              disabled={sending || outputs.length === 0}
             />
-            <Button type="submit" size="sm" disabled={sending || !message.trim()}>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={sending || !message.trim() || outputs.length === 0}
+            >
               {sending ? "Sending..." : "Send"}
             </Button>
           </form>
@@ -181,7 +318,9 @@ export function AgentDetailView({
             <p
               className={cn(
                 "mt-2 text-xs",
-                feedback.kind === "ok" ? "text-status-active" : "text-status-failed",
+                feedback.kind === "ok"
+                  ? "text-status-active"
+                  : "text-status-failed",
               )}
             >
               {feedback.text}
@@ -189,78 +328,44 @@ export function AgentDetailView({
           )}
         </TabsContent>
 
-        {/* Memory panel */}
         <TabsContent value="memory" className="mt-4">
-          <div className="space-y-3">
-            {memoryFiles.map((filename) => (
-              <div
-                key={filename}
-                className="flex items-center gap-3 rounded-lg border border-border bg-card p-4"
-              >
-                <svg
-                  className="size-4 text-muted-foreground"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M4 2h5l3 3v9H4V2z" />
-                  <path d="M9 2v3h3" />
-                </svg>
-                <span className="font-mono text-sm font-medium">{filename}</span>
-              </div>
-            ))}
-            {memoryFiles.length === 0 && (
-              <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                No memory files yet.
-              </p>
-            )}
-          </div>
+          <MemoryTab role={role} initialFiles={memoryFiles} />
         </TabsContent>
 
-        {/* Sessions panel */}
         <TabsContent value="sessions" className="mt-4">
-          <div className="rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-3 font-medium">Issue</th>
-                  <th className="px-4 py-3 font-medium">State</th>
-                  <th className="px-4 py-3 font-medium">Uptime</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {detail.sessions.map((session) => (
-                  <tr
-                    key={session.issueKey}
-                    className="hover:bg-secondary/30"
-                  >
-                    <td className="px-4 py-3 font-mono text-xs">
-                      {session.issueKey}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={session.state} />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-muted-foreground">
-                      {formatUptime(session.uptime)}
-                    </td>
-                  </tr>
-                ))}
-                {detail.sessions.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-4 py-6 text-center text-sm text-muted-foreground"
-                    >
-                      No sessions.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <SessionsTab detail={detail} />
+        </TabsContent>
+
+        <TabsContent value="cost" className="mt-4">
+          <CostTab role={role} />
+        </TabsContent>
+
+        <TabsContent value="activity" className="mt-4">
+          <ActivityTab role={role} />
         </TabsContent>
       </Tabs>
+
+      <DispatchTaskDialog
+        open={showDispatch}
+        onOpenChange={setShowDispatch}
+        role={role}
+        roleName={detail.name}
+        onDispatched={() => void refresh()}
+      />
+    </div>
+  );
+}
+
+// keep formatUptime imported for future use in sessions sub-tab via re-export
+void formatUptime;
+
+function Stat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-0.5 font-mono text-base text-foreground">{value}</div>
     </div>
   );
 }

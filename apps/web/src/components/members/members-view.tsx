@@ -7,8 +7,10 @@ import type { AgentStatus } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MembersTable, type MemberRow } from "./members-table";
+import { DispatchTaskDialog } from "./dispatch-task-dialog";
 import { NewRoleDialog } from "@/components/settings/new-role-dialog";
 import { PersonaEditor } from "@/components/settings/persona-editor";
+import { useWebSocket } from "@/lib/use-websocket";
 import {
   Dialog,
   DialogContent,
@@ -22,19 +24,7 @@ interface MembersViewProps {
 }
 
 const HARDCODED_JOIN_MS = new Date("2026-03-01T00:00:00Z").getTime();
-
-function buildRows(agents: AgentStatus[]): MemberRow[] {
-  return agents.map((agent) => {
-    const active = agent.sessions.find((s) => s.state === "active");
-    const lastSeenMs = active?.uptime != null ? Date.now() - active.uptime * 1000 : null;
-    return {
-      agent,
-      joinedMs: HARDCODED_JOIN_MS,
-      memoryCount: 0,
-      lastSeenMs,
-    };
-  });
-}
+const ONE_WEEK_MS = 7 * 24 * 3600 * 1000;
 
 export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
   const [agents, setAgents] = useState<AgentStatus[]>(initialAgents);
@@ -42,7 +32,23 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
   const [query, setQuery] = useState("");
   const [showNewRole, setShowNewRole] = useState(false);
   const [editingRole, setEditingRole] = useState<string | null>(null);
+  const [dispatchRole, setDispatchRole] = useState<string | null>(null);
   const [memoryCounts, setMemoryCounts] = useState<Record<string, number>>({});
+  const [costToday, setCostToday] = useState<Record<string, number>>({});
+  const [doneByRole, setDoneByRole] = useState<Record<string, number>>({});
+
+  // Subscribe to WS so member status / active sessions stay live.
+  const { lastMessage } = useWebSocket();
+  useEffect(() => {
+    if (!lastMessage) return;
+    if (
+      lastMessage.type.startsWith("agent:") ||
+      lastMessage.type === "snapshot"
+    ) {
+      void refresh();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastMessage]);
 
   // Hydrate memory counts client-side. Each call is best-effort.
   useEffect(() => {
@@ -58,8 +64,56 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
           }
         }),
       );
-      if (!cancelled) {
-        setMemoryCounts(Object.fromEntries(entries));
+      if (!cancelled) setMemoryCounts(Object.fromEntries(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [agents]);
+
+  // Hydrate "Cost today" from /config/budget summary.perAgent.spent.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cfg = await api.config.getBudget();
+        if (cancelled) return;
+        const out: Record<string, number> = {};
+        for (const [role, v] of Object.entries(cfg.summary.perAgent ?? {})) {
+          out[role] = v.spent ?? 0;
+        }
+        setCostToday(out);
+      } catch {
+        // Backend offline or budget endpoint not wired — leave costs at 0.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [agents]);
+
+  // Hydrate "done this week" using the recent events stream filtered to
+  // agent:completed events per role. Backend gap: /events does not accept a
+  // role filter, and the first-class Task entity does not yet store an
+  // `assignee` column — so we count completion events client-side, which is
+  // the most reliable per-role attribution available today.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const evs = await api.events.list(500);
+        const cutoff = Date.now() - ONE_WEEK_MS;
+        const counts: Record<string, number> = {};
+        for (const e of evs) {
+          if (e.eventType !== "agent:completed") continue;
+          if (!e.role) continue;
+          const tsMs = new Date(e.createdAt.replace(" ", "T") + "Z").getTime();
+          if (tsMs < cutoff) continue;
+          counts[e.role] = (counts[e.role] ?? 0) + 1;
+        }
+        if (!cancelled) setDoneByRole(counts);
+      } catch {
+        // Backend offline — leave counts at 0.
       }
     })();
     return () => {
@@ -78,7 +132,8 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
   }
 
   async function handleArchive(role: string) {
-    if (!confirm(`Archive ${role}? This removes it from config/agents.yaml.`)) return;
+    if (!confirm(`Archive ${role}? This removes it from config/agents.yaml.`))
+      return;
     try {
       await api.agents.archiveRole(role);
     } catch (err) {
@@ -90,11 +145,21 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
     setAgents((prev) => prev.filter((a) => a.role !== role));
   }
 
-  const rows = useMemo(() => {
-    const baseRows = buildRows(agents).map((r) => ({
-      ...r,
-      memoryCount: memoryCounts[r.agent.role] ?? 0,
-    }));
+  const rows: MemberRow[] = useMemo(() => {
+    const baseRows = agents.map((agent): MemberRow => {
+      const active = agent.sessions.find((s) => s.state === "active");
+      const lastSeenMs =
+        active?.uptime != null ? Date.now() - active.uptime * 1000 : null;
+      return {
+        agent,
+        joinedMs: HARDCODED_JOIN_MS,
+        memoryCount: memoryCounts[agent.role] ?? 0,
+        lastSeenMs,
+        activeTaskId: active?.issueKey ?? null,
+        costTodayUsd: costToday[agent.role] ?? 0,
+        doneThisWeek: doneByRole[agent.role] ?? 0,
+      };
+    });
     const q = query.trim().toLowerCase();
     if (!q) return baseRows;
     return baseRows.filter(
@@ -102,7 +167,11 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
         r.agent.name.toLowerCase().includes(q) ||
         r.agent.role.toLowerCase().includes(q),
     );
-  }, [agents, memoryCounts, query]);
+  }, [agents, memoryCounts, costToday, doneByRole, query]);
+
+  const dispatchAgent = dispatchRole
+    ? agents.find((a) => a.role === dispatchRole)
+    : null;
 
   return (
     <div className="p-6">
@@ -134,16 +203,33 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
             className="h-8 gap-1"
           >
             <Plus className="size-4" />
-            New role
+            New member
           </Button>
         </div>
       </div>
 
-      <MembersTable
-        rows={rows}
-        onEditPersona={(role) => setEditingRole(role)}
-        onArchive={handleArchive}
-      />
+      {agents.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border p-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            No members yet. Create your first agent to get started.
+          </p>
+          <Button
+            size="sm"
+            onClick={() => setShowNewRole(true)}
+            className="mt-4 gap-1"
+          >
+            <Plus className="size-4" />
+            New member
+          </Button>
+        </div>
+      ) : (
+        <MembersTable
+          rows={rows}
+          onEditPersona={(role) => setEditingRole(role)}
+          onArchive={handleArchive}
+          onDispatch={(role) => setDispatchRole(role)}
+        />
+      )}
 
       <NewRoleDialog
         open={showNewRole}
@@ -162,6 +248,16 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
           {editingRole && <PersonaEditor role={editingRole} />}
         </DialogContent>
       </Dialog>
+
+      {dispatchAgent && (
+        <DispatchTaskDialog
+          open={dispatchRole != null}
+          onOpenChange={(o) => !o && setDispatchRole(null)}
+          role={dispatchAgent.role}
+          roleName={dispatchAgent.name}
+          onDispatched={() => void refresh()}
+        />
+      )}
     </div>
   );
 }
