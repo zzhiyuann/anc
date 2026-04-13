@@ -122,7 +122,7 @@ export function Header({
   }, []);
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-sm">
+    <header className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-sm">
       {/* Left: sidebar toggle + breadcrumb */}
       <div className="flex min-w-0 items-center gap-2">
         {onToggleSidebar && (
@@ -139,7 +139,7 @@ export function Header({
             </svg>
           </button>
         )}
-        <nav className="flex min-w-0 items-center gap-1.5 text-[13px] text-foreground/70">
+        <nav className="flex min-w-0 items-center gap-1.5 text-[12px] text-foreground/50">
           {crumbs.map((c, i) => (
             <span key={i} className="flex min-w-0 items-center gap-1.5">
               {i > 0 && (
@@ -150,7 +150,7 @@ export function Header({
               {c.href ? (
                 <Link
                   href={c.href}
-                  className="truncate font-mono text-foreground/70 hover:text-foreground"
+                  className="truncate text-muted-foreground hover:text-foreground"
                 >
                   {c.label}
                 </Link>
@@ -180,7 +180,7 @@ export function Header({
             type="text"
             placeholder="Search…"
             onFocus={() => onCommandPalette()}
-            className="h-7 w-full rounded-md border border-border bg-secondary/40 pl-8 pr-12 text-[12px] text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/40"
+            className="h-7 w-full rounded-lg border border-border bg-secondary/40 pl-8 pr-12 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/30"
           />
           <kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border bg-background px-1 py-0 font-mono text-[9px] text-muted-foreground">
             /
@@ -206,7 +206,7 @@ export function Header({
         <NotificationBell lastMessage={lastMessage} />
         <div
           className={cn(
-            "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px]",
+            "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px]",
             connected
               ? "bg-status-active/10 text-status-active"
               : "bg-status-failed/10 text-status-failed",

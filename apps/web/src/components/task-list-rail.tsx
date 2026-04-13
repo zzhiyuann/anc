@@ -637,7 +637,7 @@ export function TaskListRail({
       </div>
 
       {/* Search */}
-      <div className="shrink-0 border-b border-border px-2.5 py-1.5">
+      <div className="shrink-0 border-b border-border px-2.5 py-1">
         <div className="relative">
           <svg
             className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground"
@@ -654,7 +654,7 @@ export function TaskListRail({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search tasks…  (/)"
-            className="h-7 w-full rounded-md bg-secondary pl-7 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-7 w-full rounded-md bg-secondary pl-7 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>
@@ -678,7 +678,7 @@ export function TaskListRail({
               type="button"
               onClick={() => setFilterPopover((p) => (p === key ? null : key))}
               className={cn(
-                "rounded-md border border-dashed border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground",
+                "rounded border border-dashed border-border px-1.5 py-px text-[10px] text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground",
                 filterPopover === key && "border-border bg-accent text-foreground",
               )}
             >
@@ -883,7 +883,7 @@ export function TaskListRail({
                 <button
                   type="button"
                   onClick={() => toggleGroupCollapse(g.key)}
-                  className="flex w-full items-center gap-1.5 bg-background/95 px-3 py-1 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                  className="flex w-full items-center gap-1.5 bg-background/95 px-3 py-0.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground"
                 >
                   <svg
                     viewBox="0 0 16 16"
@@ -918,7 +918,7 @@ export function TaskListRail({
                       key={t.id}
                       onClick={(e) => handleRowClick(t.id, e)}
                       className={cn(
-                        "group relative flex h-8 cursor-pointer items-center gap-2 px-3 text-[13px]",
+                        "group relative flex h-7 cursor-pointer items-center gap-1.5 px-3 text-[13px]",
                         isActive
                           ? "bg-accent shadow-[inset_2px_0_0_0_var(--primary)]"
                           : "hover:bg-accent/50",
@@ -952,7 +952,7 @@ export function TaskListRail({
                       </button>
                       <span
                         className={cn(
-                          "shrink-0 text-[10px] font-mono tabular-nums",
+                          "shrink-0 text-[9px] font-mono tabular-nums",
                           pri.tone,
                         )}
                         title={pri.label}
@@ -961,13 +961,13 @@ export function TaskListRail({
                       </span>
                       <span
                         className={cn(
-                          "size-3 shrink-0 rounded-full border-2",
+                          "size-[7px] shrink-0 rounded-full border-[1.5px]",
                           meta.ringClass,
                           meta.fillClass,
                         )}
                         title={meta.label}
                       />
-                      <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-normal text-foreground">
                         {t.title || "(untitled)"}
                       </span>
                       {t.labels && t.labels.length > 0 && (
@@ -1014,7 +1014,7 @@ export function TaskListRail({
                           ·
                         </span>
                       )}
-                      <span className="w-7 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+                      <span className="w-6 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground/70">
                         {relativeShort(t.createdAt)}
                       </span>
                       <div className="relative">

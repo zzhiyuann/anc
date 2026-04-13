@@ -29,14 +29,14 @@ function Row({ href, icon, label, active, collapsed, badge, binding, indent = 0 
       href={href}
       title={collapsed ? label : undefined}
       className={cn(
-        "group relative flex h-7 items-center gap-1.5 rounded-lg pr-2 text-[13px] transition-colors",
+        "group relative flex h-[26px] items-center gap-1.5 rounded-md pr-2 text-[12.5px] transition-colors duration-100",
         active
-          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-          : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-[inset_2px_0_0_0_var(--sidebar-primary)]"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground",
       )}
       style={{ paddingLeft: collapsed ? 8 : 8 + indent * 12 }}
     >
-      <span className="flex size-4 shrink-0 items-center justify-center">{icon}</span>
+      <span className="flex size-[15px] shrink-0 items-center justify-center [&_svg]:size-[15px]">{icon}</span>
       {!collapsed && <span className="min-w-0 flex-1 truncate">{label}</span>}
       {!collapsed && typeof badge === "number" && badge > 0 && (
         <span className="rounded bg-sidebar-accent px-1.5 font-mono text-[10px] text-sidebar-foreground">
@@ -69,11 +69,11 @@ function SectionHeader({
     return <div className="my-2 mx-2 h-px bg-sidebar-border/40" />;
   }
   return (
-    <div className="mt-3 flex h-6 items-center justify-between px-2 pr-1">
+    <div className="mt-2 flex h-5 items-center justify-between px-2 pr-1">
       <button
         type="button"
         onClick={onClick}
-        className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/50 hover:text-sidebar-foreground/80"
+        className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/45 hover:text-sidebar-foreground/75"
       >
         {onClick && (
           <ChevronIcon className={cn("size-3 transition-transform", expanded ? "rotate-90" : "")} />
@@ -158,18 +158,18 @@ export function Sidebar({ collapsed = false, onToggle, onOpenLegend }: SidebarPr
       )}
     >
       {/* Workspace label (single workspace, non-interactive) */}
-      <div className="flex h-12 shrink-0 items-center gap-2 px-2 pt-2">
+      <div className="flex h-10 shrink-0 items-center gap-2 px-2 pt-1.5">
         <div
           className={cn(
-            "flex h-9 w-full items-center gap-2 rounded-lg px-1.5",
+            "flex h-7 w-full items-center gap-1.5 rounded-md px-1.5",
             collapsed && "justify-center px-0",
           )}
         >
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded bg-primary text-[10px] font-bold text-primary-foreground">
             A
           </span>
           {!collapsed && (
-            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-sidebar-foreground">
+            <span className="min-w-0 flex-1 truncate text-[11px] font-bold tracking-tight text-sidebar-foreground">
               ANC
             </span>
           )}

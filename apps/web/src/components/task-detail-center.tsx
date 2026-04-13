@@ -51,7 +51,7 @@ function InlineTitle({
     return (
       <h1
         onClick={() => setEditing(true)}
-        className="cursor-text text-[22px] font-semibold leading-tight tracking-tight text-foreground hover:bg-accent/40"
+        className="cursor-text text-[18px] font-semibold leading-tight tracking-[-0.02em] text-foreground hover:bg-accent/40"
       >
         {value || "(untitled)"}
       </h1>
@@ -78,7 +78,7 @@ function InlineTitle({
           setEditing(false);
         }
       }}
-      className="w-full rounded-md border border-border bg-background px-2 py-1 text-[22px] font-semibold leading-tight tracking-tight text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      className="w-full rounded-md border border-border bg-background px-2 py-1 text-[18px] font-semibold leading-tight tracking-[-0.02em] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
     />
   );
 }
@@ -360,7 +360,7 @@ function RuntimeStrip({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left"
+        className="flex h-8 w-full items-center justify-between gap-3 px-3 text-left"
       >
         <div className="flex min-w-0 items-center gap-2 text-[11px]">
           <span
@@ -587,7 +587,7 @@ export function TaskDetailCenter({
   const hasAttachments = (localData.attachments?.length ?? 0) > 0;
 
   return (
-    <div className="flex flex-col gap-4 px-6 py-4">
+    <div className="flex flex-col gap-3 px-5 py-3">
       {!live && (
         <div className="rounded-md border border-status-failed/30 bg-status-failed/10 px-3 py-2 text-[11px] text-status-failed">
           Failed to load task detail — using fallback data.
@@ -627,7 +627,7 @@ export function TaskDetailCenter({
 
       {/* Activity (events + comments merged) */}
       <section>
-        <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Activity
         </h3>
         <ActivityStream
@@ -639,7 +639,7 @@ export function TaskDetailCenter({
       {/* Resources — hidden entirely when none */}
       {hasAttachments && (
         <section>
-          <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Resources ({localData.attachments!.length})
           </h3>
           <AttachmentList
@@ -650,7 +650,7 @@ export function TaskDetailCenter({
       )}
 
       {/* Bottom composer */}
-      <section className="sticky bottom-0 -mx-6 border-t border-border bg-background px-6 pb-4 pt-3">
+      <section className="sticky bottom-0 -mx-5 border-t border-border bg-background px-5 pb-3 pt-2">
         <MentionComposer taskId={taskId} onPosted={onCommentPosted} />
       </section>
 

@@ -83,7 +83,7 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[88px_1fr] items-center gap-2 py-1 text-[12px]">
+    <div className="grid grid-cols-[72px_1fr] items-center gap-1.5 py-0.5 text-[12px]">
       <div className="text-muted-foreground">{label}</div>
       <div className="min-w-0">{children}</div>
     </div>
@@ -182,9 +182,9 @@ function Section({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full cursor-pointer items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-accent/50"
+        className="flex w-full cursor-pointer items-center justify-between px-4 py-2 text-left transition-colors hover:bg-accent/50"
       >
-        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {title}
         </h3>
         <svg
@@ -337,8 +337,8 @@ export function TaskPropertiesPanel({
   return (
     <aside className="flex h-full w-full flex-col overflow-y-auto border-l border-border bg-background">
       {/* Properties */}
-      <section className="shrink-0 border-b border-border px-4 pb-3 pt-3">
-        <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <section className="shrink-0 border-b border-border px-4 pb-2 pt-2">
+        <h3 className="mb-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Properties
         </h3>
 
