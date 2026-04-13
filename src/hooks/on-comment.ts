@@ -21,6 +21,7 @@ import { getWorkspacePath } from '../runtime/workspace.js';
 import { createLogger } from '../core/logger.js';
 import { resolveTaskIdFromIssueKey, addTaskComment } from '../core/tasks.js';
 import { getDb } from '../core/db.js';
+import { deliverPendingFeedback } from './on-feedback.js';
 
 const log = createLogger('comment');
 
@@ -74,6 +75,11 @@ export function registerCommentHandlers(): void {
         sendToAgent(session.tmuxSession, `Follow-up from CEO: ${processedBody}`);
         logTaskEvent(issue.identifier, 'task:follow-up', processedBody);
         mirrorComment(issue.identifier, processedBody);
+        // Deliver any pending child feedback while session is alive
+        const feedbackTaskId = resolveTaskIdFromIssueKey(issue.identifier);
+        if (feedbackTaskId) {
+          deliverPendingFeedback(feedbackTaskId, session.tmuxSession);
+        }
         // Post acknowledgment from agent
         const ackTaskId = resolveTaskIdFromIssueKey(issue.identifier);
         if (ackTaskId && session.role) {
