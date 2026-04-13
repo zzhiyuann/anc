@@ -431,6 +431,593 @@ struct DeleteResponse: Codable {
     }
 }
 
+// MARK: - Project with Stats (from /projects)
+
+struct ProjectWithStats: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let description: String?
+    let color: String?
+    let icon: String?
+    let state: ProjectState?
+    let createdBy: String?
+    let createdAt: Double?
+    let health: String?
+    let priority: Int?
+    let lead: String?
+    let targetDate: String?
+    let stats: ProjectStats?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, color, icon, state
+        case createdBy = "createdBy"
+        case createdAt = "createdAt"
+        case health, priority, lead
+        case targetDate = "targetDate"
+        case stats
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = (try? c.decode(String.self, forKey: .name)) ?? "(unnamed)"
+        description = try? c.decodeIfPresent(String.self, forKey: .description)
+        color = try? c.decodeIfPresent(String.self, forKey: .color)
+        icon = try? c.decodeIfPresent(String.self, forKey: .icon)
+        state = try? c.decodeIfPresent(ProjectState.self, forKey: .state)
+        createdBy = try? c.decodeIfPresent(String.self, forKey: .createdBy)
+        createdAt = try? c.decodeIfPresent(Double.self, forKey: .createdAt)
+        health = try? c.decodeIfPresent(String.self, forKey: .health)
+        priority = try? c.decodeIfPresent(Int.self, forKey: .priority)
+        lead = try? c.decodeIfPresent(String.self, forKey: .lead)
+        targetDate = try? c.decodeIfPresent(String.self, forKey: .targetDate)
+        stats = try? c.decodeIfPresent(ProjectStats.self, forKey: .stats)
+    }
+}
+
+struct ProjectStats: Codable, Hashable {
+    let total: Int
+    let running: Int
+    let queued: Int
+    let done: Int
+    let totalCostUsd: Double
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        total = (try? c.decode(Int.self, forKey: .total)) ?? 0
+        running = (try? c.decode(Int.self, forKey: .running)) ?? 0
+        queued = (try? c.decode(Int.self, forKey: .queued)) ?? 0
+        done = (try? c.decode(Int.self, forKey: .done)) ?? 0
+        totalCostUsd = (try? c.decode(Double.self, forKey: .totalCostUsd)) ?? 0
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case total, running, queued, done, totalCostUsd
+    }
+}
+
+struct ProjectsWithStatsResponse: Codable {
+    let projects: [ProjectWithStats]
+}
+
+// MARK: - Agent Detail (from /agents/:role)
+
+struct AgentDetail: Codable, Identifiable, Hashable {
+    var id: String { role }
+    let name: String
+    let role: String
+    let model: String?
+    let maxConcurrency: Int
+    let activeSessions: Int
+    let idleSessions: Int
+    let suspendedSessions: Int
+    let sessions: [AgentSession]
+    let memoryCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case name, role, model
+        case maxConcurrency = "maxConcurrency"
+        case activeSessions = "activeSessions"
+        case idleSessions = "idleSessions"
+        case suspendedSessions = "suspendedSessions"
+        case sessions
+        case memoryCount = "memoryCount"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = (try? c.decode(String.self, forKey: .name)) ?? ""
+        role = (try? c.decode(String.self, forKey: .role)) ?? ""
+        model = try? c.decodeIfPresent(String.self, forKey: .model)
+        maxConcurrency = (try? c.decode(Int.self, forKey: .maxConcurrency)) ?? 1
+        activeSessions = (try? c.decode(Int.self, forKey: .activeSessions)) ?? 0
+        idleSessions = (try? c.decode(Int.self, forKey: .idleSessions)) ?? 0
+        suspendedSessions = (try? c.decode(Int.self, forKey: .suspendedSessions)) ?? 0
+        sessions = (try? c.decode([AgentSession].self, forKey: .sessions)) ?? []
+        memoryCount = try? c.decodeIfPresent(Int.self, forKey: .memoryCount)
+    }
+}
+
+struct AgentSession: Codable, Identifiable, Hashable {
+    var id: String { issueKey }
+    let issueKey: String
+    let state: String
+    let uptime: Int?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        issueKey = (try? c.decode(String.self, forKey: .issueKey)) ?? ""
+        state = (try? c.decode(String.self, forKey: .state)) ?? "unknown"
+        uptime = try? c.decodeIfPresent(Int.self, forKey: .uptime)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case issueKey, state, uptime
+    }
+}
+
+// MARK: - Agent Output
+
+struct AgentOutputResponse: Codable {
+    let outputs: [AgentOutput]
+}
+
+struct AgentOutput: Codable, Identifiable, Hashable {
+    var id: String { issueKey }
+    let issueKey: String
+    let tmuxSession: String?
+    let output: String
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        issueKey = (try? c.decode(String.self, forKey: .issueKey)) ?? ""
+        tmuxSession = try? c.decodeIfPresent(String.self, forKey: .tmuxSession)
+        output = (try? c.decode(String.self, forKey: .output)) ?? ""
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case issueKey, tmuxSession, output
+    }
+}
+
+// MARK: - Agent Memory
+
+struct AgentMemoryListResponse: Codable {
+    let role: String
+    let files: [String]
+}
+
+struct AgentMemoryFileResponse: Codable {
+    let filename: String
+    let body: String
+    let mtime: Double?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        filename = (try? c.decode(String.self, forKey: .filename)) ?? ""
+        body = (try? c.decode(String.self, forKey: .body)) ?? ""
+        mtime = try? c.decodeIfPresent(Double.self, forKey: .mtime)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case filename, body, mtime
+    }
+}
+
+// MARK: - Persona
+
+struct PersonaResponse: Codable {
+    let role: String
+    let body: String
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        role = (try? c.decode(String.self, forKey: .role)) ?? ""
+        body = (try? c.decode(String.self, forKey: .body)) ?? ""
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case role, body
+    }
+}
+
+// MARK: - Pulse
+
+struct DailyBriefing: Codable {
+    let generatedAt: Double?
+    let yesterdayCompletions: [String]
+    let todayQueue: [String]
+    let costBurn: CostBurn?
+    let wins: [String]
+    let risks: [String]
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        generatedAt = try? c.decodeIfPresent(Double.self, forKey: .generatedAt)
+        yesterdayCompletions = (try? c.decode([String].self, forKey: .yesterdayCompletions)) ?? []
+        todayQueue = (try? c.decode([String].self, forKey: .todayQueue)) ?? []
+        costBurn = try? c.decodeIfPresent(CostBurn.self, forKey: .costBurn)
+        wins = (try? c.decode([String].self, forKey: .wins)) ?? []
+        risks = (try? c.decode([String].self, forKey: .risks)) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case generatedAt, yesterdayCompletions, todayQueue, costBurn, wins, risks
+    }
+}
+
+struct CostBurn: Codable, Hashable {
+    let spentUsd: Double
+    let budgetUsd: Double
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        spentUsd = (try? c.decode(Double.self, forKey: .spentUsd)) ?? 0
+        budgetUsd = (try? c.decode(Double.self, forKey: .budgetUsd)) ?? 0
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case spentUsd, budgetUsd
+    }
+}
+
+// MARK: - Objectives / OKRs
+
+struct ObjectivesResponse: Codable {
+    let objectives: [Objective]
+}
+
+struct Objective: Codable, Identifiable, Hashable {
+    let id: String
+    let title: String
+    let description: String?
+    let quarter: String?
+    let createdAt: Double?
+    let keyResults: [KeyResult]
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        title = (try? c.decode(String.self, forKey: .title)) ?? ""
+        description = try? c.decodeIfPresent(String.self, forKey: .description)
+        quarter = try? c.decodeIfPresent(String.self, forKey: .quarter)
+        createdAt = try? c.decodeIfPresent(Double.self, forKey: .createdAt)
+        keyResults = (try? c.decode([KeyResult].self, forKey: .keyResults)) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, quarter, createdAt, keyResults
+    }
+}
+
+struct KeyResult: Codable, Identifiable, Hashable {
+    let id: String
+    let objectiveId: String?
+    let title: String
+    let metric: String?
+    let target: Double
+    let current: Double
+    let createdAt: Double?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        objectiveId = try? c.decodeIfPresent(String.self, forKey: .objectiveId)
+        title = (try? c.decode(String.self, forKey: .title)) ?? ""
+        metric = try? c.decodeIfPresent(String.self, forKey: .metric)
+        target = (try? c.decode(Double.self, forKey: .target)) ?? 0
+        current = (try? c.decode(Double.self, forKey: .current)) ?? 0
+        createdAt = try? c.decodeIfPresent(Double.self, forKey: .createdAt)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, objectiveId, title, metric, target, current, createdAt
+    }
+}
+
+// MARK: - Decisions
+
+struct DecisionsResponse: Codable {
+    let decisions: [Decision]
+}
+
+struct Decision: Codable, Identifiable, Hashable {
+    let id: String
+    let title: String
+    let rationale: String?
+    let decidedBy: String?
+    let tags: [String]
+    let createdAt: Double?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        title = (try? c.decode(String.self, forKey: .title)) ?? ""
+        rationale = try? c.decodeIfPresent(String.self, forKey: .rationale)
+        decidedBy = try? c.decodeIfPresent(String.self, forKey: .decidedBy)
+        tags = (try? c.decode([String].self, forKey: .tags)) ?? []
+        createdAt = try? c.decodeIfPresent(Double.self, forKey: .createdAt)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, rationale, decidedBy, tags, createdAt
+    }
+}
+
+// MARK: - Budget Config
+
+struct BudgetConfigResponse: Codable {
+    let config: BudgetConfig
+    let disabled: Bool?
+    let summary: BudgetSummary?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        config = (try? c.decode(BudgetConfig.self, forKey: .config)) ?? BudgetConfig(daily: nil, agents: [:])
+        disabled = try? c.decodeIfPresent(Bool.self, forKey: .disabled)
+        summary = try? c.decodeIfPresent(BudgetSummary.self, forKey: .summary)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case config, disabled, summary
+    }
+}
+
+struct BudgetConfig: Codable, Hashable {
+    let daily: BudgetLimit?
+    let agents: [String: BudgetLimit]
+
+    init(daily: BudgetLimit?, agents: [String: BudgetLimit]) {
+        self.daily = daily
+        self.agents = agents
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        daily = try? c.decodeIfPresent(BudgetLimit.self, forKey: .daily)
+        agents = (try? c.decode([String: BudgetLimit].self, forKey: .agents)) ?? [:]
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case daily, agents
+    }
+}
+
+struct BudgetLimit: Codable, Hashable {
+    let limit: Double
+    let alertAt: Double?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        limit = (try? c.decode(Double.self, forKey: .limit)) ?? 0
+        alertAt = try? c.decodeIfPresent(Double.self, forKey: .alertAt)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case limit, alertAt
+    }
+}
+
+struct BudgetSummary: Codable, Hashable {
+    let today: BudgetSpent?
+    let perAgent: [String: BudgetSpent]?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        today = try? c.decodeIfPresent(BudgetSpent.self, forKey: .today)
+        perAgent = try? c.decodeIfPresent([String: BudgetSpent].self, forKey: .perAgent)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case today, perAgent
+    }
+}
+
+struct BudgetSpent: Codable, Hashable {
+    let spent: Double
+    let limit: Double
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        spent = (try? c.decode(Double.self, forKey: .spent)) ?? 0
+        limit = (try? c.decode(Double.self, forKey: .limit)) ?? 0
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case spent, limit
+    }
+}
+
+// MARK: - Budget Series
+
+struct BudgetSeriesResponse: Codable {
+    let role: String?
+    let days: [BudgetDay]
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        role = try? c.decodeIfPresent(String.self, forKey: .role)
+        days = (try? c.decode([BudgetDay].self, forKey: .days)) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case role, days
+    }
+}
+
+struct BudgetDay: Codable, Identifiable, Hashable {
+    var id: String { date }
+    let date: String
+    let usd: Double
+    let tokens: Int
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        date = (try? c.decode(String.self, forKey: .date)) ?? ""
+        usd = (try? c.decode(Double.self, forKey: .usd)) ?? 0
+        tokens = (try? c.decode(Int.self, forKey: .tokens)) ?? 0
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case date, usd, tokens
+    }
+}
+
+// MARK: - Review Config
+
+struct ReviewConfigResponse: Codable {
+    let config: ReviewConfig
+    let resolvedDefault: String?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        config = (try? c.decode(ReviewConfig.self, forKey: .config)) ?? ReviewConfig(defaultPolicy: "normal", roles: [:])
+        resolvedDefault = try? c.decodeIfPresent(String.self, forKey: .resolvedDefault)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case config, resolvedDefault
+    }
+}
+
+struct ReviewConfig: Codable, Hashable {
+    let defaultPolicy: String
+    let roles: [String: String]
+
+    init(defaultPolicy: String, roles: [String: String]) {
+        self.defaultPolicy = defaultPolicy
+        self.roles = roles
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        defaultPolicy = (try? c.decode(String.self, forKey: .defaultPolicy)) ?? "normal"
+        roles = (try? c.decode([String: String].self, forKey: .roles)) ?? [:]
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case defaultPolicy = "default"
+        case roles
+    }
+}
+
+// MARK: - Events
+
+struct EventsResponse: Codable {
+    let events: [SystemEvent]
+}
+
+struct SystemEvent: Codable, Identifiable, Hashable {
+    let id: Int
+    let eventType: String
+    let role: String?
+    let issueKey: String?
+    let detail: String?
+    let createdAt: String
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(Int.self, forKey: .id)) ?? 0
+        eventType = (try? c.decode(String.self, forKey: .eventType)) ?? ""
+        role = try? c.decodeIfPresent(String.self, forKey: .role)
+        issueKey = try? c.decodeIfPresent(String.self, forKey: .issueKey)
+        detail = try? c.decodeIfPresent(String.self, forKey: .detail)
+        createdAt = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, eventType, role, issueKey, detail, createdAt
+    }
+}
+
+// MARK: - Kill Switch
+
+struct KillSwitchStatusResponse: Codable {
+    let paused: Bool?
+    let since: Double?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        paused = try? c.decodeIfPresent(Bool.self, forKey: .paused)
+        since = try? c.decodeIfPresent(Double.self, forKey: .since)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case paused, since
+    }
+}
+
+struct KillSwitchResponse: Codable {
+    let ok: Bool?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ok = try? c.decodeIfPresent(Bool.self, forKey: .ok)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case ok
+    }
+}
+
+// MARK: - Generic OK
+
+struct OkResponse: Codable {
+    let ok: Bool?
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ok = try? c.decodeIfPresent(Bool.self, forKey: .ok)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case ok
+    }
+}
+
+// MARK: - Create Payloads (Pulse)
+
+struct CreateDecisionPayload: Encodable {
+    let title: String
+    let rationale: String?
+    let decidedBy: String
+    let tags: [String]
+}
+
+struct CreateObjectivePayload: Encodable {
+    let title: String
+    let description: String?
+    let quarter: String?
+}
+
+struct PatchBudgetPayload: Encodable {
+    let daily: PatchBudgetLimit?
+    let agents: [String: PatchBudgetLimit]?
+}
+
+struct PatchBudgetLimit: Encodable {
+    let limit: Double?
+    let alertAt: Double?
+}
+
+struct PatchReviewPayload: Encodable {
+    let roles: [String: String]?
+}
+
+// MARK: - Dispatch Payload
+
+struct DispatchPayload: Encodable {
+    let role: String
+    let taskId: String?
+    let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case role
+        case taskId = "task_id"
+        case message
+    }
+}
+
 // MARK: - Navigation
 
 enum NavItem: String, Hashable, Identifiable, CaseIterable {

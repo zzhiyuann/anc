@@ -16,6 +16,25 @@ final class AppStore: ObservableObject {
     @Published var selectedTaskDetail: TaskDetailResponse? = nil
     @Published var showCreateTask: Bool = false
 
+    // Phase 3 data
+    @Published var projectsWithStats: [ProjectWithStats] = []
+    @Published var selectedProjectId: String? = nil
+    @Published var selectedAgentRole: String? = nil
+    @Published var agentDetail: AgentDetail? = nil
+    @Published var agentPersona: String? = nil
+    @Published var agentOutputs: [AgentOutput] = []
+    @Published var agentMemoryFiles: [String] = []
+    @Published var agentMemoryContent: AgentMemoryFileResponse? = nil
+    @Published var systemEvents: [SystemEvent] = []
+    @Published var briefing: DailyBriefing? = nil
+    @Published var objectives: [Objective] = []
+    @Published var decisions: [Decision] = []
+    @Published var budgetConfig: BudgetConfigResponse? = nil
+    @Published var budgetSeries: [BudgetDay] = []
+    @Published var reviewConfig: ReviewConfigResponse? = nil
+    @Published var killSwitchPaused: Bool = false
+    @Published var selectedNotificationId: Int? = nil
+
     private let api = APIClient.shared
     private var ws: WebSocketClient?
     private var wsCancellable: AnyCancellable?
@@ -178,4 +197,223 @@ final class AppStore: ObservableObject {
             self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
+
+    // MARK: - Projects with Stats
+
+    func refreshProjectsWithStats() async {
+        do {
+            let res: ProjectsWithStatsResponse = try await api.fetch("projects")
+            self.projectsWithStats = res.projects
+        } catch {
+            // non-fatal
+        }
+    }
+
+    // MARK: - Agent Detail
+
+    func fetchAgentDetail(_ role: String) async {
+        do {
+            let res: AgentDetail = try await api.fetch("agents/\(role)")
+            if self.selectedAgentRole == role {
+                self.agentDetail = res
+            }
+        } catch {
+            // non-fatal
+        }
+    }
+
+    func fetchAgentPersona(_ role: String) async {
+        do {
+            let res: PersonaResponse = try await api.fetch("personas/\(role)")
+            self.agentPersona = res.body
+        } catch {
+            self.agentPersona = nil
+        }
+    }
+
+    func fetchAgentOutputs(_ role: String) async {
+        do {
+            let res: AgentOutputResponse = try await api.fetch("agents/\(role)/output")
+            self.agentOutputs = res.outputs
+        } catch {
+            self.agentOutputs = []
+        }
+    }
+
+    func fetchAgentMemoryList(_ role: String) async {
+        do {
+            let res: AgentMemoryListResponse = try await api.fetch("agents/\(role)/memory")
+            self.agentMemoryFiles = res.files
+        } catch {
+            self.agentMemoryFiles = []
+        }
+    }
+
+    func fetchAgentMemoryFile(_ role: String, filename: String) async {
+        do {
+            let res: AgentMemoryFileResponse = try await api.fetch("agents/\(role)/memory/\(filename)")
+            self.agentMemoryContent = res
+        } catch {
+            self.agentMemoryContent = nil
+        }
+    }
+
+    // MARK: - Events
+
+    func refreshEvents(role: String? = nil) async {
+        do {
+            var query: [String: String] = [:]
+            if let role { query["role"] = role }
+            let res: EventsResponse = try await api.fetch("events", query: query)
+            self.systemEvents = res.events
+        } catch {
+            self.systemEvents = []
+        }
+    }
+
+    // MARK: - Pulse
+
+    func refreshBriefing() async {
+        do {
+            let res: DailyBriefing = try await api.fetch("pulse/briefing")
+            self.briefing = res
+        } catch {
+            // non-fatal
+        }
+    }
+
+    func refreshObjectives() async {
+        do {
+            let res: ObjectivesResponse = try await api.fetch("pulse/objectives")
+            self.objectives = res.objectives
+        } catch {
+            self.objectives = []
+        }
+    }
+
+    func refreshDecisions() async {
+        do {
+            let res: DecisionsResponse = try await api.fetch("pulse/decisions")
+            self.decisions = res.decisions
+        } catch {
+            self.decisions = []
+        }
+    }
+
+    func createDecision(title: String, rationale: String?, tags: [String]) async {
+        let payload = CreateDecisionPayload(title: title, rationale: rationale, decidedBy: "ceo", tags: tags)
+        do {
+            let _: Decision = try await api.post("pulse/decisions", body: payload)
+            await refreshDecisions()
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    // MARK: - Budget & Review Config
+
+    func refreshBudgetConfig() async {
+        do {
+            let res: BudgetConfigResponse = try await api.fetch("config/budget")
+            self.budgetConfig = res
+        } catch {
+            // non-fatal
+        }
+    }
+
+    func refreshBudgetSeries(role: String? = nil, days: Int = 14) async {
+        do {
+            var query: [String: String] = ["days": "\(days)"]
+            if let role { query["role"] = role }
+            let res: BudgetSeriesResponse = try await api.fetch("config/budget/series", query: query)
+            self.budgetSeries = res.days
+        } catch {
+            self.budgetSeries = []
+        }
+    }
+
+    func refreshReviewConfig() async {
+        do {
+            let res: ReviewConfigResponse = try await api.fetch("config/review")
+            self.reviewConfig = res
+        } catch {
+            // non-fatal
+        }
+    }
+
+    func updateBudget(daily: PatchBudgetLimit?, agents: [String: PatchBudgetLimit]?) async {
+        let payload = PatchBudgetPayload(daily: daily, agents: agents)
+        do {
+            let _: BudgetConfigResponse = try await api.patch("config/budget", body: payload)
+            await refreshBudgetConfig()
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func updateReview(roles: [String: String]) async {
+        let payload = PatchReviewPayload(roles: roles)
+        do {
+            let _: ReviewConfigResponse = try await api.patch("config/review", body: payload)
+            await refreshReviewConfig()
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    // MARK: - Kill Switch
+
+    func refreshKillSwitchStatus() async {
+        do {
+            let res: KillSwitchStatusResponse = try await api.fetch("kill-switch/status")
+            self.killSwitchPaused = res.paused ?? false
+        } catch {
+            // non-fatal
+        }
+    }
+
+    func toggleKillSwitch() async {
+        let endpoint = killSwitchPaused ? "kill-switch/resume" : "kill-switch/pause"
+        do {
+            let _: KillSwitchResponse = try await api.post(endpoint, body: EmptyBody())
+            self.killSwitchPaused.toggle()
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    // MARK: - Notifications
+
+    func markNotificationRead(_ id: Int) async {
+        do {
+            let _: OkResponse = try await api.post("notifications/\(id)/read", body: EmptyBody())
+            if let idx = notifications.firstIndex(where: { $0.id == id }) {
+                // Refresh to get updated state
+                await refreshNotifications()
+                _ = idx
+            }
+        } catch {
+            // non-fatal
+        }
+    }
+
+    func archiveNotification(_ id: Int) async {
+        do {
+            let _: OkResponse = try await api.post("notifications/\(id)/archive", body: EmptyBody())
+            notifications.removeAll { $0.id == id }
+        } catch {
+            // non-fatal
+        }
+    }
+
+    func markAllNotificationsRead() async {
+        do {
+            let _: OkResponse = try await api.post("notifications/mark-all-read", body: EmptyBody())
+            await refreshNotifications()
+        } catch {
+            // non-fatal
+        }
+    }
 }
+
+private struct EmptyBody: Encodable {}

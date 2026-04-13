@@ -10,21 +10,86 @@ struct ContentPane: View {
             case .tasks:
                 TaskListView()
             case .inbox:
-                placeholder("Inbox", subtitle: "\(store.notifications.count) notifications")
+                InboxView()
             case .dashboard:
-                placeholder("Dashboard", subtitle: "Phase 2")
+                PulseView()
             case .projects:
-                ProjectsListView()
+                projectsContent
             case .members:
-                AgentsListView()
+                membersContent
             case .views:
-                placeholder("Views", subtitle: "Phase 2")
+                placeholder("Views", subtitle: "Custom views coming soon")
             case .settings:
-                placeholder("Settings", subtitle: "Phase 2")
+                SettingsView()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.ancBackground)
+    }
+
+    // MARK: - Projects with detail navigation
+
+    @ViewBuilder
+    private var projectsContent: some View {
+        if let projectId = store.selectedProjectId {
+            VStack(spacing: 0) {
+                // Back button
+                HStack {
+                    Button {
+                        store.selectedProjectId = nil
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 11))
+                            Text("Projects")
+                                .font(.system(size: 12))
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                Divider()
+
+                ProjectDetailView(projectId: projectId)
+            }
+        } else {
+            ProjectsView()
+        }
+    }
+
+    // MARK: - Members with detail navigation
+
+    @ViewBuilder
+    private var membersContent: some View {
+        if let role = store.selectedAgentRole {
+            VStack(spacing: 0) {
+                // Back button
+                HStack {
+                    Button {
+                        store.selectedAgentRole = nil
+                        store.agentDetail = nil
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 11))
+                            Text("Members")
+                                .font(.system(size: 12))
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                Divider()
+
+                AgentDetailView(role: role)
+            }
+        } else {
+            MembersView()
+        }
     }
 
     @ViewBuilder
@@ -34,60 +99,5 @@ struct ContentPane: View {
             Text(subtitle).font(.system(size: 13)).foregroundColor(.ancMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - Projects
-
-struct ProjectsListView: View {
-    @EnvironmentObject var store: AppStore
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Projects").font(.system(size: 18, weight: .semibold))
-                Spacer()
-            }
-            .padding(16)
-            Divider()
-            List(store.projects) { p in
-                HStack {
-                    Circle().fill(Color.ancAccent).frame(width: 8, height: 8)
-                    Text(p.name)
-                    Spacer()
-                    if let s = p.state { Text(s.rawValue).font(.system(size: 11)).foregroundColor(.ancMuted) }
-                }
-            }
-            .listStyle(.inset)
-        }
-    }
-}
-
-// MARK: - Agents
-
-struct AgentsListView: View {
-    @EnvironmentObject var store: AppStore
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Members").font(.system(size: 18, weight: .semibold))
-                Spacer()
-            }
-            .padding(16)
-            Divider()
-            List(store.agents) { a in
-                HStack {
-                    Image(systemName: "person.circle.fill").foregroundColor(.ancAccent)
-                    VStack(alignment: .leading) {
-                        Text(a.name).font(.system(size: 13, weight: .medium))
-                        Text(a.role).font(.system(size: 11)).foregroundColor(.ancMuted)
-                    }
-                    Spacer()
-                    Text("\(a.activeSessions)/\(a.maxConcurrency)")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.ancMuted)
-                }
-            }
-            .listStyle(.inset)
-        }
     }
 }
