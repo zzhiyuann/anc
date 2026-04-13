@@ -31,7 +31,7 @@ describe('transitionTaskState — legal transitions', () => {
     const events: unknown[] = [];
     const off = (bus as unknown as {
       on: (e: string, l: (d: unknown) => void) => () => void;
-    }).on('task:status-changed', (d) => { events.push(d); });
+    }).on('task:state-changed', (d) => { events.push(d); });
 
     const result = transitionTaskState(t.id, 'running', { by: 'tester' });
 

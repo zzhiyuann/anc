@@ -197,20 +197,22 @@ describe('maybePostAgentReply', () => {
 
 // --- Integration via processHookEvent ---
 
-describe('processHookEvent no longer auto-posts agent reply comments', () => {
-  it('Stop event does NOT auto-post comment (agent decides via anc task comment)', () => {
+describe('processHookEvent auto-posts agent reply comments (restored behavior)', () => {
+  it('Stop event WITH last_assistant_message auto-posts a comment', () => {
     insertTask('task-int-1');
     processHookEvent('task-int-1', 'engineer', {
       hook_event_name: 'Stop',
       stop_hook_active: false,
       last_assistant_message: '2 + 2 = 4',
     });
-    // No auto-comment — agent should use `anc task comment` explicitly
+    // Auto-comment is restored via maybePostAgentReply in processHookEvent
     const comments = getComments('task-int-1');
-    expect(comments).toHaveLength(0);
+    expect(comments).toHaveLength(1);
+    expect(comments[0].author).toBe('agent:engineer');
+    expect(comments[0].body).toBe('2 + 2 = 4');
   });
 
-  it('event logging still works even though auto-comment is removed', () => {
+  it('event logging still works alongside auto-comment', () => {
     insertTask('task-int-2');
     const result = processHookEvent('task-int-2', 'engineer', {
       hook_event_name: 'Stop',
