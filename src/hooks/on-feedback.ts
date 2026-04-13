@@ -10,7 +10,7 @@
 
 import { bus } from '../bus.js';
 import { getDb } from '../core/db.js';
-import { getTask, getTaskChildren } from '../core/tasks.js';
+import { getTask, getTaskChildren, setTaskState, addTaskComment } from '../core/tasks.js';
 import { getSessionForIssue } from '../runtime/health.js';
 import { sessionExists, sendToAgent } from '../runtime/runner.js';
 import { createLogger } from '../core/logger.js';
@@ -92,6 +92,18 @@ function checkAllChildrenDone(parentTaskId: string): void {
 
     void bus.emit('task:all-children-done', { parentTaskId });
     log.info(`All children done for parent ${parentTaskId}`);
+
+    // Auto-advance parent to review — CEO reviews the final result, not each sub-task
+    if (parent && parent.state !== 'review' && parent.state !== 'done') {
+      try {
+        setTaskState(parentTaskId, 'review', Date.now());
+        addTaskComment(parentTaskId, 'system', `All ${children.length} sub-tasks completed. Ready for review.`);
+        void bus.emit('task:state-changed', { taskId: parentTaskId, from: parent.state, to: 'review', by: 'system' });
+        log.info(`Auto-advanced parent ${parentTaskId} to review (all children done)`);
+      } catch (err) {
+        log.warn(`Failed to auto-advance parent ${parentTaskId}: ${(err as Error).message}`);
+      }
+    }
   }
 }
 

@@ -331,7 +331,7 @@ async function executeTask(
       { encoding: 'utf-8', timeout: 10_000 }
     );
     const created = JSON.parse(createResp);
-    const taskId = created.id;
+    const taskId = created.task?.id || created.id;
     console.log(`    [ANC] Created task ${taskId}`);
 
     // Poll for completion — task auto-dispatches now (lifecycle fix)
@@ -349,7 +349,8 @@ async function executeTask(
           `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
           { encoding: 'utf-8', timeout: 5_000 }
         );
-        const t = JSON.parse(resp);
+        const raw = JSON.parse(resp);
+        const t = raw.task || raw;
         const state = t.state;
 
         if (state === 'done' || state === 'review') {
