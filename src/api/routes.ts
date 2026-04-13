@@ -387,11 +387,13 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
 
       const assigneeRaw = body?.assignee;
       const assignee = typeof assigneeRaw === 'string' && assigneeRaw.trim() ? assigneeRaw.trim() : undefined;
+      const parentTaskId = typeof body?.parentTaskId === 'string' ? body.parentTaskId : null;
       const task = createTask({
         title: title.trim(),
         description,
         priority,
         projectId: projectId ?? null,
+        parentTaskId,
         source: 'dashboard',
         ...(assignee ? { assignee } : {}),
       });
@@ -1047,6 +1049,32 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
+    // Exact memory routes MUST come before parameterized /memory/:role
+    if (method === 'GET' && path === '/memory/search') {
+      const q = url.searchParams.get('q') ?? '';
+      if (!q.trim()) { json(res, { results: [] }); return true; }
+      const mem = await import('../core/memory.js');
+      const results = mem.searchMemory(q);
+      json(res, { results });
+      return true;
+    }
+
+    if (method === 'GET' && path === '/memory/index') {
+      const mem = await import('../core/memory.js');
+      const index = mem.getMemoryIndex();
+      json(res, index);
+      return true;
+    }
+
+    if (method === 'GET' && path === '/memory/health') {
+      const { getMemoryHealth } = await import('../core/memory-consolidation.js');
+      const { getConfig: getLinearConfig } = await import('../linear/types.js');
+      const config = getLinearConfig();
+      const report = getMemoryHealth(config.stateDir);
+      json(res, report);
+      return true;
+    }
+
     m = matchRoute('/memory/:role', path);
     if (method === 'GET' && m) {
       const agent = getAgent(m.params.role);
@@ -1637,32 +1665,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
-    // === Cross-agent memory search + index ===
-
-    if (method === 'GET' && path === '/memory/search') {
-      const q = url.searchParams.get('q') ?? '';
-      if (!q.trim()) { json(res, { results: [] }); return true; }
-      const mem = await import('../core/memory.js');
-      const results = mem.searchMemory(q);
-      json(res, { results });
-      return true;
-    }
-
-    if (method === 'GET' && path === '/memory/index') {
-      const mem = await import('../core/memory.js');
-      const index = mem.getMemoryIndex();
-      json(res, index);
-      return true;
-    }
-
-    if (method === 'GET' && path === '/memory/health') {
-      const { getMemoryHealth } = await import('../core/memory-consolidation.js');
-      const { getConfig: getLinearConfig } = await import('../linear/types.js');
-      const config = getLinearConfig();
-      const report = getMemoryHealth(config.stateDir);
-      json(res, report);
-      return true;
-    }
+    // (memory/search, memory/index, memory/health moved above /memory/:role to avoid route shadowing)
 
     // === Performance Metrics ===
     if (method === 'GET' && path === '/metrics') {
