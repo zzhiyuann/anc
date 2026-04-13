@@ -35,13 +35,25 @@ final class AppStore: ObservableObject {
     @Published var killSwitchPaused: Bool = false
     @Published var selectedNotificationId: Int? = nil
 
+    // Phase 4: Search + navigation
+    @Published var showSearch: Bool = false
+    @Published var showHelp: Bool = false
+    @Published var searchNavigateTo: NavItem? = nil
+
     private let api = APIClient.shared
     private var ws: WebSocketClient?
     private var wsCancellable: AnyCancellable?
+    private let notificationService = NotificationService.shared
+
+    var unreadCount: Int {
+        notifications.filter { $0.readAt == nil }.count
+    }
 
     func bootstrap() async {
+        notificationService.requestPermission()
         await refreshAll()
         startWebSocket()
+        notificationService.updateDockBadge(unreadCount: unreadCount)
     }
 
     func refreshAll() async {
@@ -84,8 +96,15 @@ final class AppStore: ObservableObject {
 
     func refreshNotifications() async {
         do {
+            let oldIds = Set(notifications.map { $0.id })
             let res: NotificationsResponse = try await api.fetch("notifications")
             self.notifications = res.notifications
+            notificationService.updateDockBadge(unreadCount: unreadCount)
+
+            // Deliver native notifications for new critical items
+            for notif in res.notifications where !oldIds.contains(notif.id) {
+                notificationService.checkAndDeliver(notif)
+            }
         } catch {
             // non-fatal — endpoint may not exist
         }

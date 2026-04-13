@@ -79,6 +79,12 @@ export function isDisabled(): boolean {
   return v === 'true' || v === '1';
 }
 
+/** Toggle unlimited mode on/off. Sets the process env var directly. */
+export function setDisabled(disabled: boolean): void {
+  process.env.ANC_BUDGET_DISABLED = disabled ? 'true' : '';
+  log.info(`Budget enforcement ${disabled ? 'disabled' : 'enabled'} (unlimited mode ${disabled ? 'ON' : 'OFF'})`);
+}
+
 /**
  * Apply a patch to the on-disk budget.yaml: deep-merge `daily`, and for
  * `agents` allow setting a role (`{limit, alertAt}`) or deleting it by

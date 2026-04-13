@@ -72,6 +72,8 @@ export interface AncEvents {
   'agent:suspended': { role: string; issueKey: string; reason: string };
   'agent:resumed': { role: string; issueKey: string; tmuxSession: string };
   'agent:health': { role: string; alive: boolean; tmuxSession: string };
+  'agent:blocked': { role: string; issueKey: string; reason: string };
+  'agent:crashed': { role: string; issueKey: string };
 
   // Queue events
   'queue:enqueued': { issueKey: string; role: string; priority: number };
@@ -87,6 +89,7 @@ export interface AncEvents {
   'task:dispatched': { taskId: string; role: string; parentTaskId: string | null };
   'task:updated': { taskId: string; patch: Record<string, unknown>; by: string };
   'task:completed': { taskId: string; handoffSummary: string | null };
+  'task:progress': { taskId: string; content: string };
 
   // Notification events
   'notification:created': { id: number; kind: string; severity: string; title: string; taskId?: string | null };
