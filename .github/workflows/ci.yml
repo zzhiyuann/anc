@@ -1,25 +1,88 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  build:
+  backend-test:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: 20
 
-      - run: npm install
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-
 
-      - name: Typecheck
-        run: npx -p typescript tsc --noEmit
+      - run: npm ci
+      - run: npm run build
+      - run: npx vitest run
 
-      - name: Test
-        run: npx vitest run
+  frontend-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Build
-        run: npm run build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: apps/web/node_modules
+          key: ${{ runner.os }}-web-node-${{ hashFiles('apps/web/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-web-node-
+
+      - run: cd apps/web && npm ci
+      - run: cd apps/web && npx tsc --noEmit
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: apps/web/node_modules
+          key: ${{ runner.os }}-web-node-${{ hashFiles('apps/web/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-web-node-
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('apps/web/package-lock.json') }}-${{ hashFiles('apps/web/src/**') }}
+          restore-keys: ${{ runner.os }}-nextjs-
+
+      - run: cd apps/web && npm ci
+      - run: cd apps/web && npm run build
+
+  macos-build:
+    runs-on: macos-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate and build Xcode project
+        run: |
+          cd macos
+          xcodegen generate
+          xcodebuild -project ANC.xcodeproj -scheme ANC -configuration Release -derivedDataPath build build

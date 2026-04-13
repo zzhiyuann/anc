@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  macos-release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate and build Xcode project
+        run: |
+          cd macos
+          xcodegen generate
+          xcodebuild -project ANC.xcodeproj -scheme ANC -configuration Release -derivedDataPath build build
+
+      - name: Create DMG
+        run: |
+          APP_PATH="macos/build/Build/Products/Release/ANC.app"
+          DMG_NAME="ANC-${{ github.ref_name }}.dmg"
+          mkdir -p dmg-staging
+          cp -R "$APP_PATH" dmg-staging/
+          hdiutil create -volname "ANC" -srcfolder dmg-staging -ov -format UDZO "$DMG_NAME"
+          echo "DMG_NAME=$DMG_NAME" >> "$GITHUB_ENV"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ANC-macOS
+          path: ${{ env.DMG_NAME }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.DMG_NAME }}
+          generate_release_notes: true
