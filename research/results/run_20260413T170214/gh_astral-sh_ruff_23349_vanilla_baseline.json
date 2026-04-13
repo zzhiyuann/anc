@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23349",
+    "title": "`RUF102` fix causes syntax error by not handling text following directive",
+    "description": "Repository: astral-sh/ruff\nIssue #23349\n\nFixing a rule creates a syntax error as of Ruff 0.15 (still an issue in 0.15.1)\n\nRule code RUF102\n\n**ruff.toml:**\n\n```\nline-length = 99\ntarget-version = \"py311\"\noutput-format = \"grouped\"\nextend-exclude = [\".uv-cache\"]\n\n[format]\nquote-style = \"single\"\n\n[lint]\nallowed-confusables = [\"‘\", \"’\", \"×\", \"–\"]\nselect = [\"ALL\"]\nignore = [\n\t# General configuration (see https://www.chasefinch.com/nitpick-style.toml)\n\t\"D203\", \"D213\", \"TID252\", \"S101\", \"INT001\",  # Rule conflicts\n\t\"COM812\", \"ISC001\", \"Q000\", \"Q003\",  # Recommended when using formatter\n\t\"RUF100\",  # Conflicts with WPS\n\t\"ARG\",  # Unused arguments often required in heirarchy\n\t\"ERA\",  # Commented-out code is OK\n\t\"S105\", \"S106\",  # Don't sniff for secrets\n\t\"S311\",  # Random is OK. Don't use them for \"cryptographic purpses\"\n\t\"S308\",  # Mark safe is OK\n\t\"S610\",  # Django \"extra\" is OK\n\t\"E731\", \"B023\",  # Lambda & unbound lambda is OK\n\t\"B024\",  # Allow ABCs without abstract methods\n\t\"BLE001\",  # Allow catching bare exception explicitly\n\t\"FIX002\", \"TD003\",  # Allow fully-formed TODOs\n\n\t# Temporary exclusions\n\t\"G\", \"EM\", \"TRY\",  # Log formatting\n\t\"PT\",  # Test conventions (Use a regular `assert` instead of unittest-style `assertIn`)\n\t\"RUF012\",  # Typing convention (Mutable class attributes should be annotated with `typing.ClassVar`)\n\t\"DTZ\",  # Timezone enforcement ignored while we use naive datetimes\n\t\"FLY002\",  # String joins avoided\n\t\"PERF401\",  # Prefer list joins\n\t\"ANN\",  # No type annotation stuff yet\n\t\"D\", \"DOC\",  # No docstring requirements stuff yet\n\t\"S108\", \"S113\", \"S202\", \"S301\", \"S603\", \"S607\", \"S611\", \"SIM115\",  # Security notices\n\t\"PLW2901\",  # For loop target assignment\n\t\"PLC0415\",  # Inline imports, awaiting cleanup\n\n\t# BringFido-specific opt-outs\n\t\"SLF\",  # Private member access\n\t\"PTH\",  # Path conventions\n\t\"CPY\",  # Copyright text\n\t\"C\", \"PLR09\",  # Complexity rules\n\t\"PLR2004\"  # Magic values\n]\n\n[lint.isort]\ncombine-as-imports = true\ndetect-same-package = true\nsection-order = [\n\t\"future\",\n\t\"standard-library\"",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "fixes"
+    ],
+    "complexity": "high",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23349",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "Agent produced no output whatsoever. No code, no communication, no HANDOFF.md, no comments — nothing. This is a complete failure to engage with the task. The issue (RUF102 fix causing syntax errors by not handling trailing text after directives) remains entirely unaddressed and needs to be reassigned.",
+    "timestamp": "2026-04-13T17:33:11.068Z"
+  },
+  "duration_ms": 132114,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

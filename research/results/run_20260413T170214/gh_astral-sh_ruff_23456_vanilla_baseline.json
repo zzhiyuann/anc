@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23456",
+    "title": "Resolve overlap between RUF100 and RUF102",
+    "description": "Repository: astral-sh/ruff\nIssue #23456\n\nWhen both rules are selected, any `#noqa` with unknown/invalid rule codes will be flagged by both RUF100 and RUF102. The RUF100 diagnostic will treat the code as \"unknown\", while RUF102 will call it \"invalid\".\n\nWe could either:\n- drop the \"unknown\" codes section from RUF100 entirely and leave that for RUF102\n- hide the \"unknown\" codes section of RUF100 iff the RUF102 rule is enabled\n\nI'm in favor of the first, as it simplifies the code and is easier to \"explain\" IMO.",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "suppression"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23456",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "Agent produced no output whatsoever. No code changes, no HANDOFF.md, no communication, no evidence of any work attempted. This is the worst possible outcome — a silent failure with zero visibility into what happened.",
+    "timestamp": "2026-04-13T17:35:22.664Z"
+  },
+  "duration_ms": 131596,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

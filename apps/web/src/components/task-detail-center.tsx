@@ -625,21 +625,10 @@ export function TaskDetailCenter({
 
       {localData.handoff && <HandoffRenderer handoff={localData.handoff} />}
 
-      {/* Activity (events + comments merged) */}
-      <section>
-        <h3 className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Activity
-        </h3>
-        <ActivityStream
-          events={localData.events}
-          comments={localData.comments}
-        />
-      </section>
-
-      {/* Resources — hidden entirely when none */}
+      {/* Resources — above Activity so they don't get buried */}
       {hasAttachments && (
         <section>
-          <h3 className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-foreground/80">
             Resources ({localData.attachments!.length})
           </h3>
           <AttachmentList
@@ -648,6 +637,17 @@ export function TaskDetailCenter({
           />
         </section>
       )}
+
+      {/* Activity (events + comments merged) */}
+      <section>
+        <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-foreground/80">
+          Activity
+        </h3>
+        <ActivityStream
+          events={localData.events}
+          comments={localData.comments}
+        />
+      </section>
 
       {/* Bottom composer */}
       <section className="sticky bottom-0 -mx-5 border-t border-border bg-background px-5 pb-3 pt-2">
