@@ -317,6 +317,75 @@ memory
     await memoryListCommand(target);
   });
 
+memory
+  .command('write [args...]')
+  .description('Write memory: anc memory write [strategic|domain|project <slug>] <filename> (reads stdin)')
+  .action(async (args: string[]) => {
+    const { memoryWriteCommand } = await import('./commands/memory.js');
+    await memoryWriteCommand(args);
+  });
+
+// --- Agent SDK: ask ---
+program
+  .command('ask <target> <question>')
+  .description('Ask a person or agent a question (creates notification for @ceo, dispatches agents)')
+  .action(async (target: string, question: string) => {
+    const taskId = process.env.ANC_TASK_ID;
+    if (!taskId) throw new Error('ANC_TASK_ID env not set. Are you running inside an agent session?');
+    const { askCommand } = await import('./commands/sdk.js');
+    await askCommand(taskId, target, question);
+  });
+
+// --- Agent SDK: attach ---
+program
+  .command('attach <taskId> <filepath> [description]')
+  .description('Attach a workspace file to a task')
+  .action(async (taskId: string, filepath: string, description?: string) => {
+    const { attachCommand } = await import('./commands/sdk.js');
+    await attachCommand(taskId, filepath, description);
+  });
+
+// --- Agent SDK: progress ---
+program
+  .command('progress <taskId> <message>')
+  .description('Update task progress with a message')
+  .option('--percent <n>', 'Progress percentage (0-100)', parseFloat)
+  .action(async (taskId: string, message: string, opts: { percent?: number }) => {
+    const { progressCommand } = await import('./commands/sdk.js');
+    await progressCommand(taskId, message, opts.percent);
+  });
+
+// --- Agent SDK: decision ---
+program
+  .command('decision <taskId> <title>')
+  .description('Record a decision linked to a task')
+  .requiredOption('--rationale <text>', 'Rationale for the decision')
+  .option('--tag <tag>', 'Optional tag for categorization')
+  .action(async (taskId: string, title: string, opts: { rationale: string; tag?: string }) => {
+    const { decisionCommand } = await import('./commands/sdk.js');
+    await decisionCommand(taskId, title, opts.rationale, opts.tag);
+  });
+
+// --- Agent SDK: flag ---
+program
+  .command('flag <taskId> <message>')
+  .description('Flag a risk or finding for the CEO')
+  .option('--severity <level>', 'warning or critical', 'warning')
+  .action(async (taskId: string, message: string, opts: { severity: string }) => {
+    const sev = opts.severity === 'critical' ? 'critical' : 'warning';
+    const { flagCommand } = await import('./commands/sdk.js');
+    await flagCommand(taskId, message, sev);
+  });
+
+// --- Agent SDK: handoff ---
+program
+  .command('handoff <taskId> <target> <context>')
+  .description('Hand off a task to another agent with context')
+  .action(async (taskId: string, target: string, context: string) => {
+    const { handoffCommand } = await import('./commands/sdk.js');
+    await handoffCommand(taskId, target, context);
+  });
+
 // --- Company ---
 const company = program.command('company').description('Fleet-level management');
 

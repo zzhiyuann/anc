@@ -270,13 +270,8 @@ async function processHandoff(
   }
   await addComment(session.issueKey, commentBody, session.role);
 
-  // Auto-comment on local task for dashboard visibility
-  const taskId = resolveTaskIdFromIssueKey(session.issueKey);
-  if (taskId) {
-    const statusLabel = actions?.status ?? decideStatus(taskType, handoff);
-    const shortSummary = summary.length > 500 ? summary.substring(0, 500) + '...' : summary;
-    addTaskComment(taskId, `agent:${session.role}`, `Completed. Summary: ${shortSummary}\n\nStatus: ${statusLabel}`);
-  }
+  // Agent is responsible for posting completion comments before writing HANDOFF.md.
+  // System only handles status transitions, dispatches, and notifications.
 
   // Determine status: agent-decided (from Actions) or system-decided (fallback)
   const newStatus = actions?.status ?? decideStatus(taskType, handoff);
@@ -411,12 +406,21 @@ async function processRetro(role: string, issueKey: string, workspace: string): 
     const retro = readFileSync(retroPath, 'utf-8').trim();
     if (retro.length === 0) return;
 
-    const { writeSharedMemory, readSharedMemory } = await import('../agents/memory.js');
+    const { writeRetrospective, writeSharedMemory, readSharedMemory } = await import('../agents/memory.js');
+    const dateStr = new Date().toISOString().split('T')[0];
+    const shortId = issueKey.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase();
+
+    // Write to agent's retrospectives/ subdir with date-based filename
+    const retroFilename = `${dateStr}-${shortId}.md`;
+    const retroContent = `---\nimportance: normal\nupdated: ${dateStr}\n---\n# Retrospective: ${issueKey}\n\n${retro}\n`;
+    writeRetrospective(role, retroFilename, retroContent);
+    log.info(`${role}/${issueKey}: retrospective saved to retrospectives/${retroFilename}`, { role, issueKey });
+
+    // Also append to shared memory for cross-agent learning (legacy compat)
     const filename = `retros-${role}.md`;
     const existing = readSharedMemory(filename) ?? `# ${role} Retrospectives\n`;
 
-    // Append this retro (keep last 10 to avoid unbounded growth)
-    const header = `\n## ${issueKey} — ${new Date().toISOString().split('T')[0]}\n`;
+    const header = `\n## ${issueKey} — ${dateStr}\n`;
     const updated = existing + header + retro + '\n';
 
     // Trim to last 10 entries if needed
@@ -426,7 +430,7 @@ async function processRetro(role: string, issueKey: string, workspace: string): 
       : updated;
 
     writeSharedMemory(filename, trimmed);
-    log.info(`${role}/${issueKey}: retrospective saved to shared memory`, { role, issueKey });
+    log.info(`${role}/${issueKey}: retrospective also saved to shared memory`, { role, issueKey });
 
     // Archive RETRO.md
     try { unlinkSync(retroPath); } catch { /**/ }

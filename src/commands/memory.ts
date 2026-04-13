@@ -1,9 +1,13 @@
 /**
- * Memory CLI commands — cross-agent knowledge discovery.
+ * Memory CLI commands — cross-agent knowledge discovery + layered writes.
  *
- * anc memory search <query>   — search all agents' + shared memory
- * anc memory read @<role> <f> — read another agent's memory file
- * anc memory list [@<role>]   — list memory files for a role (or all)
+ * anc memory search <query>                             — search all agents' + shared memory
+ * anc memory read @<role> <f>                           — read another agent's memory file
+ * anc memory list [@<role>]                             — list memory files for a role (or all)
+ * anc memory write strategic <filename>                 — write to strategic layer
+ * anc memory write domain <filename>                    — write to domain layer (default)
+ * anc memory write project <project-slug> <filename>    — write to project layer
+ * anc memory write <filename>                           — write to domain layer (shorthand)
  */
 
 import {
@@ -107,4 +111,82 @@ export async function memoryListCommand(target?: string): Promise<void> {
       console.log(`  ${f}`);
     }
   }
+}
+
+/**
+ * Write a memory file to a specific layer.
+ *
+ * Accepts args in these forms:
+ *   write strategic company-mission.md        → strategic layer
+ *   write domain api-patterns.md              → domain layer
+ *   write project marketing-q2 campaign.md    → project layer
+ *   write my-notes.md                         → domain layer (default)
+ */
+export async function memoryWriteCommand(args: string[]): Promise<void> {
+  if (args.length === 0) {
+    console.error('Usage: anc memory write [strategic|domain|project <slug>] <filename>');
+    process.exit(1);
+  }
+
+  const role = process.env.AGENT_ROLE;
+  if (!role) {
+    console.error('AGENT_ROLE env not set. Memory write must run inside an agent session.');
+    process.exit(1);
+  }
+
+  const { writeMemory } = await import('../agents/memory.js');
+  const { readFileSync: readFs, existsSync: existsFs } = await import('fs');
+  const { join: joinPath } = await import('path');
+
+  let layer = 'domain' as 'strategic' | 'domain' | 'project';
+  let projectSlug: string | undefined;
+  let filename: string;
+
+  const validLayers = ['strategic', 'domain', 'project'];
+
+  if (validLayers.includes(args[0])) {
+    layer = args[0] as 'strategic' | 'domain' | 'project';
+    if (layer === 'project') {
+      if (args.length < 3) {
+        console.error('Usage: anc memory write project <project-slug> <filename>');
+        process.exit(1);
+      }
+      projectSlug = args[1];
+      filename = args[2];
+    } else {
+      if (args.length < 2) {
+        console.error(`Usage: anc memory write ${layer} <filename>`);
+        process.exit(1);
+      }
+      filename = args[1];
+    }
+  } else {
+    // No layer specified — default to domain
+    filename = args[0];
+  }
+
+  // Ensure .md extension
+  if (!filename.endsWith('.md')) {
+    filename = filename + '.md';
+  }
+
+  // Read content from stdin
+  const chunks: Buffer[] = [];
+  process.stdin.resume();
+  process.stdin.setEncoding('utf-8');
+
+  const content = await new Promise<string>((resolve) => {
+    let data = '';
+    process.stdin.on('data', (chunk) => { data += chunk; });
+    process.stdin.on('end', () => { resolve(data); });
+  });
+
+  if (!content.trim()) {
+    console.error('No content provided on stdin.');
+    process.exit(1);
+  }
+
+  writeMemory(role, filename, content, layer, projectSlug);
+  const layerLabel = layer === 'project' ? `project/${projectSlug}` : layer;
+  console.log(`Memory written: ${layerLabel}/${filename} (${content.length} chars)`);
 }
