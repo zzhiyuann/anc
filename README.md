@@ -1,132 +1,175 @@
-# ANC -- Agent Native Company
+<p align="center">
+  <img src="assets/logo.svg" alt="ANC" width="80" />
+</p>
 
-> One person + AI agents = a fully operational company.
+<h1 align="center">ANC — Agent Native Company</h1>
 
-[![CI](https://github.com/zzhiyuann/anc/actions/workflows/ci.yml/badge.svg)](https://github.com/zzhiyuann/anc/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/npm/v/anc)](https://www.npmjs.com/package/anc)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/zzhiyuann/anc)](https://github.com/zzhiyuann/anc/stargazers)
+<p align="center">
+  <strong>Stop using agents. Start running a company.</strong>
+</p>
 
-## What is ANC?
+<p align="center">
+  One founder. Full org chart. Every seat filled by AI that remembers, grows, and self-heals.
+</p>
 
-ANC is an AI company operating system. You make the strategic decisions as CEO. AI executives -- an Engineer, a Strategist, an Ops lead, and a CEO Office agent -- pick up tasks, execute autonomously, and report back. Each agent has persistent memory that grows over time, so your company gets smarter with every task.
+<p align="center">
+  <a href="https://github.com/zzhiyuann/anc/actions/workflows/ci.yml"><img src="https://github.com/zzhiyuann/anc/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://www.npmjs.com/package/anc"><img src="https://img.shields.io/npm/v/anc" alt="npm version" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/zzhiyuann/anc/stargazers"><img src="https://img.shields.io/github/stars/zzhiyuann/anc" alt="GitHub stars" /></a>
+</p>
 
-Think of it as hiring a team that never sleeps, learns from every project, and coordinates through your existing tools (Linear, Discord, Telegram).
+---
 
-## How It Works
+Devin is a contractor. Codex is a tool. **ANC is the company they work for.**
 
-```
-You (CEO)                      ANC                              Agents
-   |                            |                                  |
-   |-- create task in Linear -->|                                  |
-   |                            |-- route to best agent ---------->|
-   |                            |                                  |-- work autonomously
-   |                            |                                  |-- commit code / write docs
-   |                            |<-- completion report ------------|
-   |<-- review in Linear/web --|                                  |
-```
+ANC is an AI company operating system. You're the CEO. Your agents -- an Engineer, a Strategist, an Ops lead, and a self-healing CEO Office -- pick up tasks, write code, make decisions, and report back. They remember everything. They get better every sprint. They coordinate without you in the loop.
 
-**The Agent Roster:**
-
-| Role | What they do |
-|------|-------------|
-| **Engineer** | Writes code, fixes bugs, reviews PRs, runs tests |
-| **Strategist** | Product strategy, market research, roadmaps, content |
-| **Ops** | System health, issue triage, failure postmortems |
-| **CEO Office** | Monitors other agents, escalates blockers, keeps you informed |
-
-## Quick Start
+## Get Started in 60 Seconds
 
 ```bash
 git clone https://github.com/zzhiyuann/anc.git && cd anc
 npm install && npm run build && npm link
 anc setup        # configure credentials
-anc serve        # start your company
+anc serve        # your company is now running
 ```
 
-Open **http://localhost:3848** -- your company is running.
+Open **http://localhost:3848** to see your command center.
 
-## Features
+> [Full setup guide &#8594;](docs/getting-started.md)
 
-- **Persistent Agent Memory** -- agents remember past work and improve over time
-- **Event-Driven Architecture** -- webhooks and events trigger work, no wasted cycles
-- **CEO Office Agent** -- auto-monitors other agents, escalates issues (industry first)
-- **Composable Personas** -- define agent behavior in YAML, no code changes needed
-- **Priority Queue with Circuit Breaker** -- graceful failure handling with exponential backoff
-- **Web Dashboard** -- real-time visibility into what every agent is doing
-- **Linear / Discord / Telegram Sync** -- meet your agents where you already work
-- **Budget Tracking** -- monitor API costs across all agents
-- **Multi-Runtime Support** -- Claude Code (primary), with Aider and Gemini planned
+## How It Works
 
-## Screenshots
+You create a task. ANC routes it to the right agent. The agent works in its own isolated workspace, commits code, and reports back. If it gets stuck, the CEO Office agent intervenes automatically. You review when you want to -- or don't, if you've set the agent to autonomous.
 
-<!-- TODO: dashboard screenshot -->
-<!-- TODO: terminal session screenshot -->
-<!-- TODO: Linear integration screenshot -->
+```
+You (CEO)                        ANC                              Agents
+   |                              |                                  |
+   |-- "Build the auth module" -->|                                  |
+   |                              |-- routes to Engineer ----------->|
+   |                              |                                  |-- clones repo
+   |                              |                                  |-- writes code
+   |                              |                                  |-- runs tests
+   |                              |                                  |-- commits + pushes
+   |                              |<-- "Done. PR ready." ------------|
+   |<-- notification ------------|                                  |
+   |                              |                                  |
+   |                     CEO Office (watching)                       |
+   |                     -- health checks every 30m                  |
+   |                     -- auto-recovers stuck agents               |
+   |                     -- escalates only what matters              |
+```
 
-Screenshots coming soon.
+## Why ANC
+
+### Your agents have memory
+
+Every agent accumulates knowledge across tasks. The Engineer remembers your codebase conventions. The Strategist remembers your market positioning. They write retrospectives after each task and inject those learnings into future work. **Your company gets smarter every day.**
+
+### Your company self-heals
+
+The CEO Office agent monitors all other agents in real-time. Stuck process? Auto-restart. Rate limited? Exponential backoff. Three failures? Circuit breaker. Budget blown? Pause and alert. You only hear about things that actually need your decision.
+
+### You control the trust level
+
+Not every task needs your sign-off. Configure review policy per role, per project, or per task:
+
+| Level | What happens |
+|-------|-------------|
+| **Strict** | Agent submits for review. You approve. |
+| **Normal** | Agent submits. Auto-approved after 24h if you don't respond. |
+| **Lax** | Auto-completed. You're notified. |
+| **Autonomous** | Auto-completed. No notification. |
+| **Peer Review** | Another agent reviews before completion. |
+
+### Everything is config, not code
+
+Agents, routing rules, review policies, standing duties, budgets -- all defined in YAML. Add a new agent role in 30 seconds. Change routing rules without touching code. Your company structure is a config file.
+
+## The Team
+
+| Role | Responsibilities |
+|------|-----------------|
+| **Engineer** | Code, architecture, testing, code review, debugging |
+| **Strategist** | Product strategy, market research, roadmaps, content |
+| **Ops** | System health, issue triage, failure analysis, deploys |
+| **CEO Office** | Monitors agents, generates briefings, recovers failures, escalates blockers |
+
+Need more roles? Add them in the dashboard or in `config/agents.yaml`. Each role gets its own composable persona -- a set of reusable instruction fragments that define how it thinks and works.
+
+## Dashboard
+
+A real-time command center for your company. Not a task board -- a CEO cockpit.
+
+| View | What it shows |
+|------|--------------|
+| **Command Center** | KPIs, agent status grid, quick actions |
+| **Tasks** | Three-pane Linear-density workspace with inline editing |
+| **Agents** | Per-agent detail: persona, live terminal, memory, sessions, cost |
+| **Pulse** | OKRs, decisions log, daily briefing, kill switch |
+| **Memory** | Browse and search all agent + shared company knowledge |
+| **Inbox** | Escalations, briefings, alerts -- filtered by severity |
+
+Plus: `Cmd+K` command palette, 27 keyboard shortcuts, real-time process capture stream, drag-to-resize panes.
+
+> Native macOS app available -- same features, native performance. [Build instructions &#8594;](docs/macos-app.md)
 
 ## Architecture
 
 ```
-                    +---------------------------------------------+
-                    |                ANC Server                    |
-                    |                                              |
-  Linear --webhook->  Gateway --> Event Bus --> Router             |
-  Discord --------->    :3849      (typed)      (YAML rules)      |
-                    |                  |                           |
-                    |                  v                           |
-                    |  +------------------------------+           |
-                    |  |          Runtime              |           |
-                    |  |  Runner . Health . Workspace  |           |
-                    |  |  Circuit Breaker . Queue      |           |
-                    |  +----------+-------------------+           |
-                    +-------------|------------------------------- +
-                                  |
-                    +-------------v-------------------+
-                    |     tmux sessions (per issue)    |
-                    |                                  |
-                    |  +---------+ +---------+        |
-                    |  | Claude  | | Claude  |  ...   |
-                    |  | Code    | | Code    |        |
-                    |  | (eng)   | | (ops)   |        |
-                    |  +---------+ +---------+        |
-                    |  ~/anc-workspaces/ANC-42/       |
-                    +---------------------------------+
+┌─────────────────────────────────────────────────┐
+│  Dashboard (Web + macOS)                        │
+│  Real-time WebSocket, REST API                  │
+├─────────────────────────────────────────────────┤
+│  ANC Server (:3849)                             │
+│  Event Bus → Router → Resolve Gate → Runtime    │
+│  Priority Queue · Budget · Circuit Breaker      │
+├──────────┬──────────┬───────────┬───────────────┤
+│  Linear  │ Discord  │ Telegram  │ GitHub        │
+│  (sync)  │ (bridge) │ (alerts)  │ (PRs)         │
+└──────────┴──────────┴───────────┴───────────────┘
+         ┌──────────────────────────┐
+         │  Isolated Workspaces     │
+         │  tmux + Claude Code      │
+         │  per-task git worktree   │
+         └──────────────────────────┘
 ```
 
-**Core components:**
-
-| Component | Path | Role |
-|-----------|------|------|
-| Event Bus | `src/bus.ts` | Typed EventEmitter -- the nervous system. All handlers run concurrently with error isolation |
-| Gateway | `src/gateway.ts` | HTTP webhook receiver. Verifies Linear signatures, emits events |
-| Router | `src/routing/` | Declarative YAML routing: @mentions, reply chains, labels, title patterns |
-| Runtime | `src/runtime/` | Session lifecycle, workspace isolation, circuit breaker, capacity management |
-| Agents | `src/agents/` | Registry from YAML, composable persona builder, persistent memory |
-| Hooks | `src/hooks/` | Event handlers for issues, comments, sessions, completions |
-| Channels | `src/channels/` | Discord (bidirectional) + Telegram (outbound alerts) |
-
-**Key design decisions:**
-
-1. **Linear is the source of truth** -- local state is disposable cache, everything recoverable from the issue tracker
-2. **Per-issue workspace isolation** -- each issue gets its own git worktree, no cross-contamination
-3. **YAML over code** -- routing rules, agent roster, and proactive duties are all config-driven
-4. **Composable personas** -- small reusable fragments (base + role + protocols + memory) assembled at spawn time
-5. **Event bus over direct coupling** -- components communicate through typed events
-6. **Claude Code as runtime** -- leverages built-in tool use, file editing, and terminal access
+> [Full architecture deep dive &#8594;](docs/ARCHITECTURE.md)
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md) -- installation, configuration, first run
-- [Architecture](docs/ARCHITECTURE.md) -- deep dive into system design
-- [Design](docs/DESIGN.md) -- design philosophy and trade-offs
-- [Vision](VISION.md) -- full roadmap and long-term direction
-- [CEO Guide](docs/CEO-GUIDE.md) -- how to operate your AI company
+| Guide | For |
+|-------|-----|
+| [Getting Started](docs/getting-started.md) | Installation, first run, your first task |
+| [CEO Guide](docs/CEO-GUIDE.md) | Day-to-day operations as the CEO |
+| [Configuration](docs/configuration/) | Agents, routing, budgets, review policies, personas |
+| [CLI Reference](docs/cli-reference.md) | All `anc` commands |
+| [API Reference](docs/api-reference.md) | REST endpoints + WebSocket events |
+| [Architecture](docs/ARCHITECTURE.md) | System design and internals |
+| [Self-Hosting](docs/self-hosting.md) | Docker, remote deployment |
+
+## Compared To
+
+| | ANC | Multica | Devin | Codex |
+|---|---|---|---|---|
+| **What it is** | Company OS | Task board for agents | Managed coding agent | Cloud coding agent |
+| **Agent memory** | Persistent + retros | None | None | None |
+| **Self-healing** | CEO Office agent | Manual | Manual | Manual |
+| **Review policy** | 5 configurable levels | Manual review | Manual review | Manual review |
+| **Project management** | Built-in | External (Jira/Linear) | External | External |
+| **Native app** | macOS + iOS (planned) | Web only | Web only | Web only |
+| **Self-hosted** | Yes | Yes | No | No |
+| **Open source** | MIT | Modified Apache | No | No |
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+```bash
+npx vitest run               # 425+ tests
+cd apps/web && npx tsc --noEmit  # frontend typecheck
+```
 
 ## License
 
