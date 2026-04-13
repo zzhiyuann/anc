@@ -169,7 +169,7 @@ export function MembersTable({
                 <tr
                   key={agent.role}
                   className="group cursor-pointer border-b border-border last:border-b-0 transition-colors hover:bg-secondary/40"
-                  onClick={() => router.push(`/agents/${agent.role}`)}
+                  onClick={() => router.push(`/members/${agent.role}`)}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -245,7 +245,7 @@ export function MembersTable({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => router.push(`/agents/${agent.role}`)}
+                          onClick={() => router.push(`/members/${agent.role}`)}
                         >
                           Open
                         </DropdownMenuItem>
@@ -276,7 +276,7 @@ export function MembersTable({
         </tbody>
       </table>
       <noscript>
-        <Link href="/agents" className="block p-4 text-center text-xs text-muted-foreground">
+        <Link href="/members" className="block p-4 text-center text-xs text-muted-foreground">
           View agents
         </Link>
       </noscript>
