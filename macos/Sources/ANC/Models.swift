@@ -354,6 +354,22 @@ struct PatchTaskPayload: Encodable {
     var labels: [String]?
     var projectId: String?
     var dueDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, state, priority, assignee, labels, projectId, dueDate
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let v = title { try container.encode(v, forKey: .title) }
+        if let v = description { try container.encode(v, forKey: .description) }
+        if let v = state { try container.encode(v, forKey: .state) }
+        if let v = priority { try container.encode(v, forKey: .priority) }
+        if let v = assignee { try container.encode(v, forKey: .assignee) }
+        if let v = labels { try container.encode(v, forKey: .labels) }
+        if let v = projectId { try container.encode(v, forKey: .projectId) }
+        if let v = dueDate { try container.encode(v, forKey: .dueDate) }
+    }
 }
 
 struct PatchProjectPayload: Encodable {
@@ -365,6 +381,22 @@ struct PatchProjectPayload: Encodable {
     var health: String?
     var lead: String?
     var targetDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name, description, color, priority, state, health, lead, targetDate
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let v = name { try container.encode(v, forKey: .name) }
+        if let v = description { try container.encode(v, forKey: .description) }
+        if let v = color { try container.encode(v, forKey: .color) }
+        if let v = priority { try container.encode(v, forKey: .priority) }
+        if let v = state { try container.encode(v, forKey: .state) }
+        if let v = health { try container.encode(v, forKey: .health) }
+        if let v = lead { try container.encode(v, forKey: .lead) }
+        if let v = targetDate { try container.encode(v, forKey: .targetDate) }
+    }
 }
 
 struct CreateCommentPayload: Encodable {

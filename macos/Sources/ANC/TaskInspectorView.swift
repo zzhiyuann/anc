@@ -180,9 +180,9 @@ struct TaskInspectorView: View {
             // Assignee
             propertyRow("Assignee") {
                 Picker("", selection: assigneeBinding(detail)) {
-                    Text("Unassigned").tag(String?.none)
+                    Text("Unassigned").tag(nil as String?)
                     ForEach(store.agents) { agent in
-                        Text(agent.name).tag(Optional(agent.role))
+                        Text(agent.name).tag(agent.role as String?)
                     }
                 }
                 .pickerStyle(.menu)
@@ -214,9 +214,9 @@ struct TaskInspectorView: View {
             // Project
             propertyRow("Project") {
                 Picker("", selection: projectBinding(detail)) {
-                    Text("None").tag(String?.none)
+                    Text("None").tag(nil as String?)
                     ForEach(store.projects) { proj in
-                        Text(proj.name).tag(Optional(proj.id))
+                        Text(proj.name).tag(proj.id as String?)
                     }
                 }
                 .pickerStyle(.menu)
