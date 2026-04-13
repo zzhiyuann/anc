@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23235",
+    "title": "Range suppression diagnostics not being surfaced",
+    "description": "Repository: astral-sh/ruff\nIssue #23235\n\n### Summary\n\nThis should generate both a RUF100 and RUF104: https://play.ruff.rs/ca35d323-c80e-4be3-80ed-e02f05fcaab1\n\n### Version\n\n0.15.0",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "suppression"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23235",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "Agent produced no output whatsoever — no code, no analysis, no communication. The task required diagnosing why RUF100 and RUF104 diagnostics aren't surfaced for range suppressions in ruff, which is a low-complexity issue that should have at minimum yielded a root cause analysis and proposed fix. Complete failure to execute.",
+    "timestamp": "2026-04-13T17:30:58.953Z"
+  },
+  "duration_ms": 132158,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

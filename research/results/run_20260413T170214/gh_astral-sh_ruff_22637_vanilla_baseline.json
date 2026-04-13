@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22637",
+    "title": "Skip directives for markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #22637\n\nBlacken docs uses HTML comments: https://github.com/adamchainz/blacken-docs/#markdown\n\nDo we want something different? Should we support blacken docs' directives?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22637",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "Agent produced no output whatsoever. No research, no analysis, no recommendation, no code, no communication artifact. A low-complexity design question that required reading blacken-docs' directive format and proposing whether ruff should adopt or diverge from it — the agent did nothing.",
+    "timestamp": "2026-04-13T17:08:56.914Z"
+  },
+  "duration_ms": 133338,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22638",
+    "title": "Markdown formatting options based on code block language",
+    "description": "Repository: astral-sh/ruff\nIssue #22638\n\n`````\n\n```py\n...\n```\n\nvs\n\n```pyi\n```\n\n`````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22638",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever — no code, no analysis, no HANDOFF.md, no comments. The task was low complexity (investigating markdown formatting differences for code block languages in ruff), yet nothing was delivered. This is a complete failure to engage with the assigned work.",
+    "timestamp": "2026-04-13T17:11:07.331Z"
+  },
+  "duration_ms": 130415,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

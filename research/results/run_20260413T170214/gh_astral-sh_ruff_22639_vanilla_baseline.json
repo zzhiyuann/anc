@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22639",
+    "title": "Adopt ruffen docs in ty mdtests",
+    "description": "Repository: astral-sh/ruff\nIssue #22639\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22639",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever — no code changes, no HANDOFF.md, no communication, nothing. This is a complete failure to execute. The task needs to be reassigned or the agent session investigated for crashes.",
+    "timestamp": "2026-04-13T17:13:20.614Z"
+  },
+  "duration_ms": 133282,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

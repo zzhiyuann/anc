@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22869",
+    "title": "0.14.14 breaks block suppresion",
+    "description": "Repository: astral-sh/ruff\nIssue #22869\n\n### Summary\n\nHere's a comparison between version 0.14.13 and 0.14.14, no code change:\n\n```\n$ uv run ruff version\nruff 0.14.13 (b4b8299d6 2026-01-15)\n\n$ rg -B 1 'preview = true' pyproject.toml\n82-[tool.ruff.lint]\n83:preview = true\n\n$ uv run ruff check\nAll checks passed!\n\n$ # edit pyproject.toml\n\n$ uv sync\nResolved 191 packages in 131ms\n      Built app @ file:///Users/aquarhead/work/a\nPrepared 1 package in 19ms\nUninstalled 2 packages in 3ms\nInstalled 2 packages in 2ms\n ~ app==1.10.0 (from file:///Users/aquarhead/work/a)\n - ruff==0.14.13\n + ruff==0.14.14\n \n$ rg -B 1 'preview = true' pyproject.toml\n82-[tool.ruff.lint]\n83:preview = true\n\n$ uv run ruff version\nruff 0.14.14 (8b2e7b36f 2026-01-22)\n\n$ uv run ruff check\nE402 Module level import not at top of file\n   --> app/router.py:113:1\n    |\n112 | # ruff: disable[E402, F401]\n113 | import app.demand.worksheets\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n114 | import app.supply.worksheets\n115 | import app.masterdata.worksheets\n    |\n... (every line in the block gets 2 errors)\n```\n\nOur actual code usage is like this - we have 2 blocks with the exact same suppresion config, not sure if that's relevant:\n\n```py\n# ruff: disable[E402, F401]\nimport app.demand.worksheets\nimport ...\n# ruff: enable[E402, F401]\n\nrouter.include_router(prefix=\"/blah\", router=dynamic_router) # this relies on the imports above\n\n# ruff: disable[E402, F401]\nimport ...\n\n# ruff: enable[E402, F401]\n```\n\nNot sure if it's the block suppresion or the preview mode check, I think this is the only feature we use from the preview mode.\n\nHere's all the ruff configuration in pyproject.toml:\n\n```toml\n[tool.ruff]\nline-length = 120\nextend-exclude = [\"alembic/versions/*.py\"]\n\n[tool.ruff.lint]\npreview = true\nselect = [\n  \"E\",   # pycodestyle errors\n  \"W\",   # pycodestyle warnings\n  \"F\",   # pyflakes\n  \"C\",   # flake8-comprehensions\n  \"B\",   # flake8-bugbear\n  \"DTZ\", # flake8-datetimez\n  \"UP\",  # pyupgrade\n  \"I\",   # isort\n]\nignore = [\n  \"E266\", # We want more obvious block comments\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "suppression"
+    ],
+    "complexity": "high",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22869",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever. No investigation, no diagnosis, no code changes, no communication artifacts. A high-complexity bug in ruff's block suppression was assigned and the agent appears to have done nothing at all.",
+    "timestamp": "2026-04-13T17:17:45.105Z"
+  },
+  "duration_ms": 132240,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

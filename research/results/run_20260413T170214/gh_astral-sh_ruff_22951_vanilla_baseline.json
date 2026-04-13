@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22951",
+    "title": "Support quarto markdown language markers",
+    "description": "Repository: astral-sh/ruff\nIssue #22951\n\n~~~markdown\n```{py}\nprint('hello')\n```\n~~~",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22951",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever — no code, no communication, no HANDOFF.md, nothing. The task was low complexity and should have been straightforward for an agent working on the Ruff codebase. Complete failure to execute; needs to be re-dispatched to a functioning agent.",
+    "timestamp": "2026-04-13T17:24:24.476Z"
+  },
+  "duration_ms": 137888,
+  "cost_usd": 0,
+  "tokens_used": 0
+}
