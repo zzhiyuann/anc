@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { TaskListRail } from "@/components/task-list-rail";
@@ -26,12 +26,14 @@ import {
 } from "@/components/ui/select";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import { api, ApiError } from "@/lib/api";
+import { useWebSocket } from "@/lib/use-websocket";
 import { mockTasks } from "@/lib/mock-data";
 import type {
   AgentStatus,
   ProjectWithStats,
   Task,
   TaskFull,
+  WsMessage,
 } from "@/lib/types";
 
 const PRIORITY_ITEMS: Array<{ value: number; label: string }> = [
@@ -134,6 +136,105 @@ function TasksPageInner() {
     })();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // ---- Live WS subscription for task list updates ----
+  const { lastMessage } = useWebSocket();
+  const wsRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced full-list refresh for agent lifecycle events whose payloads
+  // don't carry enough data for a surgical splice.
+  const debouncedRefreshList = useCallback(() => {
+    if (wsRefreshTimerRef.current) clearTimeout(wsRefreshTimerRef.current);
+    wsRefreshTimerRef.current = setTimeout(() => void refreshList(), 400);
+  }, [refreshList]);
+
+  useEffect(() => {
+    if (!lastMessage) return;
+    const { type, data } = lastMessage as WsMessage<Record<string, unknown>>;
+
+    switch (type) {
+      case "task:created": {
+        // The event only carries { taskId, title, source, projectId }.
+        // Fetch the full Task row so the rail renders correct state/priority.
+        const taskId = data?.taskId as string | undefined;
+        if (taskId) {
+          void api.tasks.list().then((next) => setTasks(next)).catch(() => {});
+        }
+        break;
+      }
+
+      case "task:completed": {
+        // { taskId, handoffSummary }
+        const taskId = data?.taskId as string | undefined;
+        if (taskId) {
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === taskId
+                ? {
+                    ...t,
+                    state: "done" as const,
+                    completedAt: Date.now(),
+                    handoffSummary:
+                      (data?.handoffSummary as string) ?? t.handoffSummary,
+                  }
+                : t,
+            ),
+          );
+          // Also update detail if selected
+          if (taskId === selectedId) {
+            setDetail((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    task: {
+                      ...prev.task,
+                      state: "done" as const,
+                      completedAt: Date.now(),
+                      handoffSummary:
+                        (data?.handoffSummary as string) ?? prev.task.handoffSummary,
+                    },
+                  }
+                : prev,
+            );
+          }
+        }
+        break;
+      }
+
+      case "task:dispatched": {
+        // Refresh the affected task's sessions/state
+        const taskId = (data?.taskId ?? data?.issueKey) as string | undefined;
+        if (taskId) {
+          debouncedRefreshList();
+          if (taskId === selectedId) {
+            void api.tasks.getFull(taskId).then((d) => setDetail(d)).catch(() => {});
+          }
+        }
+        break;
+      }
+
+      // Agent lifecycle events — refresh the task list so derived state
+      // (running indicator, session counts) stays current in the rail.
+      case "agent:spawned":
+      case "agent:completed":
+      case "agent:failed":
+      case "agent:idle":
+      case "agent:suspended":
+      case "agent:resumed":
+        debouncedRefreshList();
+        break;
+
+      default:
+        break;
+    }
+  }, [lastMessage, selectedId, debouncedRefreshList]);
+
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (wsRefreshTimerRef.current) clearTimeout(wsRefreshTimerRef.current);
     };
   }, []);
 

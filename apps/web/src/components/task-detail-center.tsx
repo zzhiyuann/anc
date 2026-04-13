@@ -7,6 +7,7 @@ import type {
   ProcessEvent,
   Task,
   TaskComment,
+  TaskEvent,
   TaskFull,
   WsMessage,
 } from "@/lib/types";
@@ -452,12 +453,71 @@ export function TaskDetailCenter({
           }
           break;
         }
+        case "task:updated": {
+          // { taskId, patch, by } — surgically apply field changes
+          const d = msg.data as { patch?: Record<string, unknown> };
+          if (d.patch && typeof d.patch === "object") {
+            const patch = d.patch as Partial<Task>;
+            setLocalData((prev) => ({
+              ...prev,
+              task: { ...prev.task, ...patch },
+            }));
+            onTaskPatch?.(patch);
+          }
+          break;
+        }
+        case "task:state-changed": {
+          // { taskId, from, to, by } — update state + append to events
+          const d = msg.data as { from?: string; to?: string; by?: string };
+          if (typeof d.to === "string") {
+            const stateVal = d.to as Task["state"];
+            setLocalData((prev) => ({
+              ...prev,
+              task: {
+                ...prev.task,
+                state: stateVal,
+                ...(stateVal === "done" || stateVal === "failed" || stateVal === "canceled"
+                  ? { completedAt: Date.now() }
+                  : {}),
+              },
+              events: [
+                ...prev.events,
+                {
+                  id: -(Date.now() % 1_000_000),
+                  taskId,
+                  type: "task:state-changed",
+                  role: d.by ?? "system",
+                  payload: { from: d.from, to: d.to, by: d.by },
+                  createdAt: Date.now(),
+                } satisfies TaskEvent,
+              ],
+            }));
+            onTaskPatch?.({ state: stateVal });
+          }
+          break;
+        }
+        case "task:completed": {
+          // { taskId, handoffSummary } — update state + handoff
+          const d = msg.data as { handoffSummary?: string };
+          setLocalData((prev) => ({
+            ...prev,
+            task: {
+              ...prev.task,
+              state: "done" as const,
+              completedAt: Date.now(),
+              handoffSummary: d.handoffSummary ?? prev.task.handoffSummary,
+            },
+          }));
+          onTaskPatch?.({ state: "done", completedAt: Date.now() });
+          // Also refresh to pick up final sessions/events/handoff
+          void refresh();
+          break;
+        }
         case "task:dispatched":
         case "agent:spawned":
         case "agent:idle":
         case "agent:suspended":
         case "agent:resumed":
-        case "task:completed":
         case "agent:completed":
         case "agent:failed":
           void refresh();
@@ -467,7 +527,7 @@ export function TaskDetailCenter({
       }
     });
     return unsub;
-  }, [taskId, subscribeToTask, refresh]);
+  }, [taskId, subscribeToTask, refresh, onTaskPatch]);
 
   const handleKill = async () => {
     if (!confirm(`Kill task ${localData.task.id}? All sessions will be stopped.`))

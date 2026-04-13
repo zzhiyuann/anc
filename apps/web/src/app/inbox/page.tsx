@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import { api } from "@/lib/api";
-import type { AncNotification, NotificationKind } from "@/lib/types";
+import { useWebSocket } from "@/lib/use-websocket";
+import type { AncNotification, NotificationKind, WsMessage } from "@/lib/types";
 import { cn, formatRelativeTime, formatTimestamp } from "@/lib/utils";
 import {
   NotificationFilters,
@@ -95,6 +96,29 @@ export default function InboxPage() {
       aborted = true;
     };
   }, [filter]);
+
+  // ---- Live WS subscription for new notifications ----
+  const { lastMessage } = useWebSocket();
+
+  useEffect(() => {
+    if (!lastMessage) return;
+    const { type } = lastMessage as WsMessage<Record<string, unknown>>;
+    if (type !== "notification:created") return;
+
+    // Refetch the notification list to pick up the new entry with its
+    // full shape (body, severity, agentRole, etc.).
+    const backend = backendFilterFor(filter);
+    void api.notifications
+      .list(backend)
+      .then((res) => {
+        setRawItems(res.notifications);
+        setUnreadCount(res.unreadCount);
+      })
+      .catch(() => {
+        // Fallback: just bump unread count so the badge updates.
+        setUnreadCount((c) => c + 1);
+      });
+  }, [lastMessage, filter]);
 
   const items = useMemo(() => applyClientFilter(rawItems, filter), [rawItems, filter]);
 
