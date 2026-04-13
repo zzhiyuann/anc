@@ -93,10 +93,19 @@ export function Header({
     };
   }, [taskIdForCrumb]);
 
-  const crumbs = useMemo(
-    () => buildCrumbs(pathname, taskTitle),
-    [pathname, taskTitle],
-  );
+  const crumbs = useMemo(() => {
+    const base = buildCrumbs(pathname, taskTitle);
+    // When a task is selected via query param (/tasks?task=<id>), append the
+    // resolved title (or a short ID fallback) so the breadcrumb reads
+    // "Tasks / Fix auth bug" instead of just "Tasks".
+    if (pathname === "/tasks" && taskIdForCrumb && base.length === 1) {
+      // Make the "Tasks" crumb a link
+      base[0].href = "/tasks";
+      const label = taskTitle ?? taskIdForCrumb.replace(/^task-/, "").slice(0, 8);
+      base.push({ label });
+    }
+    return base;
+  }, [pathname, taskTitle, taskIdForCrumb]);
 
   // `/` focuses search box
   useEffect(() => {
