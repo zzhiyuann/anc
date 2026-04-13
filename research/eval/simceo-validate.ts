@@ -87,14 +87,15 @@ function generate() {
   );
 
   // Create empty human ratings template
-  const template = tasks.map((t) => ({
+  const template = tasks.map((t: any) => ({
     task_id: t.id,
     title: t.title,
     complexity: t.complexity,
+    description: t.description,
     satisfaction: null, // YOU fill this in (1-5)
     task_completion: null, // 0 or 1
     code_quality: null, // 1-5
-    notes: '',
+    notes: '', // After running 'rate', check synthetic_outputs.json for the agent output to judge
   }));
 
   writeFileSync(
@@ -123,15 +124,54 @@ function rate() {
   const condition = CONDITIONS.find((c) => c.name === 'anc_full')!;
   const simceoRatings = [];
 
-  console.log('SimCEO rating calibration tasks...\n');
+  // Generate synthetic outputs at varying quality levels first
+  const outputsFile = join(VALIDATION_DIR, 'synthetic_outputs.json');
+  let syntheticOutputs: Record<string, string>;
+
+  if (existsSync(outputsFile)) {
+    console.log('Loading existing synthetic outputs...\n');
+    syntheticOutputs = JSON.parse(readFileSync(outputsFile, 'utf-8'));
+  } else {
+    console.log('Generating synthetic agent outputs (this takes a few minutes)...\n');
+    syntheticOutputs = {};
+    // Assign quality tiers: 10 excellent, 10 mediocre, 10 poor
+    const qualities = [
+      ...Array(10).fill('excellent'),
+      ...Array(10).fill('mediocre'),
+      ...Array(10).fill('poor'),
+    ];
+
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      const quality = qualities[i];
+      console.log(`  Generating ${quality} output for ${task.id}...`);
+
+      const genPrompt = `You are simulating an AI coding agent that completed a task with ${quality} quality.
+
+Task: ${task.title}
+Description: ${task.description}
+
+Write a realistic HANDOFF.md that this agent would produce. For ${quality} quality:
+${quality === 'excellent' ? '- Complete solution, tests added, edge cases handled, clear explanation' : ''}
+${quality === 'mediocre' ? '- Partial solution, some tests missing, description is vague, a few bugs remain' : ''}
+${quality === 'poor' ? '- Wrong approach, no tests, broke existing functionality, unclear explanation' : ''}
+
+Write 150-300 words. Start with "## Summary" and include code snippets.`;
+
+      const output = claudePrint(genPrompt);
+      syntheticOutputs[task.id] = output;
+    }
+
+    writeFileSync(outputsFile, JSON.stringify(syntheticOutputs, null, 2));
+    console.log('\nSynthetic outputs saved.\n');
+  }
+
+  // Now rate each synthetic output with SimCEO
+  console.log('SimCEO rating synthetic outputs...\n');
 
   for (const task of tasks) {
-    // For validation, we use the task description as "output" since we can't
-    // run real ANC tasks in calibration mode. In real experiments, this would
-    // be the actual agent output.
-    const mockOutput = `[Calibration mode] Task: ${task.title}\nDescription: ${task.description}\nComplexity: ${task.complexity}`;
-
-    const rating = rateTaskOutput(task, mockOutput, condition, []);
+    const output = syntheticOutputs[task.id] || '[No output generated]';
+    const rating = rateTaskOutput(task, output, condition, []);
     simceoRatings.push(rating);
     console.log(`  ${task.id}: satisfaction=${rating.satisfaction}`);
   }
