@@ -36,6 +36,7 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
   const [memoryCounts, setMemoryCounts] = useState<Record<string, number>>({});
   const [costToday, setCostToday] = useState<Record<string, number>>({});
   const [doneByRole, setDoneByRole] = useState<Record<string, number>>({});
+  const [taskTitles, setTaskTitles] = useState<Map<string, string>>(new Map());
 
   // Subscribe to WS so member status / active sessions stay live.
   const { lastMessage } = useWebSocket();
@@ -119,6 +120,23 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
     return () => {
       cancelled = true;
     };
+  }, [agents]);
+
+  // Hydrate task titles so the Active Task column shows human-readable names.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const tasks = await api.tasks.list({});
+        if (cancelled) return;
+        const m = new Map<string, string>();
+        for (const t of tasks) m.set(t.id, t.title);
+        setTaskTitles(m);
+      } catch {
+        // leave empty
+      }
+    })();
+    return () => { cancelled = true; };
   }, [agents]);
 
   async function refresh() {
@@ -225,6 +243,7 @@ export function MembersView({ initialAgents, initialLive }: MembersViewProps) {
       ) : (
         <MembersTable
           rows={rows}
+          taskTitles={taskTitles}
           onEditPersona={(role) => setEditingRole(role)}
           onArchive={handleArchive}
           onDispatch={(role) => setDispatchRole(role)}

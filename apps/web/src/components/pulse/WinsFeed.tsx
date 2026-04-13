@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import type { Task } from "@/lib/types";
-import { formatRelativeTime } from "@/lib/utils";
+import { formatRelativeTime, shortenIfUuid } from "@/lib/utils";
 
 const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
 
@@ -48,8 +48,9 @@ export function WinsFeed({ refreshTick = 0 }: WinsFeedProps) {
 
   const recent = useMemo(() => {
     const cutoff = Date.now() - SEVEN_DAYS_MS;
+    const uuidRe = /^(?:(?:migrated-)?task-)?[0-9a-f]{8}-[0-9a-f]{4}-/i;
     return tasks
-      .filter((t) => (t.completedAt ?? 0) > cutoff)
+      .filter((t) => (t.completedAt ?? 0) > cutoff && !uuidRe.test(t.title))
       .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
       .slice(0, 25);
   }, [tasks]);
@@ -127,7 +128,7 @@ export function WinsFeed({ refreshTick = 0 }: WinsFeedProps) {
             <span className="text-emerald-500">✓</span>
             <Link href={`/tasks/${t.id}`} className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-medium hover:underline">
-                {t.title}
+                {shortenIfUuid(t.title)}
               </p>
               <p className="text-[11px] text-muted-foreground">
                 {formatRelativeTime(t.completedAt ?? Date.now())}

@@ -7,6 +7,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * If a string looks like a raw UUID / task-UUID, return a shortened
+ * human-readable form: "task-7e31..." (max 12 chars). Otherwise return as-is.
+ */
+export function shortenIfUuid(s: string): string {
+  // Match task-<uuid> or migrated-task-<uuid> or bare UUID
+  const uuidRe = /^(?:(?:migrated-)?task-)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+  const m = uuidRe.exec(s);
+  if (m) return `task-${m[1].slice(0, 8)}...`;
+  // Catch any string > 20 chars that is mostly hex+dashes (likely a raw ID)
+  if (s.length > 20 && /^[0-9a-f-]+$/i.test(s)) return s.slice(0, 8) + "...";
+  return s;
+}
+
 // --- Motion timing constants (mirror CSS tokens in globals.css) ---
 // Use these when you need the duration in JS (framer-motion etc.) so the
 // JS-driven and CSS-driven animations stay synchronized.

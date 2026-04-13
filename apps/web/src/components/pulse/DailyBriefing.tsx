@@ -6,7 +6,7 @@ import type { DailyBriefing as DailyBriefingType } from "@/lib/types";
 import { fetchBriefing, PulseError } from "@/components/pulse/pulse-client";
 import { api } from "@/lib/api";
 import type { Task } from "@/lib/types";
-import { formatTimestamp, formatRelativeTime } from "@/lib/utils";
+import { formatTimestamp, formatRelativeTime, shortenIfUuid } from "@/lib/utils";
 
 interface DailyBriefingProps {
   /** Bumped by parent when WS hints the briefing is stale. */
@@ -164,15 +164,21 @@ export function DailyBriefing({ refreshTick = 0 }: DailyBriefingProps) {
             />
           </Block>
 
-          {data.risks.length > 0 && (
+          {data.risks.filter(
+            (r) => !/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(r),
+          ).length > 0 && (
             <Block label="Risks">
               <ul className="space-y-1.5">
-                {data.risks.map((r, i) => (
-                  <li key={i} className="flex gap-2 text-[12px] text-foreground">
-                    <span className="text-amber-500">⚠</span>
-                    <span>{r}</span>
-                  </li>
-                ))}
+                {data.risks
+                  .filter(
+                    (r) => !/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(r),
+                  )
+                  .map((r, i) => (
+                    <li key={i} className="flex gap-2 text-[12px] text-foreground">
+                      <span className="text-amber-500">⚠</span>
+                      <span>{shortenIfUuid(r)}</span>
+                    </li>
+                  ))}
               </ul>
             </Block>
           )}
@@ -210,19 +216,24 @@ function LinkedList({
   icon: string;
   iconClass: string;
 }) {
-  if (items.length === 0) {
+  // Filter out items whose title is a bare UUID (deleted/orphan tasks)
+  const cleaned = items.filter((c) => {
+    const base = c.split(" — ")[0];
+    return !/^(?:(?:migrated-)?task-)?[0-9a-f]{8}-[0-9a-f]{4}-/i.test(base);
+  });
+  if (cleaned.length === 0) {
     return <p className="text-[12px] text-muted-foreground">Nothing to report</p>;
   }
   return (
     <ul className="space-y-1.5">
-      {items.slice(0, 5).map((c, i) => {
+      {cleaned.slice(0, 5).map((c, i) => {
         // Briefing wins are formatted as "title — handoff_summary".
         const baseTitle = c.split(" — ")[0];
         const taskId = titleIndex.get(baseTitle);
         const inner = (
           <>
             <span className={iconClass}>{icon}</span>
-            <span>{c}</span>
+            <span>{shortenIfUuid(c)}</span>
           </>
         );
         return (
@@ -245,17 +256,21 @@ function LinkedList({
 }
 
 function NumberedList({ items }: { items: string[] }) {
-  if (items.length === 0) {
+  // Filter out items whose text is a bare UUID (deleted/orphan tasks)
+  const cleaned = items.filter(
+    (t) => !/^(?:(?:migrated-)?task-)?[0-9a-f]{8}-[0-9a-f]{4}-/i.test(t),
+  );
+  if (cleaned.length === 0) {
     return <p className="text-[12px] text-muted-foreground">Nothing to report</p>;
   }
   return (
     <ol className="space-y-1.5">
-      {items.slice(0, 5).map((t, i) => (
+      {cleaned.slice(0, 5).map((t, i) => (
         <li key={i} className="flex gap-2 text-[13px] text-foreground">
           <span className="font-mono text-[11px] text-muted-foreground">
             {i + 1}.
           </span>
-          <span>{t}</span>
+          <span>{shortenIfUuid(t)}</span>
         </li>
       ))}
     </ol>

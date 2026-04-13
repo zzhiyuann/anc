@@ -51,6 +51,8 @@ export interface MemberRow {
 
 interface MembersTableProps {
   rows: MemberRow[];
+  /** Map from task ID → human-readable title for the "Active task" column. */
+  taskTitles?: Map<string, string>;
   onEditPersona: (role: string) => void;
   onArchive: (role: string) => void;
   onDispatch: (role: string) => void;
@@ -61,6 +63,7 @@ type SortDir = "asc" | "desc";
 
 export function MembersTable({
   rows,
+  taskTitles,
   onEditPersona,
   onArchive,
   onDispatch,
@@ -201,9 +204,11 @@ export function MembersTable({
                     {activeTaskId ? (
                       <Link
                         href={`/tasks?task=${encodeURIComponent(activeTaskId)}`}
-                        className="font-mono text-[12px] text-foreground/90 hover:text-foreground hover:underline"
+                        className="text-[12px] text-foreground/90 hover:text-foreground hover:underline truncate max-w-[180px] inline-block"
+                        title={taskTitles?.get(activeTaskId) ?? activeTaskId}
                       >
-                        {activeTaskId}
+                        {taskTitles?.get(activeTaskId) ??
+                          activeTaskId.replace(/^task-/, "").slice(0, 8) + "..."}
                       </Link>
                     ) : (
                       <span className="text-[12px] text-muted-foreground">—</span>
