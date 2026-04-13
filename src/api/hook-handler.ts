@@ -30,13 +30,15 @@
  *        can fetch the spill file on demand.
  */
 
-import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { getDb } from '../core/db.js';
 import { bus } from '../bus.js';
 import { createLogger } from '../core/logger.js';
+import { recordSpend } from '../core/budget.js';
+import { computeCost, totalTokens, type TokenUsage } from '../core/pricing.js';
 
 const log = createLogger('hook');
 
@@ -122,7 +124,173 @@ export function processHookEvent(
     preview: buildPreview(event),
   });
 
+  // Cost ingestion: on session-end events, parse the transcript JSONL to
+  // extract token usage and write it to budget_log via recordSpend.
+  // Best-effort — failures here must not break event capture.
+  if (event.hook_event_name === 'Stop' || event.hook_event_name === 'SessionEnd') {
+    try {
+      ingestSessionCost(taskId, role, event);
+    } catch (err) {
+      log.warn(`cost ingestion failed for ${taskId}: ${(err as Error).message}`);
+    }
+  }
+
   return { ok: true, eventType, spilled };
+}
+
+/**
+ * Extract token usage from a Claude Code transcript JSONL and record spend.
+ *
+ * Strategy A (v1): on Stop/SessionEnd, read the entire transcript, sum all
+ * usage{} blocks attached to assistant messages, compute cost via the model
+ * indicated on the most recent assistant message, then call recordSpend once.
+ *
+ * Future improvement (Strategy B): incrementally tally usage on every
+ * PostToolUse using a per-session offset so partial sessions also bill.
+ */
+export function ingestSessionCost(
+  taskId: string,
+  role: string,
+  event: ClaudeHookEvent,
+): { tokens: number; cost: number; model: string | null } | null {
+  const transcriptPath =
+    (event as { transcript_path?: string }).transcript_path ??
+    (event as { transcriptPath?: string }).transcriptPath;
+  if (!transcriptPath || typeof transcriptPath !== 'string') {
+    log.debug(`no transcript_path on ${event.hook_event_name} for ${taskId}`);
+    return null;
+  }
+  if (!existsSync(transcriptPath)) {
+    log.debug(`transcript missing at ${transcriptPath}`);
+    return null;
+  }
+  // Avoid blowing memory on huge transcripts (>50 MB → skip).
+  try {
+    const sz = statSync(transcriptPath).size;
+    if (sz > 50 * 1024 * 1024) {
+      log.warn(`transcript too large (${sz} bytes) — skipping cost ingestion for ${taskId}`);
+      return null;
+    }
+  } catch { /* ignore */ }
+
+  const usage = parseTranscriptUsage(transcriptPath);
+  if (!usage) return null;
+
+  const tokens = totalTokens(usage.usage);
+  const cost = computeCost(usage.model, usage.usage);
+  if (tokens === 0 && cost === 0) {
+    log.debug(`no usage found in transcript for ${taskId}`);
+    return null;
+  }
+
+  // Resolve issue_key for the budget_log row. Hook taskId may be a task UUID
+  // or a legacy issueKey. Look up sessions table by task_id first; fall back
+  // to using taskId itself (covers the legacy single-session shape).
+  const issueKey = resolveIssueKey(taskId);
+
+  // Ensure a sessions row exists for this task so the API cost aggregator
+  // (routes.ts → buildTaskDetail) can find it. The in-memory health tracker
+  // never persists to SQLite, so without this no row exists at query time.
+  ensureSessionRow(taskId, role, issueKey);
+
+  try {
+    recordSpend(role, issueKey, tokens, cost);
+    log.info(
+      `cost ingested ${role}/${issueKey}: ${tokens} tokens, $${cost.toFixed(4)} (model=${usage.model ?? 'unknown'})`,
+    );
+  } catch (err) {
+    log.error(`recordSpend failed: ${(err as Error).message}`);
+    return null;
+  }
+
+  return { tokens, cost, model: usage.model };
+}
+
+/**
+ * Parse a Claude Code transcript JSONL file and return aggregate token usage.
+ * Each line is a JSON object; assistant entries carry a `message.usage` field.
+ * The `message.model` of the latest assistant entry is used for pricing.
+ */
+export function parseTranscriptUsage(
+  path: string,
+): { usage: TokenUsage; model: string | null } | null {
+  let raw: string;
+  try {
+    raw = readFileSync(path, 'utf8');
+  } catch (err) {
+    log.warn(`failed to read transcript ${path}: ${(err as Error).message}`);
+    return null;
+  }
+  const lines = raw.split('\n').filter(l => l.trim().length > 0);
+  const usage: TokenUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+  let model: string | null = null;
+  let found = false;
+
+  for (const line of lines) {
+    let obj: Record<string, unknown>;
+    try {
+      obj = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    // Claude Code transcripts wrap the actual API message under `.message`.
+    // The role lives either at top level or inside .message.
+    const message = (obj.message ?? obj) as Record<string, unknown>;
+    const role = (message.role ?? obj.role) as string | undefined;
+    if (role !== 'assistant') continue;
+
+    const u = message.usage as
+      | {
+          input_tokens?: number;
+          output_tokens?: number;
+          cache_read_input_tokens?: number;
+          cache_creation_input_tokens?: number;
+        }
+      | undefined;
+    if (!u) continue;
+
+    usage.input += u.input_tokens ?? 0;
+    usage.output += u.output_tokens ?? 0;
+    usage.cacheRead += u.cache_read_input_tokens ?? 0;
+    usage.cacheWrite += u.cache_creation_input_tokens ?? 0;
+    if (typeof message.model === 'string') model = message.model;
+    found = true;
+  }
+
+  if (!found) return null;
+  return { usage, model };
+}
+
+/**
+ * Persist (or upsert) a sessions row for this task so cost aggregation in
+ * routes.ts can join budget_log → sessions → task. The in-memory health
+ * tracker never writes to SQLite for the dashboard task path; without this
+ * the cost field on TaskFull stays empty even though budget_log has rows.
+ */
+function ensureSessionRow(taskId: string, role: string, issueKey: string): void {
+  try {
+    const db = getDb();
+    db.prepare(
+      `INSERT OR IGNORE INTO sessions
+         (issue_key, role, tmux_session, state, spawned_at, task_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(issueKey, role, `anc-${role}-${taskId}`, 'idle', Date.now(), taskId);
+  } catch (err) {
+    log.debug(`ensureSessionRow skipped: ${(err as Error).message}`);
+  }
+}
+
+/** Resolve an incoming hook taskId to the issue_key used in budget_log. */
+function resolveIssueKey(taskId: string): string {
+  try {
+    const row = getDb()
+      .prepare('SELECT issue_key FROM sessions WHERE task_id = ? OR issue_key = ? LIMIT 1')
+      .get(taskId, taskId) as { issue_key?: string } | undefined;
+    if (row?.issue_key) return row.issue_key;
+  } catch {
+    /* sessions table may not exist in some test DBs */
+  }
+  return taskId;
 }
 
 /** Pure: classify a Claude hook payload into a normalized ANC event type. */

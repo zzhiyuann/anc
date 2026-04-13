@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { Task } from "@/lib/types";
@@ -92,15 +93,17 @@ export function SlowTasksCard() {
         {!loading && slow.length > 0 && (
           <ul className="space-y-2">
             {slow.map((s) => (
-              <li
-                key={s.task.id}
-                className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2"
-              >
-                <p className="text-[13px] font-medium">{s.task.title}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Running for {formatRelativeTime(s.task.createdAt)} · median is{" "}
-                  {Math.round(s.medianMs / 60000)}m
-                </p>
+              <li key={s.task.id}>
+                <Link
+                  href={`/tasks/${s.task.id}`}
+                  className="block rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 transition-colors hover:bg-amber-500/10"
+                >
+                  <p className="text-[13px] font-medium">{s.task.title}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Running for {formatRelativeTime(s.task.createdAt)} · median
+                    is {Math.round(s.medianMs / 60000)}m
+                  </p>
+                </Link>
               </li>
             ))}
           </ul>
