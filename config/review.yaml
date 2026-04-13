@@ -1,0 +1,8 @@
+default: normal
+roles:
+  engineer: normal
+  strategist: normal
+  ops: lax
+  ceo-office: autonomous
+projects: {}
+overrides: {}

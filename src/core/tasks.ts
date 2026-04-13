@@ -7,6 +7,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { getDb } from './db.js';
+import { bus } from '../bus.js';
 
 export type TaskState = 'todo' | 'running' | 'review' | 'done' | 'failed' | 'canceled';
 export type TaskSource = 'dashboard' | 'linear' | 'dispatch' | 'duty';
@@ -140,6 +141,96 @@ export function setTaskState(id: string, state: TaskState, completedAt?: number)
   } else {
     getDb().prepare('UPDATE tasks SET state = ? WHERE id = ?').run(state, id);
   }
+}
+
+// --- State transitions ---
+
+/**
+ * Legal task state transitions. `done`, `failed` and `canceled` are terminal —
+ * they have no entry in this map and reject any outbound transition.
+ */
+const LEGAL_TRANSITIONS: Record<TaskState, ReadonlySet<TaskState>> = {
+  todo: new Set<TaskState>(['running', 'canceled']),
+  running: new Set<TaskState>(['review', 'done', 'failed', 'suspended' as TaskState, 'canceled']),
+  review: new Set<TaskState>(['done', 'running', 'canceled']),
+  // `suspended` is a runtime-only state not currently in the TaskState union;
+  // it is accepted here to support the documented matrix and round-trips back
+  // to `running`. Cast through unknown to keep the column free-form.
+  ['suspended' as TaskState]: new Set<TaskState>(['running', 'canceled']),
+  done: new Set<TaskState>(),
+  failed: new Set<TaskState>(),
+  canceled: new Set<TaskState>(),
+};
+
+export interface TransitionOpts {
+  /** Who initiated the transition. Defaults to "system". */
+  by?: string;
+  /** Optional free-form note recorded in the task_events payload. */
+  note?: string;
+}
+
+export interface TransitionResult {
+  task: Task;
+  from: TaskState;
+  to: TaskState;
+}
+
+/**
+ * Move a task between states with validation, event emission, and audit log.
+ * Throws on unknown task or illegal transition. Idempotent same-state
+ * transitions are also rejected — callers should check first.
+ */
+export function transitionTaskState(
+  taskId: string,
+  nextState: TaskState,
+  opts: TransitionOpts = {},
+): TransitionResult {
+  const current = getTask(taskId);
+  if (!current) {
+    throw new Error(`task not found: ${taskId}`);
+  }
+  const from = current.state;
+  if (from === nextState) {
+    throw new Error(`task ${taskId} already in state ${from}`);
+  }
+  const allowed = LEGAL_TRANSITIONS[from];
+  if (!allowed || !allowed.has(nextState)) {
+    throw new Error(
+      `illegal task transition: ${from} -> ${nextState} (task ${taskId})`,
+    );
+  }
+
+  const db = getDb();
+  const isTerminal = nextState === 'done' || nextState === 'failed' || nextState === 'canceled';
+  if (isTerminal) {
+    db.prepare('UPDATE tasks SET state = ?, completed_at = ? WHERE id = ?')
+      .run(nextState, Date.now(), taskId);
+  } else {
+    db.prepare('UPDATE tasks SET state = ? WHERE id = ?').run(nextState, taskId);
+  }
+
+  const by = opts.by ?? 'system';
+  const payload = JSON.stringify({ from, to: nextState, by, ...(opts.note ? { note: opts.note } : {}) });
+  db.prepare(
+    'INSERT INTO task_events (task_id, role, type, payload) VALUES (?, ?, ?, ?)'
+  ).run(taskId, by, 'task:state-changed', payload);
+
+  // Emit on bus. The `task:status-changed` event is added at runtime; the
+  // bus's typed surface doesn't currently list it, so we cast to escape the
+  // generic constraint without touching bus.ts.
+  type StatusChangedPayload = { taskId: string; from: TaskState; to: TaskState; by: string };
+  const emitter = bus as unknown as {
+    emit: (event: string, data: StatusChangedPayload) => Promise<void>;
+  };
+  void emitter.emit('task:status-changed', { taskId, from, to: nextState, by });
+
+  const updated = getTask(taskId)!;
+  return { task: updated, from, to: nextState };
+}
+
+/** Read-only view of the legal-transitions matrix, primarily for tests. */
+export function getLegalTransitions(state: TaskState): TaskState[] {
+  return Array.from(LEGAL_TRANSITIONS[state] ?? []);
 }
 
 export function getTaskChildren(parentId: string): Task[] {

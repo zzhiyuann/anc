@@ -271,6 +271,17 @@ program
     await planCommand(issueKey, summary);
   });
 
+// --- Task self-management (run inside agent tmux sessions) ---
+const task = program.command('task').description('Task lifecycle commands');
+task
+  .command('status <taskId> <state>')
+  .description('Update task state (todo|running|review|done|failed|suspended|canceled)')
+  .option('-n, --note <note>', 'Optional note recorded in the audit log')
+  .action(async (taskId: string, state: string, opts: { note?: string }) => {
+    const { taskStatusCommand } = await import('./commands/sdk.js');
+    await taskStatusCommand(taskId, state, opts.note);
+  });
+
 // --- Company ---
 const company = program.command('company').description('Fleet-level management');
 

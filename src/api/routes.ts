@@ -22,7 +22,12 @@ import { createLogger } from '../core/logger.js';
 import type { AgentRole } from '../linear/types.js';
 import {
   getTask, listTasks, createTask, getTaskChildren, updateTask, deleteTask,
+  transitionTaskState, type TaskState,
 } from '../core/tasks.js';
+import {
+  loadReviewConfig, saveReviewConfig, resetReviewConfig, resolveReviewLevel,
+  type ReviewLevel, type ReviewConfigPatch,
+} from '../core/review.js';
 import {
   createProject, getProject, listProjects, updateProject,
   archiveProject, getProjectStats,
@@ -850,6 +855,227 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
 
     // Mark unused to silence TS when only a subset of helpers is used.
     void createNotification;
+
+    // === Wave E: Task self-managed status transitions ===
+
+    m = matchRoute('/tasks/:id/status', path);
+    if (method === 'PATCH' && m) {
+      if (!ENTITY_ID_REGEX.test(m.params.id)) {
+        error(res, 'Invalid task id', 400);
+        return true;
+      }
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      const state = body.state;
+      const note = body.note;
+      const VALID_STATES = ['todo', 'running', 'review', 'done', 'failed', 'canceled', 'suspended'];
+      if (typeof state !== 'string' || !VALID_STATES.includes(state)) {
+        error(res, `state must be one of: ${VALID_STATES.join(', ')}`, 400);
+        return true;
+      }
+      if (note !== undefined && typeof note !== 'string') {
+        error(res, 'note must be a string', 400);
+        return true;
+      }
+      try {
+        const result = transitionTaskState(m.params.id, state as TaskState, {
+          by: 'api',
+          ...(note ? { note } : {}),
+        });
+        json(res, { task: result.task, from: result.from, to: result.to });
+      } catch (e) {
+        const msg = (e as Error).message;
+        const status = msg.startsWith('task not found') ? 404
+          : msg.startsWith('illegal task transition') || msg.includes('already in state') ? 409
+          : 400;
+        error(res, msg, status);
+      }
+      return true;
+    }
+
+    // === Wave E: Review-strictness configuration ===
+
+    if (method === 'GET' && path === '/config/review') {
+      const config = loadReviewConfig();
+      json(res, { config, resolvedDefault: config.default });
+      return true;
+    }
+
+    if (method === 'PATCH' && path === '/config/review') {
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      const ALLOWED_KEYS = new Set(['default', 'roles', 'projects', 'overrides']);
+      for (const k of Object.keys(body)) {
+        if (!ALLOWED_KEYS.has(k)) { error(res, `unknown key: ${k}`, 400); return true; }
+      }
+      try {
+        const updated = saveReviewConfig(body as ReviewConfigPatch);
+        json(res, { config: updated });
+      } catch (e) {
+        error(res, (e as Error).message, 400);
+      }
+      return true;
+    }
+
+    if (method === 'POST' && path === '/config/review/reset') {
+      const config = resetReviewConfig();
+      json(res, { config });
+      return true;
+    }
+
+    // Silence unused-import warnings for helpers exported for tests/SDK.
+    void resolveReviewLevel; void (null as unknown as ReviewLevel);
+
+    // === Wave E: Cross-agent helper wiring ===
+
+    // Agent C: agent role CRUD (config/agents.yaml)
+    if (method === 'POST' && path === '/agents/roles') {
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      try {
+        const { createRole } = await import('../core/agent-roles.js');
+        const role = await createRole(body as unknown as Parameters<typeof createRole>[0]);
+        json(res, { role }, 201);
+      } catch (e) {
+        error(res, (e as Error).message, 400);
+      }
+      return true;
+    }
+
+    m = matchRoute('/agents/roles/:role', path);
+    if (method === 'DELETE' && m) {
+      try {
+        const { archiveRole } = await import('../core/agent-roles.js');
+        const ok = await archiveRole(m.params.role);
+        json(res, { ok });
+      } catch (e) {
+        error(res, (e as Error).message, 400);
+      }
+      return true;
+    }
+
+    // Agent C: persona file CRUD
+    m = matchRoute('/personas/:role', path);
+    if (method === 'GET' && m) {
+      try {
+        const { readPersona } = await import('../core/personas.js');
+        const body = await readPersona(m.params.role);
+        json(res, { role: m.params.role, body });
+      } catch (e) {
+        const msg = (e as Error).message;
+        const status = msg.includes('ENOENT') ? 404 : 400;
+        error(res, msg, status);
+      }
+      return true;
+    }
+    if (method === 'PATCH' && m) {
+      const body = parseJson(await readBody(req));
+      if (!body || typeof body.body !== 'string') {
+        error(res, 'body (string) required', 400);
+        return true;
+      }
+      try {
+        const { writePersona } = await import('../core/personas.js');
+        await writePersona(m.params.role, body.body);
+        json(res, { ok: true });
+      } catch (e) {
+        error(res, (e as Error).message, 400);
+      }
+      return true;
+    }
+
+    // Agent C: persona tuner — analyze + per-role suggestions
+    m = matchRoute('/personas/:role/suggest', path);
+    if (method === 'POST' && m) {
+      try {
+        const { analyzeScopes } = await import('../core/persona-tuner.js');
+        const all = await analyzeScopes();
+        const filtered = all.filter(s => s.affectedRoles.includes(m!.params.role));
+        json(res, { suggestions: filtered });
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+    if (method === 'POST' && path === '/personas/analyze') {
+      try {
+        const { analyzeScopes } = await import('../core/persona-tuner.js');
+        const suggestions = await analyzeScopes();
+        json(res, { suggestions });
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+
+    // Agent F: objectives
+    if (method === 'GET' && path === '/objectives') {
+      try {
+        const { listObjectives } = await import('../core/objectives.js');
+        const quarter = url.searchParams.get('quarter') ?? undefined;
+        json(res, { objectives: listObjectives(quarter) });
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+    if (method === 'POST' && path === '/objectives') {
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      try {
+        const { createObjective } = await import('../core/objectives.js');
+        const obj = createObjective(body as unknown as Parameters<typeof createObjective>[0]);
+        json(res, { objective: obj }, 201);
+      } catch (e) {
+        error(res, (e as Error).message, 400);
+      }
+      return true;
+    }
+
+    // Agent F: decisions
+    if (method === 'GET' && path === '/decisions') {
+      try {
+        const { listDecisions } = await import('../core/decisions.js');
+        const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
+        json(res, { decisions: listDecisions({ limit: Number.isNaN(limit) ? 50 : limit }) });
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+    if (method === 'POST' && path === '/decisions') {
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      try {
+        const { createDecision } = await import('../core/decisions.js');
+        const dec = createDecision(body as unknown as Parameters<typeof createDecision>[0]);
+        json(res, { decision: dec }, 201);
+      } catch (e) {
+        error(res, (e as Error).message, 400);
+      }
+      return true;
+    }
+
+    // Agent F: kill-switch
+    if (method === 'POST' && path === '/kill-switch') {
+      const body = parseJson(await readBody(req)) ?? {};
+      try {
+        const ks = await import('../core/kill-switch.js');
+        const action = body.action;
+        if (action === 'pause') {
+          json(res, ks.pauseAll());
+        } else if (action === 'resume') {
+          json(res, ks.resume());
+        } else if (action === 'status') {
+          json(res, { paused: ks.isGlobalPaused() });
+        } else {
+          error(res, 'action must be one of: pause, resume, status', 400);
+        }
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
 
     // No match
     return false;

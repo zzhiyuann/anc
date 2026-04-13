@@ -191,6 +191,37 @@ export async function searchCommand(term: string): Promise<void> {
   }
 }
 
+/**
+ * Update task state via the local ANC API. Called by agents at lifecycle
+ * transitions (spawn → running, handoff → review/done, error → failed,
+ * suspend → suspended). Bypasses Linear — talks directly to the gateway
+ * because state is local to ANC.
+ */
+export async function taskStatusCommand(
+  taskId: string,
+  state: string,
+  note?: string,
+): Promise<void> {
+  if (!taskId || !state) {
+    throw new Error('Usage: anc task status <taskId> <state> [--note "..."]');
+  }
+  const port = process.env.ANC_API_PORT ?? '3849';
+  const base = process.env.ANC_API_BASE ?? `http://127.0.0.1:${port}`;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = process.env.ANC_API_TOKEN;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${base}/api/v1/tasks/${encodeURIComponent(taskId)}/status`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ state, ...(note ? { note } : {}) }),
+  });
+  const body = await res.text();
+  if (!res.ok) {
+    throw new Error(`task status update failed (${res.status}): ${body}`);
+  }
+  console.log(`✓ Task ${taskId} → ${state}`);
+}
+
 export async function planCommand(issueKey: string | undefined, summary: string): Promise<void> {
   const key = getIssueKey(issueKey);
   const role = getAgentRole();
