@@ -52,6 +52,7 @@ function formatMessage(level: LogLevel, component: string, message: string, ctx?
 export interface LogContext {
   role?: string;
   issueKey?: string;
+  taskId?: string;
 }
 
 class Logger {

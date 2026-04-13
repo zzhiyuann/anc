@@ -406,14 +406,31 @@ export async function checkActiveCompletion(
   const stopHookActive = (event as { stop_hook_active?: boolean }).stop_hook_active;
   if (stopHookActive === true) return;
 
-  // Resolve the workspace and session for this task
-  // taskId from hooks may be a task UUID or issueKey — resolve both ways
-  const session = getSessionForIssue(taskId);
-  const issueKey = session?.issueKey ?? taskId;
+  // Resolve the workspace and session for this task.
+  // taskId from hooks is the task UUID. For API-created tasks, the session is
+  // tracked using the task UUID as issueKey. For Linear tasks, we also try
+  // resolving via the sessions table.
+  let session = getSessionForIssue(taskId);
+  let issueKey = session?.issueKey ?? taskId;
+
+  // If no session found by taskId directly, scan tracked sessions for one
+  // whose taskId property matches (handles dispatch paths where issueKey differs).
+  if (!session) {
+    const all = getTrackedSessions();
+    const match = all.find(s => s.taskId === taskId);
+    if (match) {
+      session = match;
+      issueKey = match.issueKey;
+    }
+  }
+
+  log.debug(`checkActiveCompletion: taskId=${taskId}, issueKey=${issueKey}, session=${session ? 'found' : 'none'}`, { taskId, issueKey });
+
   let workspace: string;
   try {
     workspace = getWorkspacePath(issueKey);
   } catch {
+    log.debug(`checkActiveCompletion: no workspace for ${issueKey}`, { issueKey });
     return; // no workspace → nothing to check
   }
 

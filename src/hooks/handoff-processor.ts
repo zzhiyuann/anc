@@ -325,21 +325,23 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
 
         // Resolve session using Linear key if available, otherwise the ANC task ID
         const sessionKey = subKey ?? childTask.id;
-        resolveSession({ role: dispatch.role, issueKey: sessionKey, prompt: dispatch.context, priority: dispatch.priority });
+        resolveSession({ role: dispatch.role, issueKey: sessionKey, prompt: dispatch.context, priority: dispatch.priority, taskId: childTask.id });
       } catch (err) {
         log.error(`Failed to create child task for dispatch: ${(err as Error).message}`, { issueKey });
       }
     }
   }
 
-  // Set status on Linear — best-effort (may fail without OAuth)
-  let statusChanged = false;
+  // Set status on Linear — best-effort (may fail without OAuth; must NOT block ANC lifecycle)
   try {
     const issue = await getIssue(issueKey);
     if (issue) {
-      statusChanged = await setIssueStatus(issue.id, newStatus, role);
-      if (actions?.delegate && statusChanged) {
+      const linearOk = await setIssueStatus(issue.id, newStatus, role);
+      if (linearOk && actions?.delegate) {
         log.debug(`Delegate → ${actions.delegate}`, { issueKey });
+      }
+      if (!linearOk) {
+        log.warn(`${issueKey}: Linear status change failed (non-blocking)`, { issueKey });
       }
     }
   } catch (err) {
@@ -347,7 +349,7 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
   }
 
   // Set parent status if specified (Linear — best-effort)
-  if (actions?.parentStatus && statusChanged) {
+  if (actions?.parentStatus) {
     try {
       const parentIssueObj = await getIssue(issueKey);
       const parentLinearIssue = parentIssueObj?.parentId ? await getIssue(parentIssueObj.parentId) : null;
@@ -356,11 +358,6 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
         log.info(`Parent ${parentLinearIssue.identifier} → ${actions.parentStatus}`, { issueKey });
       }
     } catch { /**/ }
-  }
-
-  if (!statusChanged) {
-    log.warn(`${issueKey}: status change failed, will retry next tick`);
-    return false;
   }
 
   // Cooldown: prevent rapid-fire re-dispatch after completion (30s per-task)
@@ -387,7 +384,8 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
     markIdle(issueKey);
   }
 
-  // Set the parent task state based on the decided Linear status.
+  // Set the ANC task state + write handoffSummary to the task record.
+  // This MUST happen regardless of Linear status — ANC is the primary system.
   if (parentTaskId) {
     try {
       const taskState =
@@ -395,9 +393,15 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
         : newStatus === 'In Review' ? 'review'
         : 'failed';
       setTaskState(parentTaskId, taskState, Date.now());
+
+      // Fix 5: write handoffSummary to the task record so GET /tasks/:id returns it
+      const handoffSummaryText = summary.substring(0, 2000);
+      updateTask(parentTaskId, { handoffSummary: handoffSummaryText });
+      log.info(`${issueKey}: wrote handoffSummary to task ${parentTaskId} (${handoffSummaryText.length} chars)`, { issueKey });
+
       void bus.emit('task:completed', {
         taskId: parentTaskId,
-        handoffSummary: summary.substring(0, 2000),
+        handoffSummary: handoffSummaryText,
       });
     } catch (err) {
       log.warn(`failed to set task state: ${(err as Error).message}`);

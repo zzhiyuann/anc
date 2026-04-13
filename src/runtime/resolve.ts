@@ -19,6 +19,7 @@ import { enqueue, isInCooldown } from '../routing/queue.js';
 import { spawnClaude, suspendSession, sessionExists, sendToAgent } from './runner.js';
 import { canSpend, estimateCost } from '../core/budget.js';
 import { isGlobalPaused } from '../core/kill-switch.js';
+import { setTaskState, getTask } from '../core/tasks.js';
 
 const log = createLogger('resolve');
 
@@ -71,6 +72,22 @@ export interface ResolveResult {
   error?: string;
 }
 
+// --- Task state helper ---
+
+/** Set task to "running" if it exists and is in a state that allows the transition. */
+function setTaskRunning(taskId: string | undefined): void {
+  if (!taskId) return;
+  try {
+    const task = getTask(taskId);
+    if (task && (task.state === 'todo' || task.state === 'suspended')) {
+      setTaskState(taskId, 'running');
+      log.debug(`Task ${taskId}: state → running`, { taskId });
+    }
+  } catch (err) {
+    log.warn(`Failed to set task running: ${(err as Error).message}`, { taskId });
+  }
+}
+
 // --- The Universal Gate ---
 
 /**
@@ -119,6 +136,7 @@ export function resolveSession(opts: {
   // 2. ACTIVE session → pipe message to it
   if (existing?.state === 'active' && sessionExists(existing.tmuxSession)) {
     if (prompt) sendToAgent(existing.tmuxSession, prompt);
+    setTaskRunning(taskId);
     return { action: 'piped', tmuxSession: existing.tmuxSession };
   }
 
@@ -128,6 +146,7 @@ export function resolveSession(opts: {
     const result = spawnClaude({ role, issueKey, prompt, useContinue: true, ceoAssigned, priority, taskId });
     if (result.success) {
       markActiveFromIdle(issueKey, tmux);
+      setTaskRunning(taskId);
       bus.emit('agent:resumed', { role, issueKey, tmuxSession: tmux });
       recordSuccess(issueKey);
       return { action: 'resumed', tmuxSession: tmux };
@@ -150,6 +169,7 @@ export function resolveSession(opts: {
     const result = spawnClaude({ role, issueKey, prompt: resumePrompt, useContinue: true, ceoAssigned, priority, taskId });
     if (result.success) {
       markResumed(issueKey, tmux);
+      setTaskRunning(taskId);
       bus.emit('agent:resumed', { role, issueKey, tmuxSession: tmux });
       recordSuccess(issueKey);
       return { action: 'resumed', tmuxSession: tmux };
@@ -194,6 +214,7 @@ export function resolveSession(opts: {
   const workspaceExists = existsSync(join(getWorkspacePath(issueKey), '.claude'));
   const result = spawnClaude({ role, issueKey, prompt, useContinue: workspaceExists, ceoAssigned, priority, isDuty, taskId });
   if (result.success) {
+    setTaskRunning(taskId);
     recordSuccess(issueKey);
     return { action: 'spawned', tmuxSession: result.tmuxSession };
   }
