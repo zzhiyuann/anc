@@ -265,7 +265,7 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
   const parentTaskId = resolveTaskIdFromIssueKey(issueKey);
   const parentTask = parentTaskId ? getTask(parentTaskId) : null;
 
-  // Execute dispatches — each creates a sub-issue (one issue = one agent)
+  // Execute dispatches — each creates a sub-task (and optionally a Linear sub-issue)
   if (actions?.dispatches && actions.dispatches.length > 0) {
     const previousContext = summary.length > 500
       ? summary.substring(0, 500) + '...'
@@ -275,31 +275,40 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
       const subTitle = dispatch.newIssue || `${dispatch.role}: follow-up on ${issueKey}`;
       const subDesc = `Previous agent (${role}) completed their phase:\n\n${previousContext}\n\n---\n\n${dispatch.context}`;
 
-      const subKey = await createSubIssue(issueKey, subTitle, subDesc, dispatch.priority ?? 3, dispatch.role);
-      if (subKey) {
-        log.info(`Created sub-issue ${subKey} → ${dispatch.role}`, { issueKey });
+      // Try creating a Linear sub-issue (best-effort — may fail without OAuth)
+      let subKey: string | null = null;
+      try {
+        subKey = await createSubIssue(issueKey, subTitle, subDesc, dispatch.priority ?? 3, dispatch.role);
+        if (subKey) log.info(`Created Linear sub-issue ${subKey} → ${dispatch.role}`, { issueKey });
+      } catch (err) {
+        log.warn(`Linear sub-issue creation failed (non-blocking): ${(err as Error).message}`, { issueKey });
+      }
 
-        try {
-          const childTask = createTask({
-            title: subTitle,
-            description: dispatch.context,
-            priority: dispatch.priority ?? 3,
-            source: 'dispatch',
-            projectId: parentTask?.projectId ?? null,
-            parentTaskId: parentTaskId ?? null,
-            linearIssueKey: subKey,
-            createdBy: role,
-          });
-          void bus.emit('task:dispatched', {
-            taskId: childTask.id,
-            role: dispatch.role,
-            parentTaskId: parentTaskId ?? null,
-          });
-        } catch (err) {
-          log.warn(`failed to create child task: ${(err as Error).message}`);
-        }
+      // Always create a local ANC task — this is the primary dispatch mechanism
+      try {
+        const childTask = createTask({
+          title: subTitle,
+          description: dispatch.context,
+          priority: dispatch.priority ?? 3,
+          source: 'dispatch',
+          projectId: parentTask?.projectId ?? null,
+          parentTaskId: parentTaskId ?? null,
+          linearIssueKey: subKey ?? undefined,
+          createdBy: role,
+        });
+        log.info(`Created ANC sub-task ${childTask.id} → ${dispatch.role}`, { issueKey });
 
-        resolveSession({ role: dispatch.role, issueKey: subKey, prompt: dispatch.context, priority: dispatch.priority });
+        void bus.emit('task:dispatched', {
+          taskId: childTask.id,
+          role: dispatch.role,
+          parentTaskId: parentTaskId ?? null,
+        });
+
+        // Resolve session using Linear key if available, otherwise the ANC task ID
+        const sessionKey = subKey ?? childTask.id;
+        resolveSession({ role: dispatch.role, issueKey: sessionKey, prompt: dispatch.context, priority: dispatch.priority });
+      } catch (err) {
+        log.error(`Failed to create child task for dispatch: ${(err as Error).message}`, { issueKey });
       }
     }
   }

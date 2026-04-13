@@ -145,57 +145,80 @@ export async function createSubCommand(
   description: string,
 ): Promise<void> {
   const key = getIssueKey(parentKey);
-  const parentId = await resolveIssueId(key);
+  const parentTaskId = process.env.ANC_TASK_ID ?? null;
+  const role = process.env.AGENT_ROLE ? `agent:${process.env.AGENT_ROLE}` : 'ceo';
 
-  // Get team ID from parent issue
-  const parentData = await gql(
-    `query($id: String!) { issue(id: $id) { team { id } } }`,
-    { id: parentId },
-  );
-  const teamId = ((parentData as { issue: { team: { id: string } } }).issue).team.id;
-
-  // Get Todo state for this team
-  const teamData = await gql(
-    `query($id: String!) { team(id: $id) { states { nodes { id name } } } }`,
-    { id: teamId },
-  );
-  const states = (teamData as { team: { states: { nodes: Array<{ id: string; name: string }> } } }).team.states.nodes;
-  const todoState = states.find(s => s.name === 'Todo');
-
-  const input: Record<string, unknown> = {
-    teamId,
-    title,
-    description,
-    parentId,
-    ...(todoState ? { stateId: todoState.id } : {}),
-  };
-
-  const data = await gql(
-    `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }`,
-    { input },
-  );
-  const created = (data as { issueCreate: { issue: { identifier: string; url: string } } }).issueCreate.issue;
-
-  // Also create a local ANC task with parentTaskId linkage
+  // Try local ANC API first (no Linear OAuth needed)
   let ancTaskId: string | undefined;
   try {
-    const taskId = process.env.ANC_TASK_ID;
     const result = await ancApi('POST', '/tasks', {
       title,
       description,
-      parentTaskId: taskId ?? null,
-      linearIssueKey: created.identifier,
+      parentTaskId,
       source: 'dispatch',
-      createdBy: process.env.AGENT_ROLE ? `agent:${process.env.AGENT_ROLE}` : 'ceo',
+      createdBy: role,
+      priority: 3,
     });
     if (result.ok && result.data.id) {
       ancTaskId = result.data.id as string;
     }
   } catch {
-    // Local API may not be running — Linear issue is still created
+    // Local API may not be running — will try Linear below
   }
 
-  console.log(`✓ Created ${created.identifier}: ${title}${ancTaskId ? ` (ANC: ${ancTaskId})` : ''}`);
+  // Try Linear as well (best-effort — may fail without OAuth)
+  let linearKey: string | undefined;
+  try {
+    const parentId = await resolveIssueId(key);
+
+    // Get team ID from parent issue
+    const parentData = await gql(
+      `query($id: String!) { issue(id: $id) { team { id } } }`,
+      { id: parentId },
+    );
+    const teamId = ((parentData as { issue: { team: { id: string } } }).issue).team.id;
+
+    // Get Todo state for this team
+    const teamData = await gql(
+      `query($id: String!) { team(id: $id) { states { nodes { id name } } } }`,
+      { id: teamId },
+    );
+    const states = (teamData as { team: { states: { nodes: Array<{ id: string; name: string }> } } }).team.states.nodes;
+    const todoState = states.find(s => s.name === 'Todo');
+
+    const input: Record<string, unknown> = {
+      teamId,
+      title,
+      description,
+      parentId,
+      ...(todoState ? { stateId: todoState.id } : {}),
+    };
+
+    const data = await gql(
+      `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }`,
+      { input },
+    );
+    const created = (data as { issueCreate: { issue: { identifier: string; url: string } } }).issueCreate.issue;
+    linearKey = created.identifier;
+
+    // Link Linear key to ANC task if both were created
+    if (ancTaskId && linearKey) {
+      try {
+        await ancApi('PATCH', `/tasks/${encodeURIComponent(ancTaskId)}`, {
+          linearIssueKey: linearKey,
+        });
+      } catch { /**/ }
+    }
+  } catch {
+    // Linear not configured — local ANC task is sufficient
+  }
+
+  if (!ancTaskId && !linearKey) {
+    throw new Error('Failed to create sub-task: both local API and Linear are unavailable.');
+  }
+
+  const identifier = linearKey ?? ancTaskId!;
+  console.log(`✓ Created ${identifier}: ${title}${ancTaskId ? ` (ANC: ${ancTaskId})` : ''}${linearKey ? ` (Linear: ${linearKey})` : ''}`);
 }
 
 export async function searchCommand(term: string): Promise<void> {
