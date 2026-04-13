@@ -26,6 +26,7 @@ const LOGGED_EVENTS = [
   'task:dispatched',
   'task:completed',
   'system:budget-alert',
+  'task:quality-score',
 ] as const;
 
 function logEvent(type: string, data: unknown): void {

@@ -48,18 +48,105 @@ const hasContent: QualityCheck = (h) => ({
   warning: '`HANDOFF.md` is too short',
 });
 
+const hasSummarySection: QualityCheck = (h) => ({
+  pass: /^## Summary/m.test(h),
+  warning: 'Your `HANDOFF.md` is missing a `## Summary` section. Please add a summary of what you did.',
+});
+
+const hasVerificationSection: QualityCheck = (h) => ({
+  pass: /^## Verification/m.test(h),
+  warning: 'Your `HANDOFF.md` is missing a `## Verification` section. Please add what you tested/verified before delivery.',
+});
+
+const hasVerificationEvidence: QualityCheck = (h) => {
+  const section = extractVerificationSection(h);
+  if (!section) return { pass: false, warning: 'No verification evidence in `HANDOFF.md`' };
+  // Concrete evidence: command outputs (backtick blocks, $ prompts), numbers, file paths, HTTP status codes
+  const hasCommandOutput = /(`[^`]+`|^\$\s+|```[\s\S]*?```)/m.test(section);
+  const hasNumbers = /\b\d+\s*(tests?|passing|failed|lines?|files?|bytes?|ms|seconds?|%|errors?)\b/i.test(section);
+  const hasFilePaths = /[\w/-]+\.(ts|js|py|md|json|yaml|yml|html|css|sh)\b/.test(section);
+  const hasHttpCodes = /\b(200|201|204|301|302|400|401|403|404|500)\b/.test(section);
+  const hasConcrete = hasCommandOutput || hasNumbers || hasFilePaths || hasHttpCodes;
+  return {
+    pass: hasConcrete,
+    warning: hasConcrete ? undefined : 'Verification section lacks concrete evidence (command outputs, test results, file paths, or measurements). Please add specifics.',
+  };
+};
+
+/** Extract the content of the ## Verification section. */
+function extractVerificationSection(handoff: string): string | null {
+  const marker = '## Verification';
+  const idx = handoff.indexOf(marker);
+  if (idx === -1) return null;
+  const start = idx + marker.length;
+  // Find next ## header or end of string
+  const rest = handoff.slice(start);
+  const nextHeader = rest.search(/^## /m);
+  // nextHeader === 0 means the very first char is '## ' which shouldn't happen after slicing past marker
+  const section = nextHeader > 0 ? rest.slice(0, nextHeader) : rest;
+  return section.trim();
+}
+
 const hasVerification: QualityCheck = (h) => ({
   pass: /\b(pass|verified|confirmed|fixed|resolved|works|tested|green)\b/i.test(h),
   warning: 'No verification evidence in `HANDOFF.md`',
 });
 
 const GATES: Record<TaskType, QualityCheck[]> = {
-  code: [hasContent, hasVerification],
-  strategy: [hasContent],
-  research: [hasContent],
-  ops: [hasContent],
+  code: [hasContent, hasSummarySection, hasVerificationSection, hasVerificationEvidence, hasVerification],
+  strategy: [hasContent, hasSummarySection],
+  research: [hasContent, hasSummarySection],
+  ops: [hasContent, hasSummarySection, hasVerificationSection],
   trivial: [],
 };
+
+// --- Quality scoring ---
+
+export interface QualityScore {
+  total: number;
+  breakdown: {
+    hasSummary: number;
+    hasVerification: number;
+    verificationEvidence: number;
+    mentionsFiles: number;
+    reasonableLength: number;
+  };
+}
+
+/**
+ * Compute a 0-100 quality score for a HANDOFF.md.
+ *   - Has ## Summary section: 20pts
+ *   - Has ## Verification section: 30pts
+ *   - Verification has concrete evidence: 20pts
+ *   - Mentions files changed: 15pts
+ *   - Reasonable length (>200 chars): 15pts
+ */
+export function computeQualityScore(handoff: string): QualityScore {
+  const hasSummary = /^## Summary/m.test(handoff) ? 20 : 0;
+  const hasVerif = /^## Verification/m.test(handoff) ? 30 : 0;
+
+  let verifEvidence = 0;
+  if (hasVerif) {
+    const section = extractVerificationSection(handoff) ?? '';
+    const hasCmd = /(`[^`]+`|^\$\s+|```[\s\S]*?```)/m.test(section);
+    const hasNums = /\b\d+\s*(tests?|passing|failed|lines?|files?|bytes?|ms|seconds?|%|errors?)\b/i.test(section);
+    if (hasCmd || hasNums) verifEvidence = 20;
+  }
+
+  const mentionsFiles = /[\w/-]+\.(ts|js|py|md|json|yaml|yml|html|css|sh)\b/.test(handoff) ? 15 : 0;
+  const reasonableLength = handoff.trim().length > 200 ? 15 : 0;
+
+  return {
+    total: hasSummary + hasVerif + verifEvidence + mentionsFiles + reasonableLength,
+    breakdown: {
+      hasSummary,
+      hasVerification: hasVerif,
+      verificationEvidence: verifEvidence,
+      mentionsFiles,
+      reasonableLength,
+    },
+  };
+}
 
 function decideStatus(taskType: TaskType, handoff: string): IssueStatus {
   if (taskType === 'trivial' && /\b(pass|fixed|done|resolved|verified)\b/i.test(handoff)) return 'Done';
@@ -112,6 +199,25 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
   for (const check of checks) {
     const result = check(handoff);
     if (!result.pass && result.warning) warnings.push(result.warning);
+  }
+
+  // Quality score
+  const qualityScore = computeQualityScore(handoff);
+  log.info(`${issueKey}: quality score ${qualityScore.total}/100`, { issueKey, role });
+
+  // Emit quality score event for task_events logging
+  const scoreTaskId = resolveTaskIdFromIssueKey(issueKey);
+  if (scoreTaskId) {
+    void bus.emit('task:quality-score' as keyof import('../bus.js').AncEvents, {
+      taskId: scoreTaskId,
+      role,
+      score: qualityScore.total,
+      breakdown: qualityScore.breakdown,
+    } as never);
+  }
+
+  if (qualityScore.total < 50) {
+    warnings.push(`Quality score ${qualityScore.total}/100 is below threshold. Please improve your HANDOFF.md with concrete verification evidence, file references, and a clear summary.`);
   }
 
   // Memory validation
