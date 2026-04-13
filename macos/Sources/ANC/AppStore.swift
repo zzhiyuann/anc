@@ -524,6 +524,16 @@ final class AppStore: ObservableObject {
         struct PatchBody: Encodable {
             let maxConcurrency: Int?
             let dutySlots: Int?
+
+            enum CodingKeys: String, CodingKey {
+                case maxConcurrency, dutySlots
+            }
+
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                if let v = maxConcurrency { try container.encode(v, forKey: .maxConcurrency) }
+                if let v = dutySlots { try container.encode(v, forKey: .dutySlots) }
+            }
         }
         do {
             let _: OkResponse = try await api.patch("agents/roles/\(role)", body: PatchBody(maxConcurrency: maxConcurrency, dutySlots: dutySlots))

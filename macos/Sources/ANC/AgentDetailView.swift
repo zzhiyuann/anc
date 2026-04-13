@@ -167,7 +167,8 @@ struct AgentDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("Persona")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.ancMuted)
                     Spacer()
                     if !personaEdit {
                         Button("Edit") {
@@ -254,17 +255,21 @@ struct AgentDetailView: View {
 
             // Message input
             HStack(spacing: 8) {
-                TextField("Send message to agent...", text: $messageText)
+                let hasActiveTask = store.tasks.contains(where: { $0.assignee == role && $0.state == .running })
+                TextField(hasActiveTask ? "Send message to agent..." : "No active task to send message to", text: $messageText)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12))
                 Button("Send") {
                     let msg = messageText
                     messageText = ""
-                    Task { await store.dispatch(role: role, taskId: nil, message: msg) }
+                    // Find an active task assigned to this agent to dispatch the message
+                    let activeTask = store.tasks.first(where: { $0.assignee == role && $0.state == .running })
+                    Task { await store.dispatch(role: role, taskId: activeTask?.id, message: msg) }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-                .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty
+                    || !store.tasks.contains(where: { $0.assignee == role && $0.state == .running }))
             }
             .padding(10)
         }
@@ -423,7 +428,8 @@ struct AgentDetailView: View {
             if !store.budgetSeries.isEmpty {
                 // Sparkline
                 Text("Cost (14 days)")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.ancMuted)
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
 

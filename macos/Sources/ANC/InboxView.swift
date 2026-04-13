@@ -63,7 +63,7 @@ struct InboxView: View {
                     }
                     .buttonStyle(.borderless)
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 14)
                 .padding(.vertical, 10)
 
                 // Filter tabs
@@ -84,7 +84,7 @@ struct InboxView: View {
                     }
                     Spacer()
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 14)
                 .padding(.bottom, 4)
 
                 Divider()

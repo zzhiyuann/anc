@@ -998,15 +998,44 @@ struct CreateObjectivePayload: Encodable {
 struct PatchBudgetPayload: Encodable {
     let daily: PatchBudgetLimit?
     let agents: [String: PatchBudgetLimit]?
+
+    enum CodingKeys: String, CodingKey {
+        case daily, agents
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let v = daily { try container.encode(v, forKey: .daily) }
+        if let v = agents { try container.encode(v, forKey: .agents) }
+    }
 }
 
 struct PatchBudgetLimit: Encodable {
     let limit: Double?
     let alertAt: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case limit, alertAt
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let v = limit { try container.encode(v, forKey: .limit) }
+        if let v = alertAt { try container.encode(v, forKey: .alertAt) }
+    }
 }
 
 struct PatchReviewPayload: Encodable {
     let roles: [String: String]?
+
+    enum CodingKeys: String, CodingKey {
+        case roles
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let v = roles { try container.encode(v, forKey: .roles) }
+    }
 }
 
 // MARK: - Dispatch Payload

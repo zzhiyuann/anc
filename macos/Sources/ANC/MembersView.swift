@@ -72,11 +72,11 @@ struct MembersView: View {
                     .frame(minWidth: 100, alignment: .leading)
                 Spacer()
                 Text("Status")
-                    .frame(width: 60)
+                    .frame(width: 64, alignment: .center)
                 Text("Active Task")
-                    .frame(maxWidth: 120)
+                    .frame(maxWidth: 120, alignment: .leading)
                 Text("Sessions")
-                    .frame(width: 50)
+                    .frame(width: 50, alignment: .center)
                 Text("Done 7d")
                     .frame(width: 40, alignment: .trailing)
             }
@@ -188,7 +188,7 @@ struct AgentRowView: View {
             Text("\(doneLast7d)")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundColor(doneLast7d > 0 ? .green : .ancMuted)
-                .frame(width: 30, alignment: .trailing)
+                .frame(width: 40, alignment: .trailing)
                 .help("Done last 7 days")
         }
         .padding(.vertical, 4)
@@ -209,6 +209,7 @@ struct AgentRowView: View {
             .background(color.opacity(0.15))
             .foregroundColor(color)
             .clipShape(Capsule())
+            .frame(width: 64)
     }
 
     private var statusInfo: (String, Color) {

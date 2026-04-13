@@ -223,66 +223,108 @@ struct ProjectRowView: View {
     let project: ProjectWithStats
 
     var body: some View {
-        HStack(spacing: 10) {
-            // Color dot
-            Circle()
-                .fill(projectColor)
-                .frame(width: 10, height: 10)
-
-            // Name
-            VStack(alignment: .leading, spacing: 1) {
-                Text(project.name)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(1)
-                if let desc = project.description, !desc.isEmpty {
-                    Text(desc)
-                        .font(.system(size: 11))
-                        .foregroundColor(.ancMuted)
+        HStack(spacing: 0) {
+            // Name (with color dot)
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(projectColor)
+                    .frame(width: 10, height: 10)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(project.name)
+                        .font(.system(size: 13, weight: .medium))
                         .lineLimit(1)
+                    if let desc = project.description, !desc.isEmpty {
+                        Text(desc)
+                            .font(.system(size: 11))
+                            .foregroundColor(.ancMuted)
+                            .lineLimit(1)
+                    }
                 }
             }
-            .frame(minWidth: 120, alignment: .leading)
+            .frame(minWidth: 140, alignment: .leading)
 
-            Spacer()
-
-            // Health pill
-            if let health = project.health {
-                healthPill(health)
+            // Health
+            Group {
+                if let health = project.health {
+                    healthPill(health)
+                } else {
+                    Text("--")
+                        .font(.system(size: 10))
+                        .foregroundColor(.ancMuted.opacity(0.5))
+                }
             }
+            .frame(minWidth: 70, alignment: .leading)
 
             // Priority
-            if let p = project.priority {
-                Text(priorityGlyph(p))
-                    .font(.system(size: 12))
-                    .frame(width: 20)
+            Group {
+                if let p = project.priority {
+                    Text(priorityGlyph(p))
+                        .font(.system(size: 12))
+                } else {
+                    Text("--")
+                        .font(.system(size: 10))
+                        .foregroundColor(.ancMuted.opacity(0.5))
+                }
             }
+            .frame(minWidth: 60, alignment: .leading)
 
             // Lead
-            if let lead = project.lead {
-                HStack(spacing: 3) {
-                    Image(systemName: "person.circle")
-                        .font(.system(size: 11))
-                    Text(lead)
-                        .font(.system(size: 11))
-                }
-                .foregroundColor(.ancMuted)
-                .frame(minWidth: 60, alignment: .leading)
-            }
-
-            // Stats
-            if let stats = project.stats {
-                HStack(spacing: 4) {
-                    statChip("\(stats.done)/\(stats.total)", color: .green)
-                }
-            }
-
-            // State
-            if let state = project.state {
-                Text(state.rawValue.capitalized)
-                    .font(.system(size: 11))
+            Group {
+                if let lead = project.lead {
+                    HStack(spacing: 3) {
+                        Image(systemName: "person.circle")
+                            .font(.system(size: 11))
+                        Text(lead)
+                            .font(.system(size: 11))
+                    }
                     .foregroundColor(.ancMuted)
-                    .frame(width: 60, alignment: .trailing)
+                } else {
+                    Text("--")
+                        .font(.system(size: 10))
+                        .foregroundColor(.ancMuted.opacity(0.5))
+                }
             }
+            .frame(minWidth: 80, alignment: .leading)
+
+            // Target Date
+            Group {
+                if let target = project.targetDate {
+                    Text(target)
+                        .font(.system(size: 11))
+                        .foregroundColor(.ancMuted)
+                } else {
+                    Text("--")
+                        .font(.system(size: 10))
+                        .foregroundColor(.ancMuted.opacity(0.5))
+                }
+            }
+            .frame(minWidth: 80, alignment: .leading)
+
+            // Tasks
+            Group {
+                if let stats = project.stats {
+                    statChip("\(stats.done)/\(stats.total)", color: .green)
+                } else {
+                    Text("--")
+                        .font(.system(size: 10))
+                        .foregroundColor(.ancMuted.opacity(0.5))
+                }
+            }
+            .frame(minWidth: 60, alignment: .leading)
+
+            // Status
+            Group {
+                if let state = project.state {
+                    Text(state.rawValue.capitalized)
+                        .font(.system(size: 11))
+                        .foregroundColor(.ancMuted)
+                } else {
+                    Text("--")
+                        .font(.system(size: 10))
+                        .foregroundColor(.ancMuted.opacity(0.5))
+                }
+            }
+            .frame(minWidth: 60, alignment: .leading)
         }
         .padding(.vertical, 3)
     }
