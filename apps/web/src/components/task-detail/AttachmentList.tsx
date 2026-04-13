@@ -60,12 +60,8 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
     }
   };
 
-  if (attachments.length === 0) {
-    return (
-      <p className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-        No attachments.
-      </p>
-    );
+  if (!attachments || attachments.length === 0) {
+    return null;
   }
 
   return (

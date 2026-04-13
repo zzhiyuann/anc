@@ -198,32 +198,41 @@ export function SubIssuesTree({
     );
   };
 
+  const empty = total === 0;
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+    <div
+      className={cn(
+        "rounded-md border border-border bg-card",
+        empty && "border-border/60",
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center justify-between px-3 py-1.5",
+          !empty && "border-b border-border",
+        )}
+      >
         <div className="flex items-baseline gap-2">
-          <h3 className="text-[12px] font-semibold text-foreground">Sub-issues</h3>
-          <span className="text-[11px] text-muted-foreground">
-            {doneCount}/{total}
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Sub-issues
+          </h3>
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {empty ? "0" : `${doneCount}/${total}`}
           </span>
         </div>
         <button
           type="button"
           onClick={() => setDispatchOpen(true)}
           aria-label="Add sub-issue"
-          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="inline-flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title="Dispatch sub-issue"
         >
-          <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M8 3v10M3 8h10" />
           </svg>
         </button>
       </div>
-      {total === 0 ? (
-        <p className="px-3 py-4 text-center text-[11px] text-muted-foreground">
-          No sub-issues yet — dispatch an agent to spawn one.
-        </p>
-      ) : (
+      {!empty && (
         <div className="py-1">
           {children.map((c) => renderNode(c, 0))}
         </div>

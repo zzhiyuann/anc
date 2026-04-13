@@ -23,6 +23,7 @@ import type {
   TaskEntityState,
   TaskFull,
 } from "@/lib/types";
+import type { LabelEntity } from "@/lib/api";
 
 const STATE_OPTIONS: Array<{
   state: TaskEntityState;
@@ -47,7 +48,6 @@ const PRIORITY_OPTIONS: Array<{ priority: number; label: string; tone: string }>
   { priority: 5, label: "Low", tone: "text-muted-foreground/60" },
 ];
 
-const FALLBACK_LABELS = ["bug", "feature", "research", "urgent"];
 
 function StateCircle({
   state,
@@ -84,6 +84,38 @@ function Row({
   );
 }
 
+function DueDateRow({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (next: string | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <Row label="Due">
+      {value || editing ? (
+        <input
+          autoFocus={editing && !value}
+          type="date"
+          value={value ?? ""}
+          onBlur={() => setEditing(false)}
+          onChange={(e) => onChange(e.target.value || null)}
+          className="rounded bg-transparent px-1 py-0.5 text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="rounded px-1 py-0.5 text-left text-[12px] text-muted-foreground/40 hover:bg-accent hover:text-foreground"
+        >
+          —
+        </button>
+      )}
+    </Row>
+  );
+}
+
 function Section({
   title,
   defaultOpen = false,
@@ -99,7 +131,7 @@ function Section({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+        className="flex w-full cursor-pointer items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-accent/50"
       >
         <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
@@ -136,6 +168,8 @@ export function TaskPropertiesPanel({
   const [task, setTask] = useState<Task>(data.task);
   const [agents, setAgents] = useState<AgentStatus[]>([]);
   const [labelMenuOpen, setLabelMenuOpen] = useState(false);
+  const [labelCatalog, setLabelCatalog] = useState<LabelEntity[]>([]);
+  const [newLabel, setNewLabel] = useState("");
 
   useEffect(() => {
     setTask(data.task);
@@ -145,8 +179,13 @@ export function TaskPropertiesPanel({
     let cancelled = false;
     void (async () => {
       try {
-        const list = await api.agents.list();
-        if (!cancelled) setAgents(list);
+        const [agentList, labelList] = await Promise.all([
+          api.agents.list(),
+          api.labels.list(),
+        ]);
+        if (cancelled) return;
+        setAgents(agentList);
+        setLabelCatalog(labelList);
       } catch {
         /* ignore */
       }
@@ -155,6 +194,15 @@ export function TaskPropertiesPanel({
       cancelled = true;
     };
   }, []);
+
+  const refreshLabelCatalog = async () => {
+    try {
+      const list = await api.labels.list();
+      setLabelCatalog(list);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const project = task.projectId
     ? projects.find((p) => p.id === task.projectId)
@@ -211,10 +259,29 @@ export function TaskPropertiesPanel({
 
   const labels = task.labels ?? [];
   const allLabels = useMemo(() => {
-    const s = new Set<string>(FALLBACK_LABELS);
+    const s = new Set<string>();
+    for (const l of labelCatalog) s.add(l.name);
     for (const l of labels) s.add(l);
-    return [...s];
-  }, [labels]);
+    return [...s].sort();
+  }, [labelCatalog, labels]);
+
+  const handleCreateLabel = async () => {
+    const name = newLabel.trim();
+    if (!name) return;
+    try {
+      const created = await api.labels.create(name);
+      setNewLabel("");
+      if (created) {
+        await refreshLabelCatalog();
+        void apply({ labels: [...labels, created.name] });
+      } else {
+        // Backend offline — still apply locally so the UI moves.
+        void apply({ labels: [...labels, name] });
+      }
+    } catch {
+      void apply({ labels: [...labels, name] });
+    }
+  };
 
   return (
     <aside className="flex h-full w-full flex-col overflow-y-auto border-l border-border bg-background">
@@ -271,7 +338,7 @@ export function TaskPropertiesPanel({
                 {priorityMeta.label}
               </span>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" sideOffset={4}>
               {PRIORITY_OPTIONS.map((opt) => (
                 <DropdownMenuItem
                   key={opt.priority}
@@ -354,26 +421,57 @@ export function TaskPropertiesPanel({
               )}
             </button>
             {labelMenuOpen && (
-              <div className="absolute left-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-md border border-border bg-popover py-1 shadow-md">
-                {allLabels.map((l) => {
-                  const checked = labels.includes(l);
-                  return (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => {
-                        const next = checked
-                          ? labels.filter((x) => x !== l)
-                          : [...labels, l];
-                        void apply({ labels: next });
+              <div className="absolute left-0 top-full z-30 mt-1 w-52 overflow-hidden rounded-md border border-border bg-popover py-1 shadow-md">
+                <div className="max-h-48 overflow-y-auto">
+                  {allLabels.length === 0 && (
+                    <p className="px-2 py-1 text-[11px] text-muted-foreground">
+                      No labels yet — create one below.
+                    </p>
+                  )}
+                  {allLabels.map((l) => {
+                    const checked = labels.includes(l);
+                    return (
+                      <button
+                        key={l}
+                        type="button"
+                        onClick={() => {
+                          const next = checked
+                            ? labels.filter((x) => x !== l)
+                            : [...labels, l];
+                          void apply({ labels: next });
+                        }}
+                        className="flex w-full items-center justify-between px-2 py-1 text-left text-[12px] hover:bg-accent"
+                      >
+                        <span>{l}</span>
+                        {checked && <span>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="border-t border-border p-1">
+                  <div className="flex items-center gap-1">
+                    <input
+                      value={newLabel}
+                      onChange={(e) => setNewLabel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleCreateLabel();
+                        }
                       }}
-                      className="flex w-full items-center justify-between px-2 py-1 text-left text-[12px] hover:bg-accent"
+                      placeholder="Create label…"
+                      className="h-6 flex-1 rounded bg-secondary px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleCreateLabel()}
+                      disabled={!newLabel.trim()}
+                      className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground disabled:opacity-40"
                     >
-                      <span>{l}</span>
-                      {checked && <span>✓</span>}
+                      Add
                     </button>
-                  );
-                })}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -399,21 +497,15 @@ export function TaskPropertiesPanel({
               {task.parentTaskId}
             </Link>
           ) : (
-            <span className="text-muted-foreground">—</span>
+            <span className="text-muted-foreground/40">—</span>
           )}
         </Row>
 
-        {/* Due date */}
-        <Row label="Due">
-          <input
-            type="date"
-            value={task.dueDate ?? ""}
-            onChange={(e) =>
-              void apply({ dueDate: e.target.value || null })
-            }
-            className="rounded bg-transparent px-1 py-0.5 text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </Row>
+        {/* Due date — show single em-dash placeholder, click to edit */}
+        <DueDateRow
+          value={task.dueDate ?? null}
+          onChange={(next) => void apply({ dueDate: next })}
+        />
 
         {/* Cost */}
         <Row label="Cost">

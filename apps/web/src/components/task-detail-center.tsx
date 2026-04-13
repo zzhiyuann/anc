@@ -82,6 +82,58 @@ function InlineTitle({
 
 // =============== description editor ===============
 
+interface SlashOption {
+  key: string;
+  label: string;
+  hint: string;
+  apply: (draft: string) => { next: string; caretDelta?: number };
+}
+
+const SLASH_OPTIONS: SlashOption[] = [
+  {
+    key: "heading",
+    label: "Heading",
+    hint: "## ",
+    apply: (d) => ({ next: d.replace(/\/$/, "") + "## " }),
+  },
+  {
+    key: "list",
+    label: "Bulleted list",
+    hint: "- ",
+    apply: (d) => ({ next: d.replace(/\/$/, "") + "- " }),
+  },
+  {
+    key: "numbered",
+    label: "Numbered list",
+    hint: "1. ",
+    apply: (d) => ({ next: d.replace(/\/$/, "") + "1. " }),
+  },
+  {
+    key: "code",
+    label: "Code block",
+    hint: "```",
+    apply: (d) => ({ next: d.replace(/\/$/, "") + "```\n\n```" }),
+  },
+  {
+    key: "quote",
+    label: "Quote",
+    hint: "> ",
+    apply: (d) => ({ next: d.replace(/\/$/, "") + "> " }),
+  },
+  {
+    key: "mention",
+    label: "Mention",
+    hint: "@",
+    apply: (d) => ({ next: d.replace(/\/$/, "") + "@" }),
+  },
+  {
+    key: "task",
+    label: "Sub-task",
+    hint: "- [ ] ",
+    apply: (d) => ({ next: d.replace(/\/$/, "") + "- [ ] " }),
+  },
+];
+
 function DescriptionBlock({
   task,
   onSave,
@@ -92,6 +144,7 @@ function DescriptionBlock({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.description ?? "");
   const [slashOpen, setSlashOpen] = useState(false);
+  const [slashIndex, setSlashIndex] = useState(0);
 
   useEffect(() => {
     setDraft(task.description ?? "");
@@ -100,12 +153,16 @@ function DescriptionBlock({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
     setDraft(v);
-    if (v.endsWith("/")) setSlashOpen(true);
-    else setSlashOpen(false);
+    if (v.endsWith("/")) {
+      setSlashOpen(true);
+      setSlashIndex(0);
+    } else {
+      setSlashOpen(false);
+    }
   };
 
-  const insertSnippet = (s: string) => {
-    setDraft((d) => d.replace(/\/$/, "") + s);
+  const applyOption = (opt: SlashOption) => {
+    setDraft((d) => opt.apply(d).next);
     setSlashOpen(false);
   };
 
@@ -137,6 +194,30 @@ function DescriptionBlock({
         value={draft}
         onChange={handleChange}
         onKeyDown={(e) => {
+          if (slashOpen) {
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setSlashIndex((i) => (i + 1) % SLASH_OPTIONS.length);
+              return;
+            }
+            if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setSlashIndex(
+                (i) => (i - 1 + SLASH_OPTIONS.length) % SLASH_OPTIONS.length,
+              );
+              return;
+            }
+            if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
+              e.preventDefault();
+              applyOption(SLASH_OPTIONS[slashIndex]);
+              return;
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setSlashOpen(false);
+              return;
+            }
+          }
           if (e.key === "Escape") {
             setEditing(false);
             setDraft(task.description ?? "");
@@ -147,24 +228,34 @@ function DescriptionBlock({
             setEditing(false);
           }
         }}
-        placeholder="Markdown supported. ⌘Enter to save, Esc to cancel."
+        placeholder="Markdown supported. / for commands, ⌘Enter to save, Esc to cancel."
         className="block w-full resize-none bg-transparent p-3 text-[13px] leading-relaxed text-foreground focus:outline-none"
       />
       {slashOpen && (
-        <div className="absolute left-3 top-12 z-20 w-44 overflow-hidden rounded-md border border-border bg-popover py-1 shadow-md">
-          {[
-            { label: "Heading", snippet: "## " },
-            { label: "List", snippet: "- " },
-            { label: "Code", snippet: "```\n\n```" },
-            { label: "Mention", snippet: "@" },
-          ].map((opt) => (
+        <div className="absolute left-3 top-12 z-20 w-56 overflow-hidden rounded-md border border-border bg-popover py-1 shadow-lg">
+          <div className="border-b border-border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Insert
+          </div>
+          {SLASH_OPTIONS.map((opt, i) => (
             <button
-              key={opt.label}
+              key={opt.key}
               type="button"
-              onClick={() => insertSnippet(opt.snippet)}
-              className="flex w-full items-center px-2 py-1 text-left text-[12px] hover:bg-accent"
+              onMouseEnter={() => setSlashIndex(i)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                applyOption(opt);
+              }}
+              className={cn(
+                "flex w-full items-center justify-between gap-2 px-2 py-1 text-left text-[12px]",
+                i === slashIndex
+                  ? "bg-accent text-accent-foreground"
+                  : "text-foreground hover:bg-accent/60",
+              )}
             >
-              {opt.label}
+              <span>{opt.label}</span>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {opt.hint}
+              </span>
             </button>
           ))}
         </div>
@@ -255,16 +346,24 @@ function RuntimeStrip({
     [data.events, liveEvents, taskId],
   );
 
+  const hasSession = (data.sessions?.length ?? 0) > 0;
+  const hasLiveEvent = liveEvents.some((e) => e.taskId === taskId);
+  // Hidden state: no past or present sessions and zero process events.
+  if (!hasSession && !status.role && !hasLiveEvent) {
+    return null;
+  }
+
   const role = status.role ?? data.sessions[0]?.role ?? "engineer";
+  const label = status.running ? status.label : "Idle";
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <div className="rounded-md border border-border bg-card">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+        className="flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left"
       >
-        <div className="flex min-w-0 items-center gap-2 text-[12px]">
+        <div className="flex min-w-0 items-center gap-2 text-[11px]">
           <span
             className={cn(
               "size-2 shrink-0 rounded-full",
@@ -274,12 +373,10 @@ function RuntimeStrip({
             )}
           />
           <span className="font-medium capitalize text-foreground">{role}</span>
-          <span className="text-muted-foreground">·</span>
-          <span className="min-w-0 truncate text-muted-foreground">
-            {status.label}
-          </span>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="min-w-0 truncate text-muted-foreground">{label}</span>
         </div>
-        <span className="shrink-0 text-[11px] text-muted-foreground">
+        <span className="shrink-0 text-[10px] text-muted-foreground">
           {expanded ? "Collapse" : "Expand"}
         </span>
       </button>
@@ -427,11 +524,13 @@ export function TaskDetailCenter({
 
   const t = localData.task;
 
+  const hasAttachments = (localData.attachments?.length ?? 0) > 0;
+
   return (
-    <div className="flex flex-col gap-5 px-6 py-5">
+    <div className="flex flex-col gap-4 px-6 py-4">
       {!live && (
-        <div className="rounded-md border border-status-failed/30 bg-status-failed/10 px-3 py-2 text-[12px] text-status-failed">
-          Mock data — backend offline or task not found.
+        <div className="rounded-md border border-status-failed/30 bg-status-failed/10 px-3 py-2 text-[11px] text-status-failed">
+          Failed to load task detail — using fallback data.
         </div>
       )}
 
@@ -444,22 +543,18 @@ export function TaskDetailCenter({
         killing={killing}
       />
 
-      <div>
-        <InlineTitle value={t.title} onSave={handleTitleSave} />
-      </div>
+      <InlineTitle value={t.title} onSave={handleTitleSave} />
 
       <DescriptionBlock task={t} onSave={handleDescriptionSave} />
 
       {/* Sub-issues — right under description, Linear-style */}
-      <section>
-        <SubIssuesTree
-          parentTaskId={taskId}
-          children={localData.children}
-          onChanged={() => void refresh()}
-        />
-      </section>
+      <SubIssuesTree
+        parentTaskId={taskId}
+        children={localData.children}
+        onChanged={() => void refresh()}
+      />
 
-      {/* Runtime strip (collapsed) */}
+      {/* Runtime strip (collapsed). Hidden entirely when no sessions/events. */}
       <section id="live-terminal-section">
         <RuntimeStrip
           taskId={taskId}
@@ -476,11 +571,7 @@ export function TaskDetailCenter({
         liveEvents={processEvents}
       />
 
-      {localData.handoff && (
-        <section>
-          <HandoffRenderer handoff={localData.handoff} />
-        </section>
-      )}
+      {localData.handoff && <HandoffRenderer handoff={localData.handoff} />}
 
       {/* Activity (events + comments merged) */}
       <section>
@@ -493,13 +584,18 @@ export function TaskDetailCenter({
         />
       </section>
 
-      {/* Resources */}
-      <section>
-        <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Resources ({localData.attachments.length})
-        </h3>
-        <AttachmentList taskId={taskId} attachments={localData.attachments} />
-      </section>
+      {/* Resources — hidden entirely when none */}
+      {hasAttachments && (
+        <section>
+          <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Resources ({localData.attachments!.length})
+          </h3>
+          <AttachmentList
+            taskId={taskId}
+            attachments={localData.attachments ?? []}
+          />
+        </section>
+      )}
 
       {/* Bottom composer */}
       <section className="sticky bottom-0 -mx-6 border-t border-border bg-background px-6 pb-4 pt-3">

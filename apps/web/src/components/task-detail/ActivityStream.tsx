@@ -110,39 +110,35 @@ export function ActivityStream({ events, comments }: ActivityStreamProps) {
 
   if (items.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-border p-6 text-center text-[12px] text-muted-foreground">
-        No activity yet — leave a comment or wait for the agent to act.
+      <p className="text-[11px] text-muted-foreground">
+        No activity yet · Leave a comment to start
       </p>
     );
   }
 
   return (
-    <ol className="space-y-3">
+    <ol className="relative space-y-2 border-l border-border pl-3">
       {items.map((it) => {
         if (it.kind === "comment") {
           const c = it.comment;
           const role = authorRole(c.author);
-          const isCeo = c.author === "ceo";
           return (
-            <li key={`c-${c.id}`}>
-              <div
-                className={cn(
-                  "flex items-start gap-2.5 rounded-lg border p-3",
-                  isCeo
-                    ? "border-status-failed/30 bg-status-failed/[0.04]"
-                    : "border-border bg-card",
-                )}
-              >
+            <li key={`c-${c.id}`} className="relative">
+              <span
+                aria-hidden
+                className="absolute -left-[15px] top-2 size-1.5 rounded-full bg-border"
+              />
+              <div className="flex items-start gap-2 rounded-md border border-border bg-card px-3 py-2">
                 <span
                   className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+                    "flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
                     roleAvatarClass(role),
                   )}
                 >
                   {agentInitial(role)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2 text-[11px]">
+                  <div className="flex items-baseline justify-between gap-2 text-[10px]">
                     <span
                       className={cn(
                         "font-semibold uppercase tracking-wide",
@@ -155,7 +151,7 @@ export function ActivityStream({ events, comments }: ActivityStreamProps) {
                       {formatRelativeTime(c.createdAt)}
                     </span>
                   </div>
-                  <div className="mt-1 text-[13px] leading-relaxed text-foreground/90">
+                  <div className="mt-0.5 text-[12px] leading-relaxed text-foreground/90">
                     {renderInline(c.body)}
                   </div>
                 </div>
@@ -168,8 +164,12 @@ export function ActivityStream({ events, comments }: ActivityStreamProps) {
         return (
           <li
             key={`e-${e.id}`}
-            className="flex items-center gap-2 px-1 text-[11px] text-muted-foreground"
+            className="relative flex items-center gap-2 text-[11px] text-muted-foreground"
           >
+            <span
+              aria-hidden
+              className="absolute -left-[15px] top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-border"
+            />
             <span
               className={cn(
                 "flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold",
@@ -181,9 +181,10 @@ export function ActivityStream({ events, comments }: ActivityStreamProps) {
             <span className={cn("font-medium", roleTextClass(role))}>
               {role}
             </span>
-            <span>{describeEvent(e)}</span>
-            <span className="text-muted-foreground/60">·</span>
-            <span>{formatRelativeTime(e.createdAt)}</span>
+            <span className="min-w-0 flex-1 truncate">{describeEvent(e)}</span>
+            <span className="shrink-0 text-muted-foreground/70">
+              {formatRelativeTime(e.createdAt)}
+            </span>
           </li>
         );
       })}

@@ -36,9 +36,7 @@ export function ContributorsBar({ sessions, onPick }: ContributorsBarProps) {
   const list = [...byRole.values()];
 
   if (list.length === 0) {
-    return (
-      <span className="text-xs text-muted-foreground">No contributors yet</span>
-    );
+    return null;
   }
 
   return (

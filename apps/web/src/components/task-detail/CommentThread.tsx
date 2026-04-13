@@ -59,17 +59,9 @@ export function CommentThread({ comments }: CommentThreadProps) {
 
   const renderOne = (c: TaskComment, depth: number): React.ReactNode => {
     const role = authorRole(c.author);
-    const isCeo = c.author === "ceo";
     return (
       <div key={c.id} style={{ marginLeft: depth * 20 }} className="space-y-2">
-        <div
-          className={cn(
-            "flex items-start gap-2.5 rounded-lg border p-3",
-            isCeo
-              ? "border-red-500/30 bg-red-500/[0.04]"
-              : "border-border bg-card",
-          )}
-        >
+        <div className="flex items-start gap-2.5 rounded-md border border-border bg-card p-3">
           <span
             className={cn(
               "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
