@@ -16,7 +16,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { rateTaskOutput, CONDITIONS } from './simceo.js';
+import { rateTaskOutput, claudePrint, CONDITIONS } from './simceo.js';
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';

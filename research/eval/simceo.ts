@@ -70,7 +70,7 @@ const ANC_ROOT = join(__dirname, '..', '..');
 
 // --- Claude CLI wrapper ---
 
-function claudePrint(prompt: string, maxTokens = 4096): string {
+export function claudePrint(prompt: string, maxTokens = 4096): string {
   const escapedPrompt = prompt.replace(/'/g, "'\\''");
   try {
     const result = execSync(
