@@ -11,6 +11,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { ProjectPicker } from "@/components/project-picker";
 import { CostCard } from "@/components/task-detail/CostCard";
 import { MemoryTrailCard } from "@/components/task-detail/MemoryTrailCard";
@@ -84,6 +90,21 @@ function Row({
   );
 }
 
+function isoToDate(iso: string | null): Date | undefined {
+  if (!iso) return undefined;
+  // Treat YYYY-MM-DD as local date to avoid TZ shift.
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  return new Date(y, m - 1, d);
+}
+
+function dateToIso(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function DueDateRow({
   value,
   onChange,
@@ -91,27 +112,57 @@ function DueDateRow({
   value: string | null;
   onChange: (next: string | null) => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
+  const selected = isoToDate(value);
   return (
     <Row label="Due">
-      {value || editing ? (
-        <input
-          autoFocus={editing && !value}
-          type="date"
-          value={value ?? ""}
-          onBlur={() => setEditing(false)}
-          onChange={(e) => onChange(e.target.value || null)}
-          className="rounded bg-transparent px-1 py-0.5 text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              className={cn(
+                "rounded px-1 py-0.5 text-left text-[12px] hover:bg-accent hover:text-foreground",
+                value ? "text-foreground" : "text-muted-foreground/40",
+              )}
+            >
+              {value ?? "—"}
+            </button>
+          }
         />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="rounded px-1 py-0.5 text-left text-[12px] text-muted-foreground/40 hover:bg-accent hover:text-foreground"
-        >
-          —
-        </button>
-      )}
+        <PopoverContent align="start" className="w-auto p-2">
+          <Calendar
+            mode="single"
+            selected={selected}
+            onSelect={(d) => {
+              if (d) {
+                onChange(dateToIso(d));
+                setOpen(false);
+              }
+            }}
+            initialFocus
+          />
+          <div className="mt-2 flex justify-between border-t border-border pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                onChange(null);
+                setOpen(false);
+              }}
+              className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Close
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
     </Row>
   );
 }

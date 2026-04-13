@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { TaskListRail } from "@/components/task-list-rail";
 import { TaskPropertiesPanel } from "@/components/task-properties-panel";
 import { TaskDetailCenter } from "@/components/task-detail-center";
@@ -16,13 +17,32 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ResizeHandle } from "@/components/ui/resize-handle";
 import { api, ApiError } from "@/lib/api";
 import { mockTasks } from "@/lib/mock-data";
 import type {
+  AgentStatus,
   ProjectWithStats,
   Task,
   TaskFull,
 } from "@/lib/types";
+
+const PRIORITY_ITEMS: Array<{ value: number; label: string }> = [
+  { value: 1, label: "1 — CEO" },
+  { value: 2, label: "2 — Urgent" },
+  { value: 3, label: "3 — High" },
+  { value: 4, label: "4 — Normal" },
+  { value: 5, label: "5 — Low" },
+];
+
+const TASKS_PANES_STORAGE_KEY = "anc-tasks-panes";
 
 export default function TasksPage() {
   return (
@@ -58,6 +78,7 @@ function TasksPageInner() {
   const [title, setTitleValue] = useState("");
   const [description, setDescription] = useState("");
   const [agent, setAgent] = useState("engineer");
+  const [agentList, setAgentList] = useState<AgentStatus[]>([]);
   const [priority, setPriority] = useState<number>(3);
   const [taskProjectId, setTaskProjectId] = useState<string | null>(presetProjectId);
   const [submitting, setSubmitting] = useState(false);
@@ -96,6 +117,31 @@ function TasksPageInner() {
       cancelled = true;
     };
   }, []);
+
+  // Load real agent roster for the Create-Task agent picker
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await api.agents.list();
+        if (!cancelled && list.length > 0) {
+          setAgentList(list);
+          setAgent((cur) => (list.some((a) => a.role === cur) ? cur : list[0].role));
+        }
+      } catch {
+        /* ignore — agent select falls back to the default option */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const tasksLayout = useDefaultLayout({
+    id: TASKS_PANES_STORAGE_KEY,
+    panelIds: ["list", "center", "properties"],
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+  });
 
   // Auto-select first task if none selected
   useEffect(() => {
@@ -187,17 +233,27 @@ function TasksPageInner() {
   const live = useMemo(() => !backendError, [backendError]);
 
   return (
-    <div className="grid h-full grid-cols-[340px_minmax(0,1fr)_320px]">
-      <TaskListRail
-        tasks={tasks}
-        projects={projects}
-        selectedId={selectedId}
-        onSelect={handleSelect}
-        loading={loading}
-        onNewTask={() => setDialogOpen(true)}
-      />
+    <>
+    <Group
+      className="h-full w-full"
+      defaultLayout={tasksLayout.defaultLayout}
+      onLayoutChanged={tasksLayout.onLayoutChanged}
+    >
+      <Panel id="list" defaultSize="22%" minSize="15%" maxSize="40%">
+        <TaskListRail
+          tasks={tasks}
+          projects={projects}
+          selectedId={selectedId}
+          onSelect={handleSelect}
+          loading={loading}
+          onNewTask={() => setDialogOpen(true)}
+        />
+      </Panel>
 
-      <div className="flex h-full min-w-0 flex-col overflow-y-auto">
+      <ResizeHandle />
+
+      <Panel id="center" minSize="30%">
+        <div className="flex h-full min-w-0 flex-col overflow-y-auto">
         {detailLoading && !detail && (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Loading task…
@@ -221,13 +277,19 @@ function TasksPageInner() {
             onRefresh={refreshDetail}
           />
         )}
-      </div>
+        </div>
+      </Panel>
 
-      {detail ? (
-        <TaskPropertiesPanel data={detail} projects={projects} />
-      ) : (
-        <div className="border-l border-border bg-background" />
-      )}
+      <ResizeHandle />
+
+      <Panel id="properties" defaultSize="20%" minSize="14%" maxSize="35%">
+        {detail ? (
+          <TaskPropertiesPanel data={detail} projects={projects} />
+        ) : (
+          <div className="h-full border-l border-border bg-background" />
+        )}
+      </Panel>
+    </Group>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -267,28 +329,50 @@ function TasksPageInner() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Agent</label>
-                <select
+                <Select<string>
                   value={agent}
-                  onChange={(e) => setAgent(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  onValueChange={(v) => v && setAgent(v)}
+                  items={(agentList.length > 0
+                    ? agentList.map((a) => a.role)
+                    : ["engineer", "strategist", "ops"]
+                  ).map((role) => ({
+                    value: role,
+                    label: role.charAt(0).toUpperCase() + role.slice(1),
+                  }))}
                 >
-                  <option value="engineer">Engineer</option>
-                  <option value="strategist">Strategist</option>
-                  <option value="ops">Ops</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(agentList.length > 0
+                      ? agentList.map((a) => a.role)
+                      : ["engineer", "strategist", "ops"]
+                    ).map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Priority</label>
-                <select
+                <Select<number>
                   value={priority}
-                  onChange={(e) => setPriority(Number(e.target.value))}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  onValueChange={(v) => v != null && setPriority(v)}
+                  items={PRIORITY_ITEMS}
                 >
-                  <option value={1}>1 — CEO</option>
-                  <option value={2}>2 — Urgent</option>
-                  <option value={3}>3 — Normal</option>
-                  <option value={5}>5 — Duty</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITY_ITEMS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             {submitError && <p className="text-sm text-status-failed">{submitError}</p>}
@@ -309,6 +393,6 @@ function TasksPageInner() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -12,6 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface NewRoleDialogProps {
   open: boolean;
@@ -141,17 +148,22 @@ export function NewRoleDialog({ open, onOpenChange, onCreated }: NewRoleDialogPr
           </Field>
 
           <Field label="Base protocol">
-            <select
+            <Select<Protocol>
               value={protocol}
-              onChange={(e) => setProtocol(e.target.value as Protocol)}
-              className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px]"
+              onValueChange={(v) => v && setProtocol(v)}
+              items={PROTOCOLS.map((p) => ({ value: p, label: p }))}
             >
-              {PROTOCOLS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROTOCOLS.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
 
           <Field label={`Max concurrency: ${maxConcurrency}`}>

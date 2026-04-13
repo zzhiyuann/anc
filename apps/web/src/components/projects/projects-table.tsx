@@ -24,6 +24,12 @@ import {
 } from "./local-meta";
 import { PRIORITY_OPTIONS, PriorityGlyph } from "./priority-glyph";
 import { ProgressBar } from "./progress-bar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 // --- Sort columns ---
 
@@ -494,6 +500,20 @@ function LeadCell({
   );
 }
 
+function isoToLocalDate(iso: string | null): Date | undefined {
+  if (!iso) return undefined;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  return new Date(y, m - 1, d);
+}
+
+function localDateToIso(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function TargetDateCell({
   value,
   onChange,
@@ -501,16 +521,55 @@ function TargetDateCell({
   value: string | null;
   onChange: (v: string | null) => void;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <label className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-      <CalendarIcon />
-      <input
-        type="date"
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value || null)}
-        className="bg-transparent text-[12px] text-foreground outline-none [color-scheme:light] dark:[color-scheme:dark]"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-0.5 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <CalendarIcon />
+            <span className={value ? "text-foreground" : "text-muted-foreground/60"}>
+              {value ?? "—"}
+            </span>
+          </button>
+        }
       />
-    </label>
+      <PopoverContent align="start" className="w-auto p-2">
+        <Calendar
+          mode="single"
+          selected={isoToLocalDate(value)}
+          onSelect={(d) => {
+            if (d) {
+              onChange(localDateToIso(d));
+              setOpen(false);
+            }
+          }}
+          initialFocus
+        />
+        <div className="mt-2 flex justify-between border-t border-border pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              onChange(null);
+              setOpen(false);
+            }}
+            className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            Close
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

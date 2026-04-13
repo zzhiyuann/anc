@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { ProjectWithStats } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ProjectPickerProps {
   value: string | null;
@@ -17,12 +24,11 @@ interface ProjectPickerProps {
   projects?: ProjectWithStats[];
 }
 
+const NULL_TOKEN = "__none__";
+
 /**
- * Lightweight project selector. Renders a styled native <select> so it
- * works in dialogs and forms without depending on a popover primitive.
- *
- * Each option is prefixed with the project icon. The selected color
- * is shown as a dot to the left of the control.
+ * Project selector built on the shadcn-style Select primitive (Base UI).
+ * Each option shows a colored dot + project icon + name.
  */
 export function ProjectPicker({
   value,
@@ -60,35 +66,70 @@ export function ProjectPicker({
     };
   }, [providedProjects]);
 
-  const selected = projects.find((p) => p.id === value) ?? null;
-  const accent = selected?.color ?? "#6b7280";
   const nullLabel = allOption ? "All projects" : "No project";
 
+  const items = useMemo(
+    () => [
+      { value: NULL_TOKEN, label: nullLabel },
+      ...projects.map((p) => ({
+        value: p.id,
+        label: p.name,
+      })),
+    ],
+    [projects, nullLabel],
+  );
+
+  const selected = projects.find((p) => p.id === value) ?? null;
+  const accent = selected?.color ?? null;
+
   return (
-    <div className={cn("relative flex items-center gap-2", className)}>
-      <span
-        className="pointer-events-none absolute left-2.5 size-2.5 rounded-full"
-        style={{ backgroundColor: selected ? accent : "transparent", border: selected ? "none" : "1px dashed currentColor" }}
-        aria-hidden
-      />
-      <select
-        id={id}
-        disabled={disabled || loading}
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
-        className="flex h-9 w-full rounded-md border border-input bg-transparent pl-7 pr-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <option value="">{loading ? "Loading…" : nullLabel}</option>
+    <Select<string>
+      value={value ?? NULL_TOKEN}
+      onValueChange={(v) => onChange(v === NULL_TOKEN ? null : v)}
+      disabled={disabled || loading}
+      items={items}
+    >
+      <SelectTrigger id={id} className={cn("w-full", className)}>
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            aria-hidden
+            className="inline-block size-2.5 shrink-0 rounded-full"
+            style={{
+              backgroundColor: accent ?? "transparent",
+              border: accent ? "none" : "1px dashed currentColor",
+            }}
+          />
+          <SelectValue placeholder={loading ? "Loading…" : nullLabel} />
+        </span>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NULL_TOKEN}>
+          <span className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className="inline-block size-2.5 rounded-full border border-dashed"
+            />
+            <span>{nullLabel}</span>
+          </span>
+        </SelectItem>
         {projects.map((p) => {
           const raw = p.icon ?? "📁";
           const ic = raw.length <= 2 ? raw : "📁";
           return (
-            <option key={p.id} value={p.id}>
-              {ic + "  " + p.name}
-            </option>
+            <SelectItem key={p.id} value={p.id}>
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="inline-block size-2.5 rounded-full"
+                  style={{ backgroundColor: p.color ?? "#6b7280" }}
+                />
+                <span className="text-[12px] opacity-80">{ic}</span>
+                <span className="truncate">{p.name}</span>
+              </span>
+            </SelectItem>
           );
         })}
-      </select>
-    </div>
+      </SelectContent>
+    </Select>
   );
 }

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
+import { ResizeHandle } from "@/components/ui/resize-handle";
 import { api } from "@/lib/api";
 import type { AncNotification, NotificationKind } from "@/lib/types";
 import { cn, formatRelativeTime, formatTimestamp } from "@/lib/utils";
@@ -55,13 +57,19 @@ function applyClientFilter(
   }
 }
 
+const INBOX_PANES_STORAGE_KEY = "anc-inbox-panes";
+
 export default function InboxPage() {
+  const inboxLayout = useDefaultLayout({
+    id: INBOX_PANES_STORAGE_KEY,
+    panelIds: ["list", "detail"],
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+  });
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [rawItems, setRawItems] = useState<AncNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [reply, setReply] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
   // Load list when backend filter changes
@@ -169,10 +177,6 @@ export default function InboxPage() {
       } else if (e.key === "m") {
         e.preventDefault();
         if (selected && selected.readAt === null) handleMarkRead(selected.id);
-      } else if (e.key === "r") {
-        e.preventDefault();
-        const ta = document.getElementById("inbox-reply") as HTMLTextAreaElement | null;
-        ta?.focus();
       } else if (e.key === "Enter") {
         if (selected?.taskId) {
           window.location.href = `/tasks/${selected.taskId}`;
@@ -190,15 +194,15 @@ export default function InboxPage() {
     el?.scrollIntoView({ block: "nearest" });
   }, [selectedIdx]);
 
-  // Reset reply when selection changes
-  useEffect(() => {
-    setReply("");
-  }, [selectedId]);
-
   return (
-    <div className="flex h-full min-h-0">
+    <Group
+      className="h-full w-full"
+      defaultLayout={inboxLayout.defaultLayout}
+      onLayoutChanged={inboxLayout.onLayoutChanged}
+    >
+      <Panel id="list" defaultSize="30%" minSize="20%" maxSize="45%">
       {/* Left: list */}
-      <section className="flex w-[380px] shrink-0 flex-col border-r border-border">
+      <section className="flex h-full flex-col border-r border-border">
         {/* Header */}
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
           <div className="flex items-baseline gap-2">
@@ -292,15 +296,19 @@ export default function InboxPage() {
         {/* Footer help */}
         <div className="flex h-7 shrink-0 items-center gap-2 border-t border-border px-3 text-[10px] text-muted-foreground">
           <Kbd>j</Kbd>/<Kbd>k</Kbd> nav
-          <Kbd>r</Kbd> reply
           <Kbd>m</Kbd> read
           <Kbd>e</Kbd> archive
           <Kbd>↵</Kbd> open
         </div>
       </section>
 
+      </Panel>
+
+      <ResizeHandle />
+
+      <Panel id="detail" minSize="40%">
       {/* Right: detail */}
-      <section className="min-w-0 flex-1 overflow-y-auto">
+      <section className="min-w-0 h-full overflow-y-auto">
         {!selected && (
           <div className="flex h-full items-center justify-center text-[12px] text-muted-foreground">
             Select a notification to read.
@@ -354,56 +362,47 @@ export default function InboxPage() {
               )}
             </div>
 
-            {/* Reply composer */}
-            <div className="border-t border-border pt-4">
-              <label
-                htmlFor="inbox-reply"
-                className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
-              >
-                Reply
-              </label>
-              <textarea
-                id="inbox-reply"
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                placeholder="Write a reply…"
-                rows={3}
-                className="w-full resize-none rounded-md border border-border bg-secondary/30 px-3 py-2 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/40"
-              />
-              <div className="mt-2 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                  {selected.readAt === null && (
-                    <button
-                      type="button"
-                      onClick={() => handleMarkRead(selected.id)}
-                      className="rounded-md border border-border px-2 py-1 transition-colors hover:bg-secondary hover:text-foreground"
-                    >
-                      Mark read
-                    </button>
-                  )}
-                  {selected.archivedAt === null && (
-                    <button
-                      type="button"
-                      onClick={() => handleArchive(selected.id)}
-                      className="rounded-md border border-border px-2 py-1 transition-colors hover:bg-secondary hover:text-foreground"
-                    >
-                      Archive
-                    </button>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  disabled={!reply.trim()}
-                  className="rounded-md bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Send
-                </button>
+            {/* Action bar — backend has no notification reply endpoint, so
+                we route replies into the linked task's comment thread. */}
+            <div className="flex items-center justify-between border-t border-border pt-4">
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                {selected.readAt === null && (
+                  <button
+                    type="button"
+                    onClick={() => handleMarkRead(selected.id)}
+                    className="rounded-md border border-border px-2 py-1 transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    Mark read
+                  </button>
+                )}
+                {selected.archivedAt === null && (
+                  <button
+                    type="button"
+                    onClick={() => handleArchive(selected.id)}
+                    className="rounded-md border border-border px-2 py-1 transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    Archive
+                  </button>
+                )}
               </div>
+              {selected.taskId ? (
+                <Link
+                  href={`/tasks/${selected.taskId}`}
+                  className="rounded-md bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                >
+                  Open task to reply →
+                </Link>
+              ) : (
+                <span className="text-[10px] text-muted-foreground">
+                  No linked task to reply to
+                </span>
+              )}
             </div>
           </article>
         )}
       </section>
-    </div>
+      </Panel>
+    </Group>
   );
 }
 
