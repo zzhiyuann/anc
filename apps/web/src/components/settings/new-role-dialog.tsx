@@ -90,13 +90,7 @@ export function NewRoleDialog({ open, onOpenChange, onCreated }: NewRoleDialogPr
       reset();
       onOpenChange(false);
     } catch (err) {
-      if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
-        setError(
-          "Backend not wired yet — the parent will finish this. Your role spec is valid.",
-        );
-      } else {
-        setError((err as Error).message);
-      }
+      setError((err as Error).message);
     } finally {
       setSubmitting(false);
     }

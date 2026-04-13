@@ -1,9 +1,11 @@
 import { Separator } from "@/components/ui/separator";
 import { AgentsSection } from "@/components/settings/agents-section";
 import { BudgetSection } from "./budget-section";
+import { CapacitySection } from "./capacity-section";
+import { ReviewSection } from "./review-section";
 import { api } from "@/lib/api";
 import { mockAgents } from "@/lib/mock-data";
-import { formatUptime } from "@/lib/utils";
+
 import type { AgentStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -92,24 +94,9 @@ export default async function SettingsPage() {
 
         <BudgetSection />
 
-        {/* Agent capacity */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold">Agent Capacity</h2>
-          <Separator className="my-3" />
-          <div className="space-y-3 text-sm">
-            {agents.map((a) => (
-              <div key={a.role} className="flex items-center justify-between">
-                <span className="text-muted-foreground">{a.name}</span>
-                <span className="font-mono">
-                  {a.activeSessions}/{a.maxConcurrency} active ·{" "}
-                  {formatUptime(
-                    a.sessions.find((s) => s.state === "active")?.uptime ?? 0,
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CapacitySection />
+
+        <ReviewSection />
       </div>
     </div>
   );

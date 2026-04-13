@@ -508,3 +508,14 @@ export interface BudgetConfigResponse {
     perAgent: Record<string, { spent: number; limit: number }>;
   };
 }
+
+// --- Review config (for the settings page) ---
+
+export interface ReviewConfigResponse {
+  config: {
+    default: string;
+    roles: Record<string, string>;
+    projects: Record<string, string>;
+  };
+  resolvedDefault: string;
+}

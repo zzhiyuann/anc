@@ -31,6 +31,7 @@ import type {
   Objective,
   Decision,
   DailyBriefing,
+  ReviewConfigResponse,
 } from "./types";
 import {
   mockTask,
@@ -179,6 +180,16 @@ export const agents = {
   ): Promise<{ ok: boolean }> {
     return request(`/agents/${encodeURIComponent(role)}/memory/${encodeURIComponent(filename)}`, {
       method: "DELETE",
+    });
+  },
+
+  async updateConfig(
+    role: string,
+    patch: { maxConcurrency?: number; dutySlots?: number; name?: string; modelTier?: string },
+  ): Promise<{ ok: true; role: string }> {
+    return request(`/agents/roles/${encodeURIComponent(role)}`, {
+      method: "PATCH",
+      body: patch,
     });
   },
 
@@ -979,6 +990,19 @@ export const config = {
       `/config/budget/series?role=${encodeURIComponent(role)}&days=${days}`,
       { signal },
     );
+  },
+
+  async getReview(signal?: AbortSignal): Promise<ReviewConfigResponse> {
+    return request<ReviewConfigResponse>("/config/review", { signal });
+  },
+
+  async updateReview(
+    patch: { default?: string; roles?: Record<string, string> },
+  ): Promise<ReviewConfigResponse> {
+    return request<ReviewConfigResponse>("/config/review", {
+      method: "PATCH",
+      body: patch,
+    });
   },
 };
 
