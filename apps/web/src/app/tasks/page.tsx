@@ -287,10 +287,13 @@ function TasksPageInner() {
     };
   }, []);
 
+  const [storageReady, setStorageReady] = useState(false);
+  useEffect(() => setStorageReady(true), []);
+
   const tasksLayout = useDefaultLayout({
     id: TASKS_PANES_STORAGE_KEY,
     panelIds: ["list", "center", "properties"],
-    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+    storage: storageReady ? window.localStorage : undefined,
   });
 
   // Auto-select first task if none selected

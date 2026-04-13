@@ -94,7 +94,8 @@ export function formatUptimeFrom(sinceMs: number): string {
  * Parse an event timestamp from either an ISO string or a SQLite
  * "YYYY-MM-DD HH:MM:SS" UTC datetime.
  */
-export function parseEventTimestamp(input: string): number {
+export function parseEventTimestamp(input: string | null | undefined): number {
+  if (!input) return Date.now();
   // Already ISO? Date can handle it directly.
   if (input.includes("T")) return new Date(input).getTime();
   // SQLite stores in UTC without a timezone — add Z so Date parses it as UTC.
@@ -102,7 +103,8 @@ export function parseEventTimestamp(input: string): number {
 }
 
 /** Relative time, relative to real Date.now() — no hardcoded "now". */
-export function formatRelativeTime(timestamp: string | number): string {
+export function formatRelativeTime(timestamp: string | number | null | undefined): string {
+  if (timestamp == null) return "just now";
   const thenMs =
     typeof timestamp === "number" ? timestamp : parseEventTimestamp(timestamp);
   const diffMs = Date.now() - thenMs;
