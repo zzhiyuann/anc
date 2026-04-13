@@ -191,7 +191,8 @@ struct AgentDetailView: View {
                             .buttonStyle(.borderless)
                         Button("Save") {
                             personaEdit = false
-                            // Persona editing would require PUT endpoint
+                            let draft = personaDraft
+                            Task { await store.saveAgentPersona(role, body: draft) }
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
@@ -257,8 +258,9 @@ struct AgentDetailView: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12))
                 Button("Send") {
-                    // Would call dispatch/message endpoint
+                    let msg = messageText
                     messageText = ""
+                    Task { await store.dispatch(role: role, taskId: nil, message: msg) }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -344,7 +346,10 @@ struct AgentDetailView: View {
                                 .buttonStyle(.borderless)
                             Button("Save") {
                                 memoryEditMode = false
-                                // Would call PUT /agents/:role/memory/:filename
+                                let draft = memoryDraft
+                                if let file = selectedMemoryFile {
+                                    Task { await store.saveAgentMemoryFile(role, filename: file, body: draft) }
+                                }
                             }
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)

@@ -6,6 +6,11 @@ struct PulseView: View {
     @State private var showNewDecision = false
     @State private var newDecisionTitle = ""
     @State private var newDecisionRationale = ""
+    @State private var showNewObjective = false
+    @State private var newObjectiveTitle = ""
+    @State private var newObjectiveDescription = ""
+    @State private var selectedQuarter = ""
+    @State private var isBriefingRefreshing = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -97,6 +102,31 @@ struct PulseView: View {
 
     private var briefingCard: some View {
         DashboardCard(title: "Daily Briefing", icon: "sun.max") {
+            HStack {
+                Spacer()
+                Button {
+                    isBriefingRefreshing = true
+                    Task {
+                        await store.refreshBriefing()
+                        isBriefingRefreshing = false
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        if isBriefingRefreshing {
+                            ProgressView()
+                                .controlSize(.mini)
+                        }
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 10))
+                        Text("Refresh")
+                            .font(.system(size: 10))
+                    }
+                }
+                .buttonStyle(.borderless)
+                .disabled(isBriefingRefreshing)
+            }
+            .padding(.bottom, 4)
+
             if let briefing = store.briefing {
                 VStack(alignment: .leading, spacing: 10) {
                     // Cost burn
@@ -241,14 +271,51 @@ struct PulseView: View {
 
     // MARK: - OKRs
 
+    private var availableQuarters: [String] {
+        let quarters = Set(store.objectives.compactMap { $0.quarter })
+        return ["All"] + quarters.sorted()
+    }
+
+    private var filteredObjectives: [Objective] {
+        if selectedQuarter.isEmpty || selectedQuarter == "All" {
+            return store.objectives
+        }
+        return store.objectives.filter { $0.quarter == selectedQuarter }
+    }
+
     private var okrsCard: some View {
         DashboardCard(title: "OKRs", icon: "target") {
-            if store.objectives.isEmpty {
+            // Quarter picker + create button
+            HStack {
+                Picker("Quarter", selection: $selectedQuarter) {
+                    ForEach(availableQuarters, id: \.self) { q in
+                        Text(q).tag(q)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .fixedSize()
+
+                Spacer()
+
+                Button {
+                    showNewObjective = true
+                } label: {
+                    Label("New", systemImage: "plus")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.borderless)
+                .sheet(isPresented: $showNewObjective) {
+                    newObjectiveSheet
+                }
+            }
+
+            if filteredObjectives.isEmpty {
                 Text("No objectives defined")
                     .font(.system(size: 12))
                     .foregroundColor(.ancMuted)
             } else {
-                ForEach(store.objectives) { obj in
+                ForEach(filteredObjectives) { obj in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text(obj.title)
@@ -283,7 +350,7 @@ struct PulseView: View {
                         }
                     }
 
-                    if obj.id != store.objectives.last?.id {
+                    if obj.id != filteredObjectives.last?.id {
                         Divider()
                     }
                 }
@@ -387,7 +454,51 @@ struct PulseView: View {
         }
     }
 
+    // MARK: - New Objective Sheet
+
+    private var newObjectiveSheet: some View {
+        VStack(spacing: 16) {
+            Text("New Objective")
+                .font(.system(size: 16, weight: .semibold))
+
+            TextField("Title", text: $newObjectiveTitle)
+                .textFieldStyle(.roundedBorder)
+
+            TextField("Description (optional)", text: $newObjectiveDescription)
+                .textFieldStyle(.roundedBorder)
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    showNewObjective = false
+                    newObjectiveTitle = ""
+                    newObjectiveDescription = ""
+                }
+                Button("Create") {
+                    let title = newObjectiveTitle
+                    let desc = newObjectiveDescription
+                    showNewObjective = false
+                    newObjectiveTitle = ""
+                    newObjectiveDescription = ""
+                    Task {
+                        await store.createObjective(
+                            title: title,
+                            description: desc.isEmpty ? nil : desc,
+                            quarter: nil
+                        )
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(newObjectiveTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 400)
+    }
+
     // MARK: - New Decision Sheet
+
+    @State private var newDecisionTags = ""
 
     private var newDecisionSheet: some View {
         VStack(spacing: 16) {
@@ -400,24 +511,33 @@ struct PulseView: View {
             TextField("Rationale", text: $newDecisionRationale)
                 .textFieldStyle(.roundedBorder)
 
+            TextField("Tags (comma-separated)", text: $newDecisionTags)
+                .textFieldStyle(.roundedBorder)
+
             HStack {
                 Spacer()
                 Button("Cancel") {
                     showNewDecision = false
                     newDecisionTitle = ""
                     newDecisionRationale = ""
+                    newDecisionTags = ""
                 }
                 Button("Create") {
                     let title = newDecisionTitle
                     let rationale = newDecisionRationale
+                    let tags = newDecisionTags
+                        .split(separator: ",")
+                        .map { $0.trimmingCharacters(in: .whitespaces) }
+                        .filter { !$0.isEmpty }
                     showNewDecision = false
                     newDecisionTitle = ""
                     newDecisionRationale = ""
+                    newDecisionTags = ""
                     Task {
                         await store.createDecision(
                             title: title,
                             rationale: rationale.isEmpty ? nil : rationale,
-                            tags: []
+                            tags: tags
                         )
                     }
                 }

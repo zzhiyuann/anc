@@ -42,3 +42,83 @@ extension Color {
             : NSColor(red: 0.69, green: 0.32, blue: 0.87, alpha: 1.0)  // #AF52DE
     })
 }
+
+// MARK: - Reusable Loading View
+
+struct LoadingStateView: View {
+    let message: String
+
+    init(_ message: String = "Loading...") {
+        self.message = message
+    }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.regular)
+            Text(message)
+                .font(.system(size: 13))
+                .foregroundColor(.ancMuted)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Reusable Error View with Retry
+
+struct ErrorStateView: View {
+    let message: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 28))
+                .foregroundColor(.ancFailed)
+            Text("Something went wrong")
+                .font(.system(size: 14, weight: .medium))
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundColor(.ancMuted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            Button("Retry") {
+                onRetry()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Reusable Empty State View
+
+struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 28))
+                .foregroundColor(.ancMuted)
+            Text(title)
+                .font(.system(size: 14, weight: .medium))
+            Text(subtitle)
+                .font(.system(size: 12))
+                .foregroundColor(.ancMuted)
+            if let actionTitle, let action {
+                Button(actionTitle) { action() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .padding(.top, 4)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}

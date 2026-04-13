@@ -57,10 +57,44 @@ struct MembersView: View {
         }
     }
 
+    private func doneLast7d(for role: String) -> Int {
+        let sevenDaysAgo = Date().addingTimeInterval(-7 * 86400).timeIntervalSince1970 * 1000
+        return store.tasks.filter {
+            $0.assignee == role && $0.state == .done && ($0.completedAt ?? 0) > sevenDaysAgo
+        }.count
+    }
+
     private var agentList: some View {
-        List(selection: $selectedRole) {
-            ForEach(filteredAgents) { agent in
-                AgentRowView(agent: agent)
+        VStack(spacing: 0) {
+            // Column headers
+            HStack(spacing: 10) {
+                Text("Agent")
+                    .frame(minWidth: 100, alignment: .leading)
+                Spacer()
+                Text("Status")
+                    .frame(width: 60)
+                Text("Active Task")
+                    .frame(maxWidth: 120)
+                Text("Sessions")
+                    .frame(width: 50)
+                Text("Done 7d")
+                    .frame(width: 50, alignment: .trailing)
+            }
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.ancMuted)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(Color.ancSurface)
+
+            Divider()
+
+            List(selection: $selectedRole) {
+                ForEach(filteredAgents) { agent in
+                    AgentRowView(
+                        agent: agent,
+                        tasks: store.tasks,
+                        doneLast7d: doneLast7d(for: agent.role)
+                    )
                     .tag(agent.role)
                     .contextMenu {
                         Button("View Detail") {
@@ -71,9 +105,10 @@ struct MembersView: View {
                             Task { await store.refreshAgents() }
                         }
                     }
+                }
             }
+            .listStyle(.inset(alternatesRowBackgrounds: true))
         }
-        .listStyle(.inset(alternatesRowBackgrounds: true))
     }
 
     private var emptyState: some View {
@@ -95,6 +130,8 @@ struct MembersView: View {
 
 struct AgentRowView: View {
     let agent: AgentStatus
+    var tasks: [ANCTask] = []
+    var doneLast7d: Int = 0
 
     var body: some View {
         HStack(spacing: 10) {
@@ -118,6 +155,15 @@ struct AgentRowView: View {
             // Status
             statusPill
 
+            // Active task
+            if let activeTask = tasks.first(where: { $0.state == .running && $0.assignee == agent.role }) {
+                Text(activeTask.title)
+                    .font(.system(size: 11))
+                    .foregroundColor(.ancMuted)
+                    .lineLimit(1)
+                    .frame(maxWidth: 120)
+            }
+
             // Sessions
             HStack(spacing: 2) {
                 Text("\(agent.activeSessions)")
@@ -131,6 +177,13 @@ struct AgentRowView: View {
                     .foregroundColor(.ancMuted)
             }
             .frame(width: 50)
+
+            // Done last 7d
+            Text("\(doneLast7d)")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(doneLast7d > 0 ? .green : .ancMuted)
+                .frame(width: 30, alignment: .trailing)
+                .help("Done last 7 days")
         }
         .padding(.vertical, 4)
     }

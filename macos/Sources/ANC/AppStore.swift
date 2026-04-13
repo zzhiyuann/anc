@@ -6,6 +6,7 @@ import Combine
 final class AppStore: ObservableObject {
     @Published var connected: Bool = false
     @Published var lastError: String? = nil
+    @Published var isLoading: Bool = false
 
     @Published var tasks: [ANCTask] = []
     @Published var projects: [ANCProject] = []
@@ -57,11 +58,13 @@ final class AppStore: ObservableObject {
     }
 
     func refreshAll() async {
+        isLoading = true
         async let t: () = refreshTasks()
         async let p: () = refreshProjects()
         async let a: () = refreshAgents()
         async let n: () = refreshNotifications()
         _ = await (t, p, a, n)
+        isLoading = false
     }
 
     func refreshTasks() async {
@@ -212,8 +215,27 @@ final class AppStore: ObservableObject {
         do {
             let _: TaskComment = try await api.post("tasks/\(taskId)/comments", body: payload)
             await fetchTaskDetail(taskId)
+
+            // Check for @mentions and dispatch
+            let mentionPattern = /@(\w+)/
+            let matches = body.matches(of: mentionPattern)
+            for match in matches {
+                let role = String(match.1)
+                if agents.contains(where: { $0.role == role }) {
+                    await dispatch(role: role, taskId: taskId, message: body)
+                }
+            }
         } catch {
             self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func dispatch(role: String, taskId: String?, message: String?) async {
+        let payload = DispatchPayload(role: role, taskId: taskId, message: message)
+        do {
+            let _: OkResponse = try await api.post("dispatch", body: payload)
+        } catch {
+            // non-fatal
         }
     }
 
@@ -263,6 +285,16 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func saveAgentPersona(_ role: String, body: String) async {
+        struct PersonaBody: Encodable { let body: String }
+        do {
+            let _: PersonaResponse = try await api.patch("personas/\(role)", body: PersonaBody(body: body))
+            self.agentPersona = body
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
     func fetchAgentOutputs(_ role: String) async {
         do {
             let res: AgentOutputResponse = try await api.fetch("agents/\(role)/output")
@@ -287,6 +319,16 @@ final class AppStore: ObservableObject {
             self.agentMemoryContent = res
         } catch {
             self.agentMemoryContent = nil
+        }
+    }
+
+    func saveAgentMemoryFile(_ role: String, filename: String, body: String) async {
+        struct MemoryBody: Encodable { let body: String }
+        do {
+            let _: AgentMemoryFileResponse = try await api.patch("agents/\(role)/memory/\(filename)", body: MemoryBody(body: body))
+            await fetchAgentMemoryFile(role, filename: filename)
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
 
@@ -329,6 +371,16 @@ final class AppStore: ObservableObject {
             self.decisions = res.decisions
         } catch {
             self.decisions = []
+        }
+    }
+
+    func createObjective(title: String, description: String?, quarter: String?) async {
+        let payload = CreateObjectivePayload(title: title, description: description, quarter: quarter)
+        do {
+            let _: Objective = try await api.post("pulse/objectives", body: payload)
+            await refreshObjectives()
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
 

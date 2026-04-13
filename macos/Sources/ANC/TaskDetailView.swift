@@ -441,14 +441,35 @@ struct TaskDetailView: View {
 
     // MARK: - Comment Composer
 
+    @State private var showMentionPicker = false
+
     private func commentComposer(_ detail: TaskDetailResponse) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Divider()
+
+            // @mention suggestions
+            if showMentionPicker {
+                mentionSuggestions
+            }
+
             HStack(spacing: 8) {
-                TextField("Add a comment...", text: $commentText)
+                TextField("Add a comment... (@ to mention)", text: $commentText)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 13))
                     .onSubmit { sendComment(detail.task.id) }
+                    .onChange(of: commentText) { _, newVal in
+                        showMentionPicker = newVal.hasSuffix("@")
+                    }
+
+                Button {
+                    showMentionPicker.toggle()
+                } label: {
+                    Image(systemName: "at")
+                        .font(.system(size: 12))
+                        .foregroundColor(.ancMuted)
+                }
+                .buttonStyle(.borderless)
+                .help("Mention agent")
 
                 Button {
                     sendComment(detail.task.id)
@@ -458,6 +479,34 @@ struct TaskDetailView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+    }
+
+    private var mentionSuggestions: some View {
+        HStack(spacing: 4) {
+            ForEach(store.agents) { agent in
+                Button {
+                    // Insert @role into comment
+                    if commentText.hasSuffix("@") {
+                        commentText += agent.role + " "
+                    } else {
+                        commentText += "@\(agent.role) "
+                    }
+                    showMentionPicker = false
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "person.circle")
+                            .font(.system(size: 10))
+                        Text(agent.name)
+                            .font(.system(size: 11))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.ancSurface)
+                    .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
             }
         }
     }

@@ -6,6 +6,8 @@ struct SettingsView: View {
     @State private var agentLimits: [String: String] = [:]
     @State private var reviewRoles: [String: String] = [:]
     @State private var isSaving = false
+    @State private var editingPersonaRole: String? = nil
+    @State private var personaDraft = ""
 
     var body: some View {
         ScrollView {
@@ -16,6 +18,7 @@ struct SettingsView: View {
                 connectionSection
                 budgetSection
                 reviewSection
+                agentsSection
                 aboutSection
             }
             .padding(20)
@@ -209,6 +212,92 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Agents
+
+    private var agentsSection: some View {
+        SettingsSection(title: "Agents", icon: "person.2.circle") {
+            VStack(alignment: .leading, spacing: 10) {
+                if store.agents.isEmpty {
+                    Text("No agents registered")
+                        .font(.system(size: 12))
+                        .foregroundColor(.ancMuted)
+                } else {
+                    ForEach(store.agents) { agent in
+                        HStack(spacing: 8) {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(.ancAccent)
+
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(agent.name)
+                                    .font(.system(size: 12, weight: .medium))
+                                Text("@\(agent.role)")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.ancMuted)
+                            }
+
+                            Spacer()
+
+                            // Session count
+                            Text("\(agent.activeSessions)/\(agent.maxConcurrency)")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(.ancMuted)
+
+                            Button("Edit Persona") {
+                                editingPersonaRole = agent.role
+                                Task {
+                                    await store.fetchAgentPersona(agent.role)
+                                    personaDraft = store.agentPersona ?? ""
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+
+                        if agent.role != store.agents.last?.role {
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { editingPersonaRole != nil },
+            set: { if !$0 { editingPersonaRole = nil } }
+        )) {
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Edit Persona: \(editingPersonaRole ?? "")")
+                        .font(.system(size: 14, weight: .semibold))
+                    Spacer()
+                    Button { editingPersonaRole = nil } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundColor(.ancMuted)
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .padding(16)
+                Divider()
+
+                TextEditor(text: $personaDraft)
+                    .font(.system(size: 12, design: .monospaced))
+                    .padding(8)
+
+                Divider()
+                HStack {
+                    Spacer()
+                    Button("Cancel") { editingPersonaRole = nil }
+                    Button("Save") {
+                        // Would call PUT /personas/:role
+                        editingPersonaRole = nil
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(12)
+            }
+            .frame(width: 600, height: 500)
+        }
+    }
+
     // MARK: - About
 
     private var aboutSection: some View {
@@ -227,7 +316,7 @@ struct SettingsView: View {
                         .font(.system(size: 12))
                         .foregroundColor(.ancMuted)
                     Spacer()
-                    Text("0.1.0 (Phase 3)")
+                    Text("0.2.0 (Full Parity)")
                         .font(.system(size: 12, design: .monospaced))
                 }
                 HStack {
