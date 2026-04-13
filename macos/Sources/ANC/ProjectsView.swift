@@ -1,5 +1,9 @@
 import SwiftUI
 
+enum ProjectSortColumn: String {
+    case name, health, priority, lead, targetDate, tasks, status
+}
+
 // MARK: - Projects Table View
 
 struct ProjectsView: View {
@@ -8,6 +12,8 @@ struct ProjectsView: View {
     @State private var sortOrder = [KeyPathComparator(\ProjectWithStats.name)]
     @State private var selectedProjectId: String? = nil
     @State private var showCreateProject = false
+    @State private var sortColumn: ProjectSortColumn = .name
+    @State private var sortAscending = true
 
     private var filteredProjects: [ProjectWithStats] {
         let projects = store.projectsWithStats
@@ -17,6 +23,37 @@ struct ProjectsView: View {
             $0.name.lowercased().contains(q) ||
             ($0.description?.lowercased().contains(q) ?? false) ||
             ($0.lead?.lowercased().contains(q) ?? false)
+        }
+    }
+
+    private var sortedProjects: [ProjectWithStats] {
+        let projects = filteredProjects
+        let sorted: [ProjectWithStats]
+        switch sortColumn {
+        case .name:
+            sorted = projects.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .health:
+            sorted = projects.sorted { ($0.health ?? "") < ($1.health ?? "") }
+        case .priority:
+            sorted = projects.sorted { ($0.priority ?? 99) < ($1.priority ?? 99) }
+        case .lead:
+            sorted = projects.sorted { ($0.lead ?? "") < ($1.lead ?? "") }
+        case .targetDate:
+            sorted = projects.sorted { ($0.targetDate ?? "") < ($1.targetDate ?? "") }
+        case .tasks:
+            sorted = projects.sorted { ($0.stats?.total ?? 0) < ($1.stats?.total ?? 0) }
+        case .status:
+            sorted = projects.sorted { ($0.state?.rawValue ?? "") < ($1.state?.rawValue ?? "") }
+        }
+        return sortAscending ? sorted : sorted.reversed()
+    }
+
+    private func toggleSort(_ column: ProjectSortColumn) {
+        if sortColumn == column {
+            sortAscending.toggle()
+        } else {
+            sortColumn = column
+            sortAscending = true
         }
     }
 
@@ -36,6 +73,19 @@ struct ProjectsView: View {
                 Spacer()
 
                 Button {
+                    showCreateProject = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 11))
+                        Text("New Project")
+                            .font(.system(size: 12))
+                    }
+                }
+                .buttonStyle(.borderless)
+                .help("Create new project")
+
+                Button {
                     Task { await store.refreshProjectsWithStats() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
@@ -52,7 +102,7 @@ struct ProjectsView: View {
             if filteredProjects.isEmpty {
                 emptyState
             } else {
-                projectsList
+                projectsTable
             }
         }
         .searchable(text: $searchText, placement: .toolbar, prompt: "Search projects...")
@@ -62,16 +112,57 @@ struct ProjectsView: View {
         .onChange(of: selectedProjectId) { _, newVal in
             store.selectedProjectId = newVal
         }
+        .sheet(isPresented: $showCreateProject) {
+            CreateProjectSheet()
+                .environmentObject(store)
+        }
     }
 
-    private var projectsList: some View {
-        List(selection: $selectedProjectId) {
-            ForEach(filteredProjects) { project in
-                ProjectRowView(project: project)
-                    .tag(project.id)
+    private var projectsTable: some View {
+        VStack(spacing: 0) {
+            // Column headers
+            HStack(spacing: 0) {
+                sortableHeader("Name", column: .name, minWidth: 140)
+                sortableHeader("Health", column: .health, minWidth: 70)
+                sortableHeader("Priority", column: .priority, minWidth: 60)
+                sortableHeader("Lead", column: .lead, minWidth: 80)
+                sortableHeader("Target", column: .targetDate, minWidth: 80)
+                sortableHeader("Tasks", column: .tasks, minWidth: 60)
+                sortableHeader("Status", column: .status, minWidth: 60)
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(Color.ancSurface)
+
+            Divider()
+
+            List(selection: $selectedProjectId) {
+                ForEach(sortedProjects) { project in
+                    ProjectRowView(project: project)
+                        .tag(project.id)
+                }
+            }
+            .listStyle(.inset(alternatesRowBackgrounds: true))
         }
-        .listStyle(.inset(alternatesRowBackgrounds: true))
+    }
+
+    private func sortableHeader(_ title: String, column: ProjectSortColumn, minWidth: CGFloat) -> some View {
+        Button {
+            toggleSort(column)
+        } label: {
+            HStack(spacing: 3) {
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.ancMuted)
+                if sortColumn == column {
+                    Image(systemName: sortAscending ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 8))
+                        .foregroundColor(.ancAccent)
+                }
+            }
+            .frame(minWidth: minWidth, alignment: .leading)
+        }
+        .buttonStyle(.plain)
     }
 
     private var emptyState: some View {
@@ -189,6 +280,88 @@ struct ProjectRowView: View {
         Text(text)
             .font(.system(size: 10, design: .monospaced))
             .foregroundColor(color)
+    }
+}
+
+// MARK: - Create Project Sheet
+
+struct CreateProjectSheet: View {
+    @EnvironmentObject var store: AppStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var description = ""
+    @State private var color = "#3B82F6"
+    @State private var priority = 3
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("New Project")
+                    .font(.system(size: 16, weight: .semibold))
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.ancMuted)
+                }
+                .buttonStyle(.borderless)
+            }
+            .padding(16)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Name").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted)
+                    TextField("Project name", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 13))
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Description").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted)
+                    TextField("Optional description", text: $description)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 13))
+                }
+
+                HStack {
+                    Text("Priority").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    Picker("", selection: $priority) {
+                        ForEach(TaskPriority.allCases, id: \.self) { p in
+                            Text("\(priorityGlyph(p.rawValue)) \(p.displayName)").tag(p.rawValue)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
+            }
+            .padding(16)
+
+            Spacer()
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Create") {
+                    Task {
+                        await store.createProject(
+                            name: name.trimmingCharacters(in: .whitespaces),
+                            description: description.isEmpty ? nil : description,
+                            color: color,
+                            priority: priority
+                        )
+                        dismiss()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(16)
+        }
+        .frame(width: 420, height: 340)
     }
 }
 

@@ -977,6 +977,26 @@ struct OkResponse: Codable {
 
 // MARK: - Create Payloads (Pulse)
 
+struct CreateProjectPayload: Encodable {
+    let name: String
+    let description: String?
+    let color: String?
+    let priority: Int?
+}
+
+struct SingleProjectResponse: Codable {
+    let project: ANCProject
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        project = try c.decode(ANCProject.self, forKey: .project)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case project
+    }
+}
+
 struct CreateDecisionPayload: Encodable {
     let title: String
     let rationale: String?

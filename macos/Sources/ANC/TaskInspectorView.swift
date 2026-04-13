@@ -2,6 +2,11 @@ import SwiftUI
 
 struct TaskInspectorView: View {
     @EnvironmentObject var store: AppStore
+    @State private var showActivitySection = false
+    @State private var showCostBreakdown = false
+    @State private var showMemoryTrail = false
+    @State private var dueDateValue: Date = Date()
+    @State private var hasDueDate: Bool = false
 
     var body: some View {
         Group {
@@ -28,8 +33,62 @@ struct TaskInspectorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 propertiesSection(detail)
+
                 Divider()
-                costSection(detail)
+
+                // Collapsible Activity section
+                collapsibleSection("Activity", icon: "clock.arrow.circlepath", isExpanded: $showActivitySection) {
+                    if detail.events.isEmpty && detail.comments.isEmpty {
+                        Text("No activity")
+                            .font(.system(size: 11))
+                            .foregroundColor(.ancMuted)
+                    } else {
+                        let recentEvents = Array(detail.events.prefix(5))
+                        ForEach(recentEvents) { event in
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(Color.ancMuted.opacity(0.5))
+                                    .frame(width: 5, height: 5)
+                                Text(event.type.replacingOccurrences(of: "agent:", with: "").replacingOccurrences(of: "task:", with: ""))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.ancMuted)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text(relativeTime(event.createdAt))
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.ancMuted)
+                            }
+                        }
+                    }
+                }
+
+                Divider()
+
+                // Collapsible Cost Breakdown
+                collapsibleSection("Cost Breakdown", icon: "dollarsign.circle", isExpanded: $showCostBreakdown) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Total")
+                                .font(.system(size: 12))
+                                .foregroundColor(.ancMuted)
+                            Spacer()
+                            Text(String(format: "$%.4f", detail.cost.totalUsd))
+                                .font(.system(size: 12, design: .monospaced))
+                        }
+
+                        ForEach(detail.cost.byAgent, id: \.role) { agent in
+                            HStack {
+                                Text(agent.role)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.ancMuted)
+                                Spacer()
+                                Text(String(format: "$%.4f", agent.usd))
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(.ancMuted)
+                            }
+                        }
+                    }
+                }
 
                 if !detail.sessions.isEmpty {
                     Divider()
@@ -44,6 +103,37 @@ struct TaskInspectorView: View {
             .padding(16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onChange(of: store.selectedTaskId) { _, _ in
+            // Reset collapsible state on task change
+            showActivitySection = false
+            showCostBreakdown = false
+        }
+    }
+
+    // MARK: - Collapsible Section Helper
+
+    private func collapsibleSection<Content: View>(_ title: String, icon: String, isExpanded: Binding<Bool>, @ViewBuilder content: @escaping () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                withAnimation(.spring(duration: 0.2)) { isExpanded.wrappedValue.toggle() }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9))
+                    Image(systemName: icon)
+                        .font(.system(size: 11))
+                    Text(title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.ancMuted)
+                }
+            }
+            .buttonStyle(.borderless)
+
+            if isExpanded.wrappedValue {
+                content()
+                    .padding(.leading, 4)
+            }
+        }
     }
 
     // MARK: - Properties
@@ -135,10 +225,19 @@ struct TaskInspectorView: View {
 
             // Due Date
             propertyRow("Due Date") {
-                let dateStr = detail.task.dueDate
-                Text(dateStr ?? "Not set")
+                if detail.task.dueDate != nil || hasDueDate {
+                    DatePicker("", selection: dueDateBinding(detail), displayedComponents: .date)
+                        .labelsHidden()
+                        .datePickerStyle(.field)
+                } else {
+                    Button("Set date") {
+                        hasDueDate = true
+                        dueDateValue = Date()
+                    }
+                    .buttonStyle(.borderless)
                     .font(.system(size: 12))
-                    .foregroundColor(dateStr == nil ? .ancMuted : .ancForeground)
+                    .foregroundColor(.ancAccent)
+                }
             }
 
             // ID (read-only)
@@ -164,37 +263,6 @@ struct TaskInspectorView: View {
                 propertyRow("Source") {
                     Text(source.rawValue)
                         .font(.system(size: 12))
-                        .foregroundColor(.ancMuted)
-                }
-            }
-        }
-    }
-
-    // MARK: - Cost
-
-    private func costSection(_ detail: TaskDetailResponse) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Cost")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.ancMuted)
-
-            HStack {
-                Text("Total")
-                    .font(.system(size: 12))
-                    .foregroundColor(.ancMuted)
-                Spacer()
-                Text(String(format: "$%.4f", detail.cost.totalUsd))
-                    .font(.system(size: 12, design: .monospaced))
-            }
-
-            ForEach(detail.cost.byAgent, id: \.role) { agent in
-                HStack {
-                    Text(agent.role)
-                        .font(.system(size: 11))
-                        .foregroundColor(.ancMuted)
-                    Spacer()
-                    Text(String(format: "$%.4f", agent.usd))
-                        .font(.system(size: 11, design: .monospaced))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -297,6 +365,28 @@ struct TaskInspectorView: View {
             set: { newProject in
                 Task {
                     await store.updateTask(id: detail.task.id, patch: PatchTaskPayload(projectId: newProject))
+                }
+            }
+        )
+    }
+
+    private func dueDateBinding(_ detail: TaskDetailResponse) -> Binding<Date> {
+        Binding(
+            get: {
+                if let dateStr = detail.task.dueDate {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd"
+                    return formatter.date(from: dateStr) ?? Date()
+                }
+                return dueDateValue
+            },
+            set: { newDate in
+                dueDateValue = newDate
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                let dateStr = formatter.string(from: newDate)
+                Task {
+                    await store.updateTask(id: detail.task.id, patch: PatchTaskPayload(dueDate: dateStr))
                 }
             }
         )

@@ -302,29 +302,17 @@ export function getDb(): Database.Database {
   db.prepare(`INSERT OR IGNORE INTO projects (id, name, description, color, icon, state)
               VALUES ('system', 'System', 'Standing duties and system tasks', '#6b7280', '⚙️', 'active')`).run();
 
-  // Backfill: for each session without a task_id, create a task row and link it
-  const orphans = db.prepare("SELECT * FROM sessions WHERE task_id IS NULL").all() as Array<Record<string, unknown>>;
-  if (orphans.length > 0) {
-    const insertTask = db.prepare(`
-      INSERT OR IGNORE INTO tasks (id, title, state, priority, source, created_by, created_at)
-      VALUES (?, ?, ?, ?, 'duty', 'system', ?)
-    `);
-    const linkSession = db.prepare("UPDATE sessions SET task_id = ? WHERE issue_key = ?");
-    const tx = db.transaction(() => {
-      for (const s of orphans) {
-        const issueKey = s.issue_key as string;
-        const taskId = `migrated-${issueKey}`;
-        const sessionState = s.state as string;
-        const taskState =
-          sessionState === 'active' ? 'running'
-          : sessionState === 'idle' ? 'done'
-          : sessionState;
-        insertTask.run(taskId, issueKey, taskState, s.priority as number, s.spawned_at as number);
-        linkSession.run(taskId, issueKey);
-      }
-    });
-    tx();
+  // Legacy backfill disabled: creating migrated-<uuid> tasks pollutes the
+  // task list with garbage entries. Orphan sessions (task_id IS NULL) are
+  // silently cleaned up instead.
+  const orphanCount = (db.prepare("SELECT count(*) as c FROM sessions WHERE task_id IS NULL").get() as { c: number }).c;
+  if (orphanCount > 0) {
+    db.prepare("DELETE FROM sessions WHERE task_id IS NULL").run();
+    // log would be nice but logger may not be initialized yet
   }
+  // Also clean any previously-migrated garbage
+  db.prepare("DELETE FROM tasks WHERE id LIKE 'migrated-%'").run();
+  // Legacy backfill code removed — it created migrated-<uuid> garbage tasks.
 
   return db;
 }

@@ -228,6 +228,19 @@ final class AppStore: ObservableObject {
         }
     }
 
+    // MARK: - Projects CRUD
+
+    func createProject(name: String, description: String?, color: String?, priority: Int?) async {
+        let payload = CreateProjectPayload(name: name, description: description, color: color, priority: priority)
+        do {
+            let _: SingleProjectResponse = try await api.post("projects", body: payload)
+            await refreshProjects()
+            await refreshProjectsWithStats()
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
     // MARK: - Agent Detail
 
     func fetchAgentDetail(_ role: String) async {

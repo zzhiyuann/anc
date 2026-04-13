@@ -1,0 +1,92 @@
+[
+  {
+    "id": "cal_01",
+    "title": "Fix typo in README.md",
+    "description": "The README has \"recieve\" instead of \"receive\" on line 42. Fix all typo instances.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_02",
+    "title": "Add .gitignore entry for .env.local",
+    "description": "Environment files are being committed. Add .env.local and .env.*.local to .gitignore.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_03",
+    "title": "Update copyright year in LICENSE",
+    "description": "License file says 2024, should be 2025.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_04",
+    "title": "Remove unused import in utils.ts",
+    "description": "ESLint reports unused import of `lodash` in src/utils.ts. Remove it.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_05",
+    "title": "Add alt text to all images in docs",
+    "description": "Accessibility audit found 3 images without alt text in docs/getting-started.md.",
+    "complexity": "low",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_06",
+    "title": "Add input validation to POST /tasks endpoint",
+    "description": "The POST /api/v1/tasks endpoint accepts any body without validation. Add zod schema validation for title (required, 1-200 chars), description (optional, max 5000 chars), priority (1-5).",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_07",
+    "title": "Implement rate limiting for API endpoints",
+    "description": "Add rate limiting to prevent abuse. Use a sliding window counter: 100 requests per minute per IP. Return 429 with Retry-After header when exceeded.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_08",
+    "title": "Add unit tests for priority queue",
+    "description": "The priority queue in src/routing/queue.ts has no tests. Write tests covering: enqueue, dequeue by priority, delay-until, retry count, max retries, stale item cleanup.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_09",
+    "title": "Implement graceful shutdown",
+    "description": "When receiving SIGTERM, the server should: 1) stop accepting new connections, 2) wait for active agent sessions to reach a checkpoint, 3) persist queue state, 4) exit cleanly.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  },
+  {
+    "id": "cal_10",
+    "title": "Add structured logging with pino",
+    "description": "Replace console.log/error calls with structured logging using pino. Add request ID tracking, log levels (debug/info/warn/error), and JSON output format.",
+    "complexity": "medium",
+    "repo": "anc",
+    "expected_labels": [],
+    "source": "custom"
+  }
+]

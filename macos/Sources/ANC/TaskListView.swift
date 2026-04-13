@@ -18,6 +18,7 @@ struct TaskListView: View {
     @State private var filterStates: Set<TaskEntityState> = []
     @State private var filterPriorities: Set<Int> = []
     @State private var filterAssignees: Set<String> = []
+    @State private var filterProjects: Set<String> = []
     @State private var multiSelection: Set<String> = []
 
     private var filteredTasks: [ANCTask] {
@@ -49,6 +50,14 @@ struct TaskListView: View {
             result = result.filter {
                 if let a = $0.assignee { return filterAssignees.contains(a) }
                 return filterAssignees.contains("(unassigned)")
+            }
+        }
+
+        // Filter by project
+        if !filterProjects.isEmpty {
+            result = result.filter {
+                if let p = $0.projectId { return filterProjects.contains(p) }
+                return filterProjects.contains("(none)")
             }
         }
 
@@ -102,6 +111,18 @@ struct TaskListView: View {
                     .clipShape(Capsule())
                 Spacer()
 
+                // Multi-select toggle
+                Button {
+                    isMultiSelectMode.toggle()
+                    if !isMultiSelectMode { multiSelection.removeAll() }
+                } label: {
+                    Image(systemName: isMultiSelectMode ? "checkmark.circle.fill" : "checkmark.circle")
+                        .font(.system(size: 12))
+                        .foregroundColor(isMultiSelectMode ? .ancAccent : .ancMuted)
+                }
+                .buttonStyle(.borderless)
+                .help("Multi-select")
+
                 // Filter menus
                 filterMenu
                 sortMenu
@@ -129,7 +150,7 @@ struct TaskListView: View {
             .padding(.vertical, 10)
 
             // Active filter chips
-            if !filterStates.isEmpty || !filterPriorities.isEmpty || !filterAssignees.isEmpty {
+            if hasActiveFilters {
                 filterChipsBar
             }
 
@@ -204,13 +225,28 @@ struct TaskListView: View {
                     }
                 }
             }
+            Menu("Project") {
+                ForEach(uniqueProjects, id: \.0) { id, name in
+                    Button {
+                        toggleFilter(&filterProjects, id)
+                    } label: {
+                        HStack {
+                            if filterProjects.contains(id) {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(name)
+                        }
+                    }
+                }
+            }
             Divider()
             Button("Clear All Filters") {
                 filterStates.removeAll()
                 filterPriorities.removeAll()
                 filterAssignees.removeAll()
+                filterProjects.removeAll()
             }
-            .disabled(filterStates.isEmpty && filterPriorities.isEmpty && filterAssignees.isEmpty)
+            .disabled(filterStates.isEmpty && filterPriorities.isEmpty && filterAssignees.isEmpty && filterProjects.isEmpty)
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
                 .font(.system(size: 12))
@@ -221,8 +257,21 @@ struct TaskListView: View {
         .help("Filter")
     }
 
+    private var uniqueProjects: [(String, String)] {
+        var result: [(String, String)] = []
+        let projectIds = Set(store.tasks.compactMap { $0.projectId })
+        for id in projectIds.sorted() {
+            let name = store.projects.first { $0.id == id }?.name ?? id
+            result.append((id, name))
+        }
+        if store.tasks.contains(where: { $0.projectId == nil }) {
+            result.insert(("(none)", "(no project)"), at: 0)
+        }
+        return result
+    }
+
     private var hasActiveFilters: Bool {
-        !filterStates.isEmpty || !filterPriorities.isEmpty || !filterAssignees.isEmpty
+        !filterStates.isEmpty || !filterPriorities.isEmpty || !filterAssignees.isEmpty || !filterProjects.isEmpty
     }
 
     // MARK: - Sort Menu
@@ -276,6 +325,12 @@ struct TaskListView: View {
                         filterAssignees.remove(name)
                     }
                 }
+                ForEach(Array(filterProjects).sorted(), id: \.self) { projId in
+                    let name = store.projects.first { $0.id == projId }?.name ?? projId
+                    chipView(name, color: .teal) {
+                        filterProjects.remove(projId)
+                    }
+                }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 4)
@@ -300,32 +355,150 @@ struct TaskListView: View {
     // MARK: - Task List Content
 
     private var taskListContent: some View {
-        List(selection: $store.selectedTaskId) {
-            ForEach(groupedByStatus, id: \.0) { state, tasks in
-                Section {
-                    ForEach(tasks) { task in
-                        TaskRowView(task: task, isSelected: store.selectedTaskId == task.id)
+        VStack(spacing: 0) {
+            // Bulk actions bar when multi-selecting
+            if !multiSelection.isEmpty {
+                bulkActionsBar
+            }
+
+            List(selection: multiSelection.isEmpty ? $store.selectedTaskId : nil) {
+                ForEach(groupedByStatus, id: \.0) { state, tasks in
+                    Section {
+                        ForEach(tasks) { task in
+                            HStack(spacing: 0) {
+                                if isMultiSelectMode {
+                                    Image(systemName: multiSelection.contains(task.id) ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(multiSelection.contains(task.id) ? .ancAccent : .ancMuted)
+                                        .onTapGesture {
+                                            toggleMultiSelect(task.id)
+                                        }
+                                        .padding(.trailing, 6)
+                                }
+                                TaskRowView(task: task, isSelected: store.selectedTaskId == task.id, projectName: projectName(for: task.projectId))
+                            }
                             .tag(task.id)
-                    }
-                } header: {
-                    HStack(spacing: 6) {
-                        Circle().fill(state.color).frame(width: 8, height: 8)
-                        Text(state.displayName)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.ancMuted)
-                        Text("\(tasks.count)")
-                            .font(.system(size: 11))
-                            .foregroundColor(.ancMuted)
+                        }
+                    } header: {
+                        HStack(spacing: 6) {
+                            Circle().fill(state.color).frame(width: 8, height: 8)
+                            Text(state.displayName)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.ancMuted)
+                            Text("\(tasks.count)")
+                                .font(.system(size: 11))
+                                .foregroundColor(.ancMuted)
+                        }
                     }
                 }
             }
-        }
-        .listStyle(.sidebar)
-        .onChange(of: store.selectedTaskId) { _, newId in
-            if let id = newId {
-                store.selectTask(id)
+            .listStyle(.sidebar)
+            .onChange(of: store.selectedTaskId) { _, newId in
+                if let id = newId {
+                    store.selectTask(id)
+                }
             }
         }
+    }
+
+    @State private var isMultiSelectMode = false
+
+    private func toggleMultiSelect(_ id: String) {
+        if multiSelection.contains(id) {
+            multiSelection.remove(id)
+        } else {
+            multiSelection.insert(id)
+        }
+        if multiSelection.isEmpty {
+            isMultiSelectMode = false
+        }
+    }
+
+    private var bulkActionsBar: some View {
+        HStack(spacing: 8) {
+            Text("\(multiSelection.count) selected")
+                .font(.system(size: 12, weight: .medium))
+
+            Spacer()
+
+            Menu("Set Status") {
+                ForEach(TaskEntityState.allCases, id: \.self) { state in
+                    Button {
+                        bulkSetStatus(state)
+                    } label: {
+                        HStack {
+                            Circle().fill(state.color).frame(width: 8, height: 8)
+                            Text(state.displayName)
+                        }
+                    }
+                }
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+
+            Menu("Set Priority") {
+                ForEach(TaskPriority.allCases, id: \.self) { p in
+                    Button {
+                        bulkSetPriority(p.rawValue)
+                    } label: {
+                        Text("\(priorityGlyph(p.rawValue)) \(p.displayName)")
+                    }
+                }
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+
+            Button {
+                bulkDelete()
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 11))
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(.borderless)
+
+            Button("Done") {
+                multiSelection.removeAll()
+                isMultiSelectMode = false
+            }
+            .buttonStyle(.borderless)
+            .font(.system(size: 12))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Color.ancAccent.opacity(0.08))
+    }
+
+    private func bulkSetStatus(_ state: TaskEntityState) {
+        let ids = multiSelection
+        for id in ids {
+            Task { await store.updateTask(id: id, patch: PatchTaskPayload(state: state.rawValue)) }
+        }
+        multiSelection.removeAll()
+        isMultiSelectMode = false
+    }
+
+    private func bulkSetPriority(_ priority: Int) {
+        let ids = multiSelection
+        for id in ids {
+            Task { await store.updateTask(id: id, patch: PatchTaskPayload(priority: priority)) }
+        }
+        multiSelection.removeAll()
+        isMultiSelectMode = false
+    }
+
+    private func bulkDelete() {
+        let ids = multiSelection
+        for id in ids {
+            Task { await store.deleteTask(id: id) }
+        }
+        multiSelection.removeAll()
+        isMultiSelectMode = false
+    }
+
+    private func projectName(for projectId: String?) -> String? {
+        guard let projectId else { return nil }
+        return store.projects.first { $0.id == projectId }?.name ?? projectId
     }
 
     // MARK: - State views
@@ -397,6 +570,7 @@ struct TaskListView: View {
 struct TaskRowView: View {
     let task: ANCTask
     var isSelected: Bool = false
+    var projectName: String? = nil
 
     var body: some View {
         HStack(spacing: 8) {
@@ -427,6 +601,18 @@ struct TaskRowView: View {
                         .font(.system(size: 11))
                         .foregroundColor(.ancMuted)
                 }
+            }
+
+            // Project pill
+            if task.projectId != nil {
+                Text(projectName ?? task.projectId ?? "")
+                    .font(.system(size: 10))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Color.ancAccent.opacity(0.1))
+                    .foregroundColor(.ancAccent)
+                    .clipShape(Capsule())
+                    .lineLimit(1)
             }
 
             // Relative time

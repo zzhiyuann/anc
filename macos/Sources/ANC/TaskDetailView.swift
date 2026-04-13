@@ -8,6 +8,8 @@ struct TaskDetailView: View {
     @State private var descriptionDraft = ""
     @State private var commentText = ""
     @State private var showChildren = true
+    @State private var showHandoff = false
+    @State private var showRuntime = false
 
     var body: some View {
         Group {
@@ -46,8 +48,18 @@ struct TaskDetailView: View {
                 titleSection(detail)
                 descriptionSection(detail)
 
+                // Runtime strip (shows active sessions)
+                if !detail.sessions.isEmpty {
+                    runtimeStrip(detail)
+                }
+
                 if !detail.children.isEmpty {
                     childrenSection(detail)
+                }
+
+                // Handoff section
+                if let handoff = detail.handoff {
+                    handoffDetailSection(handoff)
                 }
 
                 if !detail.attachments.isEmpty {
@@ -186,6 +198,117 @@ struct TaskDetailView: View {
                     }
             }
         }
+    }
+
+    // MARK: - Runtime Strip
+
+    private func runtimeStrip(_ detail: TaskDetailResponse) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                withAnimation(.spring(duration: 0.2)) { showRuntime.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: showRuntime ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10))
+                    Circle()
+                        .fill(Color.ancRunning)
+                        .frame(width: 6, height: 6)
+                    Text("\(detail.sessions.count) active session\(detail.sessions.count == 1 ? "" : "s")")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.ancForeground)
+                    Spacer()
+                    // Show first session state as one-liner
+                    if !showRuntime, let first = detail.sessions.first {
+                        Text(first.state.capitalized)
+                            .font(.system(size: 11))
+                            .foregroundColor(.ancMuted)
+                    }
+                }
+            }
+            .buttonStyle(.borderless)
+
+            if showRuntime {
+                ForEach(detail.sessions) { session in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(session.state == "active" ? Color.green : (session.state == "idle" ? Color.yellow : Color.gray))
+                            .frame(width: 6, height: 6)
+                        Text(session.issueKey)
+                            .font(.system(size: 11, design: .monospaced))
+                            .lineLimit(1)
+                        Spacer()
+                        Text(session.state.capitalized)
+                            .font(.system(size: 11))
+                            .foregroundColor(.ancMuted)
+                    }
+                    .padding(.leading, 16)
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.ancRunning.opacity(0.06))
+        .cornerRadius(8)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.ancRunning.opacity(0.2), lineWidth: 1))
+    }
+
+    // MARK: - Handoff Detail Section
+
+    private func handoffDetailSection(_ handoff: TaskHandoff) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                withAnimation(.spring(duration: 0.2)) { showHandoff.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: showHandoff ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10))
+                    Image(systemName: "arrow.right.circle")
+                        .font(.system(size: 11))
+                        .foregroundColor(.orange)
+                    Text("Handoff")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.ancMuted)
+                    Spacer()
+                    if !showHandoff {
+                        Text("Show full handoff")
+                            .font(.system(size: 11))
+                            .foregroundColor(.ancAccent)
+                    }
+                }
+            }
+            .buttonStyle(.borderless)
+
+            if showHandoff {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let summary = handoff.summary {
+                        Text(summary)
+                            .font(.system(size: 12))
+                            .foregroundColor(.ancForeground)
+                            .textSelection(.enabled)
+                    }
+
+                    if let steps = handoff.nextSteps, !steps.isEmpty {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Next Steps:")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.ancMuted)
+                            ForEach(steps, id: \.self) { step in
+                                HStack(alignment: .top, spacing: 4) {
+                                    Text("•").foregroundColor(.ancMuted)
+                                    Text(step).font(.system(size: 11))
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.leading, 16)
+                .padding(.top, 4)
+            }
+        }
+        .padding(10)
+        .background(Color.orange.opacity(0.05))
+        .cornerRadius(8)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.orange.opacity(0.2), lineWidth: 1))
     }
 
     // MARK: - Children / Sub-issues
