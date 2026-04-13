@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.anc.serve</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>/Users/zwang/projects/anc/dist/index.js</string>
+        <string>serve</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/zwang/projects/anc</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ANC_BUDGET_DISABLED</key>
+        <string>true</string>
+        <key>ANC_LINEAR_TEAM_ID</key>
+        <string>test-team-id</string>
+        <key>ANC_LINEAR_TEAM_KEY</key>
+        <string>TEST</string>
+        <key>ANC_LINEAR_API_KEY</key>
+        <string>not-used</string>
+        <key>ANC_WEBHOOK_PORT</key>
+        <string>3849</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/anc-serve.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/anc-serve-err.log</string>
+</dict>
+</plist>
