@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "anc_full",
+    "memory": "full",
+    "ceo_office": true,
+    "review_policy": "normal"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22637",
+    "title": "Skip directives for markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #22637\n\nBlacken docs uses HTML comments: https://github.com/adamchainz/blacken-docs/#markdown\n\nDo we want something different? Should we support blacken docs' directives?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22637",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "Agent produced an EXECUTION_ERROR with no output, no communication, and no partial work. A low-complexity research/design task should at minimum yield a comment or HANDOFF.md explaining the blocker. Total failure to deliver anything actionable.",
+    "timestamp": "2026-04-13T21:53:59.334Z"
+  },
+  "duration_ms": 10374,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22639",
+    "title": "Adopt ruffen docs in ty mdtests",
+    "description": "Repository: astral-sh/ruff\nIssue #22639\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22639",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent completed the task fully autonomously with zero interventions, delivering a two-PR solution that both enables extension mapping in code block formatting and applies ruff formatting across all mdtest files. Communication is excellent — clear structure, rationale explained, patterns quantified. Minor dock: the solution spans two PRs which adds review overhead for a low-complexity task, though the separation is architecturally reasonable.",
+    "timestamp": "2026-04-13T21:56:36.184Z"
+  },
+  "duration_ms": 261345,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

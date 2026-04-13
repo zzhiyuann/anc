@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22638",
+    "title": "Markdown formatting options based on code block language",
+    "description": "Repository: astral-sh/ruff\nIssue #22638\n\n`````\n\n```py\n...\n```\n\nvs\n\n```pyi\n```\n\n`````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22638",
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
+    "communication_quality": 3,
+    "autonomy_score": 2,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced a detailed analysis/explanation of existing code but did not actually implement anything or submit a PR. The task was to address issue #22638, which requires code changes — instead the agent wrote a walkthrough of how the current code works. Well-structured communication but fundamentally missed the deliverable: shipping a fix, not writing documentation about the codebase.",
+    "timestamp": "2026-04-13T21:52:14.837Z"
+  },
+  "duration_ms": 335655,
+  "cost_usd": 0,
+  "tokens_used": 0
+}
