@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -44,7 +45,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full">
         <ThemeProvider defaultTheme="dark">
-          <AppShell>{children}</AppShell>
+          <Suspense>
+            <AppShell>{children}</AppShell>
+          </Suspense>
           <Toaster />
         </ThemeProvider>
       </body>
