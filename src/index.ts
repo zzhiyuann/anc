@@ -290,6 +290,33 @@ task
     await taskCommentCommand(taskId, message);
   });
 
+// --- Memory (cross-agent knowledge discovery) ---
+const memory = program.command('memory').description('Cross-agent memory discovery');
+
+memory
+  .command('search <query>')
+  .description('Search all memory files across all agents + shared')
+  .action(async (query: string) => {
+    const { memorySearchCommand } = await import('./commands/memory.js');
+    await memorySearchCommand(query);
+  });
+
+memory
+  .command('read <target> [filename]')
+  .description('Read another agent\'s memory file: anc memory read @strategist pricing.md')
+  .action(async (target: string, filename?: string) => {
+    const { memoryReadCommand } = await import('./commands/memory.js');
+    await memoryReadCommand(target, filename);
+  });
+
+memory
+  .command('list [target]')
+  .description('List memory files: anc memory list @strategist')
+  .action(async (target?: string) => {
+    const { memoryListCommand } = await import('./commands/memory.js');
+    await memoryListCommand(target);
+  });
+
 // --- Company ---
 const company = program.command('company').description('Fleet-level management');
 

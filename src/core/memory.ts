@@ -9,7 +9,7 @@
  */
 
 import { promises as fs } from 'node:fs';
-import { existsSync, mkdirSync, statSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { homedir } from 'node:os';
 
@@ -88,5 +88,167 @@ export function listMemoryFiles(role: string): string[] {
     return readdirSync(dir).filter((f) => /\.(md|txt|json)$/i.test(f));
   } catch {
     return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cross-agent memory search + index
+// ---------------------------------------------------------------------------
+
+const SHARED_MEMORY_DIR_NAME = 'shared-memory';
+
+function sharedMemoryDir(): string {
+  const dir = path.resolve(path.join(getStateDir(), SHARED_MEMORY_DIR_NAME));
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/** List all agent role slugs that have a memory directory */
+function discoverAgentRoles(): string[] {
+  const agentsDir = path.join(getStateDir(), 'agents');
+  if (!existsSync(agentsDir)) return [];
+  try {
+    return readdirSync(agentsDir).filter((name) => {
+      if (!ROLE_RE.test(name)) return false;
+      const memDir = path.join(agentsDir, name, 'memory');
+      try { return statSync(memDir).isDirectory(); } catch { return false; }
+    });
+  } catch {
+    return [];
+  }
+}
+
+export interface MemorySearchResult {
+  role: string; // agent role slug or "shared"
+  filename: string;
+  snippet: string; // ~30 chars around match
+  matchType: 'filename' | 'content' | 'both';
+}
+
+/**
+ * Search all memory files across all agents + shared.
+ * Simple case-insensitive substring match. Filename match ranks higher.
+ * Returns top `limit` results.
+ */
+export function searchMemory(query: string, limit = 10): MemorySearchResult[] {
+  if (!query || typeof query !== 'string') return [];
+  const q = query.toLowerCase();
+
+  const results: (MemorySearchResult & { _score: number })[] = [];
+
+  // Helper: scan a directory of .md/.txt/.json files
+  function scanDir(dir: string, role: string): void {
+    let files: string[];
+    try { files = readdirSync(dir).filter((f) => /\.(md|txt|json)$/i.test(f)); }
+    catch { return; }
+
+    for (const filename of files) {
+      const filenameMatch = filename.toLowerCase().includes(q);
+      let contentSnippet = '';
+      let contentMatch = false;
+
+      const fp = path.join(dir, filename);
+      try {
+        const body = readFileSync(fp, 'utf-8');
+        const idx = body.toLowerCase().indexOf(q);
+        if (idx >= 0) {
+          contentMatch = true;
+          const start = Math.max(0, idx - 15);
+          const end = Math.min(body.length, idx + q.length + 15);
+          contentSnippet = (start > 0 ? '...' : '') +
+            body.slice(start, end).replace(/\n/g, ' ') +
+            (end < body.length ? '...' : '');
+        }
+      } catch { /* unreadable file */ }
+
+      if (!filenameMatch && !contentMatch) continue;
+
+      const matchType: MemorySearchResult['matchType'] =
+        filenameMatch && contentMatch ? 'both' :
+        filenameMatch ? 'filename' : 'content';
+
+      const snippet = contentSnippet || filename;
+      const score = matchType === 'both' ? 3 : matchType === 'filename' ? 2 : 1;
+
+      results.push({ role, filename, snippet, matchType, _score: score });
+    }
+  }
+
+  // Scan all agents
+  for (const role of discoverAgentRoles()) {
+    const dir = path.join(getStateDir(), 'agents', role, 'memory');
+    scanDir(dir, role);
+  }
+
+  // Scan shared memory
+  const sharedDir = sharedMemoryDir();
+  scanDir(sharedDir, 'shared');
+
+  // Sort: higher score first, then alphabetical by role+filename
+  results.sort((a, b) =>
+    b._score - a._score ||
+    a.role.localeCompare(b.role) ||
+    a.filename.localeCompare(b.filename)
+  );
+
+  return results.slice(0, limit).map(({ _score, ...rest }) => rest);
+}
+
+export interface MemoryIndexAgent {
+  files: string[];
+  totalSize: number;
+}
+
+export interface MemoryIndex {
+  agents: Record<string, MemoryIndexAgent>;
+  shared: MemoryIndexAgent;
+}
+
+/** Build a structured map of all agents' memory files + shared memory */
+export function getMemoryIndex(): MemoryIndex {
+  const agents: Record<string, MemoryIndexAgent> = {};
+
+  for (const role of discoverAgentRoles()) {
+    const dir = path.join(getStateDir(), 'agents', role, 'memory');
+    let files: string[];
+    try { files = readdirSync(dir).filter((f) => /\.(md|txt|json)$/i.test(f)); }
+    catch { continue; }
+    let totalSize = 0;
+    for (const f of files) {
+      try { totalSize += statSync(path.join(dir, f)).size; } catch { /* skip */ }
+    }
+    agents[role] = { files, totalSize };
+  }
+
+  // Shared
+  const sharedDir = sharedMemoryDir();
+  let sharedFiles: string[];
+  try { sharedFiles = readdirSync(sharedDir).filter((f) => /\.(md|txt|json)$/i.test(f)); }
+  catch { sharedFiles = []; }
+  let sharedSize = 0;
+  for (const f of sharedFiles) {
+    try { sharedSize += statSync(path.join(sharedDir, f)).size; } catch { /* skip */ }
+  }
+
+  return { agents, shared: { files: sharedFiles, totalSize: sharedSize } };
+}
+
+/** Read a shared memory file by filename (safe, read-only) */
+export function readSharedMemoryFile(filename: string): MemoryFile | null {
+  if (typeof filename !== 'string' || filename.length === 0) return null;
+  if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) return null;
+  if (!FILENAME_RE.test(filename)) return null;
+
+  const dir = sharedMemoryDir();
+  const fp = path.resolve(path.join(dir, filename));
+  if (!fp.startsWith(dir + path.sep) && fp !== dir) return null;
+  if (!existsSync(fp)) return null;
+
+  try {
+    const body = readFileSync(fp, 'utf-8');
+    const stat = statSync(fp);
+    return { filename, body, mtime: stat.mtimeMs };
+  } catch {
+    return null;
   }
 }

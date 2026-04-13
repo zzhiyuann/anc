@@ -1106,7 +1106,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       if (!body) { error(res, 'Invalid JSON body', 400); return true; }
       const state = body.state;
       const note = body.note;
-      const VALID_STATES = ['todo', 'running', 'review', 'done', 'failed', 'canceled', 'suspended'];
+      const VALID_STATES = ['todo', 'running', 'review', 'done', 'failed', 'canceled', 'suspended', 'awaiting-input'];
       if (typeof state !== 'string' || !VALID_STATES.includes(state)) {
         error(res, `state must be one of: ${VALID_STATES.join(', ')}`, 400);
         return true;
@@ -1427,6 +1427,165 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     // (The existing GET /tasks handler already reads searchParams; we just need
     //  to add assignee there — handled in the early tasks block.)
 
+    // === Agent SDK: POST /tasks/:id/ask ===
+    m = matchRoute('/tasks/:id/ask', path);
+    if (method === 'POST' && m) {
+      const id = m.params.id;
+      if (!ENTITY_ID_REGEX.test(id)) { error(res, 'Invalid task id format', 400); return true; }
+      const task = getTask(id);
+      if (!task) { error(res, 'Task not found', 404); return true; }
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      const target = body.target as string | undefined;
+      const question = body.question as string | undefined;
+      const author = body.author as string | undefined;
+      if (!target || !question) { error(res, 'target and question required', 400); return true; }
+
+      const authorLabel = author ?? 'system';
+      const { addTaskComment: addCmt } = await import('../core/tasks.js');
+      addCmt(id, authorLabel, `@${target}: ${question}`);
+
+      if (target === '@ceo' || target === 'ceo') {
+        // Set task to awaiting-input and create a high-priority notification
+        try {
+          const { transitionTaskState: transition } = await import('../core/tasks.js');
+          transition(id, 'awaiting-input' as TaskState, { by: authorLabel, note: `Asking CEO: ${question}` });
+        } catch { /* may already be awaiting-input or in terminal state */ }
+        createNotification({
+          kind: 'mention',
+          severity: 'warning',
+          title: `Agent asks: ${question.substring(0, 80)}`,
+          body: question,
+          taskId: id,
+          agentRole: typeof authorLabel === 'string' ? authorLabel.replace(/^agent:/, '') : null,
+        });
+      } else {
+        // Dispatch target agent as contributor on the same task
+        const targetRole = target.replace(/^@/, '');
+        const agent = getAgent(targetRole);
+        if (agent) {
+          const prompt = `Question from ${authorLabel}: ${question}\n\nTask: ${task.title}${task.description ? '\n\n' + task.description : ''}`;
+          const issueKey = `${task.id}-${agent.role}`;
+          resolveSession({
+            role: agent.role as AgentRole,
+            issueKey,
+            prompt,
+            priority: task.priority,
+            taskId: task.id,
+          });
+        }
+      }
+      json(res, { ok: true, target, taskId: id }, 201);
+      return true;
+    }
+
+    // === Agent SDK: POST /tasks/:id/attach ===
+    m = matchRoute('/tasks/:id/attach', path);
+    if (method === 'POST' && m) {
+      const id = m.params.id;
+      if (!ENTITY_ID_REGEX.test(id)) { error(res, 'Invalid task id format', 400); return true; }
+      const task = getTask(id);
+      if (!task) { error(res, 'Task not found', 404); return true; }
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      const filePath = body.path as string | undefined;
+      const description = body.description as string | undefined;
+      const author = body.author as string | undefined;
+      if (!filePath) { error(res, 'path required', 400); return true; }
+
+      // Path-traversal safety: file must be inside the workspace
+      const { getWorkspacePath: getWs } = await import('../runtime/workspace.js');
+      const workspace = getWs(id);
+      const { resolve: pathResolve, relative: pathRelative } = await import('path');
+      const absPath = pathResolve(workspace, filePath);
+      const rel = pathRelative(workspace, absPath);
+      if (rel.startsWith('..')) {
+        error(res, 'Path must be inside the workspace', 400); return true;
+      }
+
+      // Copy file to attachments dir
+      const { mkdirSync: mkdirS, copyFileSync: copyS, existsSync: existsS } = await import('fs');
+      if (!existsS(absPath)) { error(res, 'File not found', 404); return true; }
+      const attachDir = join(workspace, '.attachments');
+      mkdirS(attachDir, { recursive: true });
+      const filename = basename(filePath);
+      copyS(absPath, join(attachDir, filename));
+
+      const authorLabel = author ?? 'system';
+      const { addTaskComment: addCmt } = await import('../core/tasks.js');
+      addCmt(id, authorLabel, `Attached: ${filename}${description ? ' — ' + description : ''}`);
+
+      // Emit event
+      getDb().prepare(
+        'INSERT INTO task_events (task_id, role, type, payload) VALUES (?, ?, ?, ?)'
+      ).run(id, authorLabel, 'task:attachment-added', JSON.stringify({ filename, description }));
+
+      json(res, { ok: true, filename }, 201);
+      return true;
+    }
+
+    // === Agent SDK: PATCH /tasks/:id/progress ===
+    m = matchRoute('/tasks/:id/progress', path);
+    if (method === 'PATCH' && m) {
+      const id = m.params.id;
+      if (!ENTITY_ID_REGEX.test(id)) { error(res, 'Invalid task id format', 400); return true; }
+      const task = getTask(id);
+      if (!task) { error(res, 'Task not found', 404); return true; }
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      const message = body.message as string | undefined;
+      const percent = body.percent as number | undefined;
+      const author = body.author as string | undefined;
+      if (!message) { error(res, 'message required', 400); return true; }
+
+      const { setTaskProgress: setProgress, addTaskComment: addCmt } = await import('../core/tasks.js');
+      if (typeof percent === 'number') {
+        setProgress(id, percent, message);
+      }
+      const authorLabel = author ?? 'system';
+      const progressNote = typeof percent === 'number' ? `[${percent}%] ${message}` : message;
+      addCmt(id, authorLabel, progressNote);
+
+      // Emit event
+      getDb().prepare(
+        'INSERT INTO task_events (task_id, role, type, payload) VALUES (?, ?, ?, ?)'
+      ).run(id, authorLabel, 'task:progress', JSON.stringify({ message, percent }));
+
+      json(res, { ok: true, progress: percent ?? task.progress });
+      return true;
+    }
+
+    // === Agent SDK: POST /tasks/:id/flag ===
+    m = matchRoute('/tasks/:id/flag', path);
+    if (method === 'POST' && m) {
+      const id = m.params.id;
+      if (!ENTITY_ID_REGEX.test(id)) { error(res, 'Invalid task id format', 400); return true; }
+      const task = getTask(id);
+      if (!task) { error(res, 'Task not found', 404); return true; }
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      const message = body.message as string | undefined;
+      const severity = (body.severity as string) === 'critical' ? 'critical' : 'warning';
+      const author = body.author as string | undefined;
+      if (!message) { error(res, 'message required', 400); return true; }
+
+      const authorLabel = author ?? 'system';
+      const { addTaskComment: addCmt } = await import('../core/tasks.js');
+      addCmt(id, authorLabel, `FLAG [${severity}]: ${message}`);
+
+      createNotification({
+        kind: 'alert',
+        severity,
+        title: `Flag: ${message.substring(0, 80)}`,
+        body: message,
+        taskId: id,
+        agentRole: typeof authorLabel === 'string' ? authorLabel.replace(/^agent:/, '') : null,
+      });
+
+      json(res, { ok: true, severity }, 201);
+      return true;
+    }
+
     // === Gap Fill: /config/budget/series?role=<role>&days=<n> ===
     if (method === 'GET' && path === '/config/budget/series') {
       const role = url.searchParams.get('role');
@@ -1475,6 +1634,24 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       } catch (e) {
         error(res, (e as Error).message, 500);
       }
+      return true;
+    }
+
+    // === Cross-agent memory search + index ===
+
+    if (method === 'GET' && path === '/memory/search') {
+      const q = url.searchParams.get('q') ?? '';
+      if (!q.trim()) { json(res, { results: [] }); return true; }
+      const mem = await import('../core/memory.js');
+      const results = mem.searchMemory(q);
+      json(res, { results });
+      return true;
+    }
+
+    if (method === 'GET' && path === '/memory/index') {
+      const mem = await import('../core/memory.js');
+      const index = mem.getMemoryIndex();
+      json(res, index);
       return true;
     }
 
