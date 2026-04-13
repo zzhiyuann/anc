@@ -1,0 +1,33 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22637",
+    "title": "Skip directives for markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #22637\n\nBlacken docs uses HTML comments: https://github.com/adamchainz/blacken-docs/#markdown\n\nDo we want something different? Should we support blacken docs' directives?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22637",
+    "satisfaction": 3,
+    "task_completion": 0,
+    "code_quality": 3,
+    "communication_quality": 4,
+    "autonomy_score": 4,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent misread the issue. The task was a design discussion about whether Ruff should support blacken-docs directives and what syntax to use — not an implementation request. Jumping straight to code without confirming the design direction is a significant miss on a 'low complexity' issue that was primarily about decision-making. The implementation itself seems reasonable and well-documented, but it may not reflect what the maintainers actually want, and the agent admitted tests were never run.",
+    "notes": "Should have posted a comment proposing the design (fmt:skip next syntax, blacken-docs compat) and waited for maintainer feedback before writing code.",
+    "timestamp": "2026-04-13T18:02:18.474Z"
+  },
+  "duration_ms": 294770,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

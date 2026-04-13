@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23204",
+    "title": "Better extension mapping for markdown files",
+    "description": "Repository: astral-sh/ruff\nIssue #23204\n\nRather than having an exhaustive list of all possible markdown file extensions in `SourceType::from(<path>)`, maybe this could be configurable in some way? Maybe this could also affect default file discovery when we stabilize markdown formatting?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23204",
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
+    "communication_quality": 4,
+    "autonomy_score": 3,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced a well-structured summary of existing PRs that already solved the issue, but did not actually write any code or submit a PR itself. This is a research report, not engineering output — the task was to implement a solution, not describe one that already exists. Communication was clear but directed at the wrong deliverable entirely.",
+    "timestamp": "2026-04-13T19:01:19.804Z"
+  },
+  "duration_ms": 256964,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

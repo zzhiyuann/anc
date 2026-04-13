@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22639",
+    "title": "Adopt ruffen docs in ty mdtests",
+    "description": "Repository: astral-sh/ruff\nIssue #22639\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22639",
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 4,
+    "autonomy_score": 3,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced a detailed analysis and explanation of how the issue was solved in existing PRs, but did not actually implement anything itself. This is a research report, not a code contribution — the task was to adopt ruffen-docs, not to describe how someone else did it. Communication was clear and well-structured, but zero code was written or committed, so task completion and code quality are minimal.",
+    "timestamp": "2026-04-13T18:36:32.846Z"
+  },
+  "duration_ms": 320964,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

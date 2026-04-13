@@ -77,7 +77,7 @@ export function claudePrint(prompt: string, maxTokens = 4096): string {
       `claude -p '${escapedPrompt}'`,
       {
         encoding: 'utf-8',
-        timeout: 300_000, // 5 min for complex tasks
+        timeout: 600_000, // 10 min for complex tasks
         maxBuffer: 10 * 1024 * 1024,
         cwd: ANC_ROOT,
       }
@@ -330,6 +330,12 @@ async function executeTask(
 
     const created = JSON.parse(createResp);
     const taskId = created.id;
+
+    // Dispatch to engineer agent (ANC won't auto-route REST-created tasks)
+    execSync(
+      `curl -s -X POST http://localhost:3849/api/v1/tasks/${taskId}/dispatch -H 'Content-Type: application/json' -d '{"role": "engineer"}'`,
+      { encoding: 'utf-8', timeout: 10_000 }
+    );
 
     // Wait for agent to pick up and complete (poll every 30s, max 10 min)
     let output = '';

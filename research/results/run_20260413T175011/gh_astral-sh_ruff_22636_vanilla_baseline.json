@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22636",
+    "title": "Mechanism to opt-in or opt-out of markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #22636\n\nOnce we have more of the feature set completed and want to stabilize support, there are a few paths we could take:\n\n- Require users who want markdown formatting on-by-default to set `extend-include = [\"**/*.md\"]` in their project config (opt-in).\n- Add a new `format.markdown-code-blocks = true` config option, similar to docstring formatting, that would automatically include `.md` files in the global default search path (opt-in). What do do if the user explicitly passes a `.md` file while the feature is disabled is tbd.\n- Turn it on by default, including `.md` in the global default search path, and allow users to set `exclude = [\"**/*.md\"]` or similar in their project config if they don't want the feature (opt-out).",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "configuration"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22636",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever. There is no code, no design document, no HANDOFF.md, no comments — nothing. A medium-complexity task requiring a config mechanism for markdown formatting opt-in/opt-out was completely ignored or failed silently without any communication.",
+    "timestamp": "2026-04-13T17:57:23.704Z"
+  },
+  "duration_ms": 311588,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

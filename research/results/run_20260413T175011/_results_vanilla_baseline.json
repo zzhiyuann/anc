@@ -1,0 +1,165 @@
+[
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22635",
+      "title": "Handle markdown code blocks with syntax errors",
+      "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22635",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent fully answered the diagnostic question with well-structured analysis, citing exact code paths, test coverage, and design rationale. No code changes were required (research task), so code_quality reflects the accuracy and depth of the analysis. Slight ding on satisfaction because the task was low-complexity and the output is more verbose than strictly necessary for an issue that boils down to 'silently skip, same as docstrings.'",
+      "timestamp": "2026-04-13T17:52:12.114Z"
+    },
+    "duration_ms": 120842,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22636",
+      "title": "Mechanism to opt-in or opt-out of markdown formatting",
+      "description": "Repository: astral-sh/ruff\nIssue #22636\n\nOnce we have more of the feature set completed and want to stabilize support, there are a few paths we could take:\n\n- Require users who want markdown formatting on-by-default to set `extend-include = [\"**/*.md\"]` in their project config (opt-in).\n- Add a new `format.markdown-code-blocks = true` config option, similar to docstring formatting, that would automatically include `.md` files in the global default search path (opt-in). What do do if the user explicitly passes a `.md` file while the feature is disabled is tbd.\n- Turn it on by default, including `.md` in the global default search path, and allow users to set `exclude = [\"**/*.md\"]` or similar in their project config if they don't want the feature (opt-out).",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "configuration"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22636",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever. There is no code, no design document, no HANDOFF.md, no comments — nothing. A medium-complexity task requiring a config mechanism for markdown formatting opt-in/opt-out was completely ignored or failed silently without any communication.",
+      "timestamp": "2026-04-13T17:57:23.704Z"
+    },
+    "duration_ms": 311588,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22637",
+      "title": "Skip directives for markdown formatting",
+      "description": "Repository: astral-sh/ruff\nIssue #22637\n\nBlacken docs uses HTML comments: https://github.com/adamchainz/blacken-docs/#markdown\n\nDo we want something different? Should we support blacken docs' directives?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22637",
+      "satisfaction": 3,
+      "task_completion": 0,
+      "code_quality": 3,
+      "communication_quality": 4,
+      "autonomy_score": 4,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent misread the issue. The task was a design discussion about whether Ruff should support blacken-docs directives and what syntax to use — not an implementation request. Jumping straight to code without confirming the design direction is a significant miss on a 'low complexity' issue that was primarily about decision-making. The implementation itself seems reasonable and well-documented, but it may not reflect what the maintainers actually want, and the agent admitted tests were never run.",
+      "notes": "Should have posted a comment proposing the design (fmt:skip next syntax, blacken-docs compat) and waited for maintainer feedback before writing code.",
+      "timestamp": "2026-04-13T18:02:18.474Z"
+    },
+    "duration_ms": 294770,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22638",
+      "title": "Markdown formatting options based on code block language",
+      "description": "Repository: astral-sh/ruff\nIssue #22638\n\n`````\n\n```py\n...\n```\n\nvs\n\n```pyi\n```\n\n`````",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22638",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent fully analyzed the issue and identified the existing solution (PR #22470) with clear explanation of the three-part mechanism: regex capture, extension mapping, and format options flow. Communication was excellent — well-structured with code snippets, test evidence, and a concise summary. Docking one point on satisfaction because the task was to implement a fix, not analyze an already-merged PR; the agent essentially wrote a code review of existing work rather than producing new code, though for a 'low complexity' analysis task this is acceptable.",
+      "timestamp": "2026-04-13T18:06:41.933Z"
+    },
+    "duration_ms": 263458,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22639",
+      "title": "Adopt ruffen docs in ty mdtests",
+      "description": "Repository: astral-sh/ruff\nIssue #22639\n\n",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22639",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent completed the task fully autonomously with zero CEO interventions. The solution is well-structured across 4 files with a clean separation of concerns — adding a lookup method, wiring it into the formatter with proper fallback, and including a focused test. Communication is excellent: clear problem statement, precise diffs, and a 'why this matters' section. Docking one point on satisfaction/code_quality only because the output describes the solution rather than showing a merged PR or verifiable artifact — it reads as a plan rather than confirmed-shipped work.",
+      "timestamp": "2026-04-13T18:09:05.364Z"
+    },
+    "duration_ms": 143427,
+    "cost_usd": 0,
+    "tokens_used": 0
+  }
+]

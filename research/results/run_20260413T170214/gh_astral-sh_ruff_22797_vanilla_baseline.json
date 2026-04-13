@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22797",
+    "title": "Fix for W391 does not Work for Notebooks",
+    "description": "Repository: astral-sh/ruff\nIssue #22797\n\n### Summary\n\nNotebooks containing multiple empty cells in a row trigger the warning W391 which is reported as fixable.\nWhen running `ruff --isolated check --select W391 --preview --fix Two_empty_cells.ipynb` ruff will report the error W391 \"Extra newline at end of cell\" and reports it as fixed. However the cell is not removed, running the command multiple times results in ruff reporting the error every time and each time saying 0 remaining errors:\n```bash\n$ ruff --isolated check --select W391 --preview --fix Two_empty_cells.ipynb \nFound 1 error (1 fixed, 0 remaining).\n\n$ ruff --isolated check --select W391 --preview --fix Two_empty_cells.ipynb \nFound 1 error (1 fixed, 0 remaining).\n\n$ ruff --isolated check --select W391 --preview --fix Two_empty_cells.ipynb\nFound 1 error (1 fixed, 0 remaining).\n```\n\nIf there are more than two empty cells the `--fix` option causes ruff to panic:\n```bash\n$ ruff --isolated check --select W391 --preview --fix Three_empty_cells.ipynb                                                                                                            (base) \npanic: Panicked at crates/ruff_notebook/src/notebook.rs:281:21 when checking `Three_empty_cells.ipynb`: `Transformed content out of bounds (25..24) for cell at 2`\n--> Three_empty_cells.ipynb:1:1\ninfo: This indicates a bug in Ruff.\ninfo: If you could open an issue at https://github.com/astral-sh/ruff/issues/new?title=%5Bpanic%5D, we'd be very appreciative!\ninfo: run with `RUST_BACKTRACE=1` environment variable to show the full backtrace information\n\nFound 1 error.\nerror: Panic during linting indicates a bug in Ruff. If you could open an issue at:\n\nhttps://github.com/astral-sh/ruff/issues/new?title=%5BLinter%20panic%5D\n\n...with the relevant file contents, the `pyproject.toml` settings, and the stack trace above, we'd be very appreciative!\n```\n\nNotebook files:\n[Two_empty_cells.ipynb](https://github.com/user-attachments/files/24792457/Two_empty_cells.ipynb)\n[Three_empty_cells.ipynb](https://github.c",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "notebook"
+    ],
+    "complexity": "high",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22797",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever. No code changes, no analysis, no communication, no HANDOFF.md — nothing. This is a high-complexity Rust bug involving notebook cell boundary handling and a panic, and the agent failed to even begin working on it. Full recovery with a new agent assignment is required.",
+    "timestamp": "2026-04-13T17:44:10.062Z"
+  },
+  "duration_ms": 131264,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

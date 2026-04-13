@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22637",
+    "title": "Skip directives for markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #22637\n\nBlacken docs uses HTML comments: https://github.com/adamchainz/blacken-docs/#markdown\n\nDo we want something different? Should we support blacken docs' directives?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22637",
+    "satisfaction": 3,
+    "task_completion": 0,
+    "code_quality": 3,
+    "communication_quality": 4,
+    "autonomy_score": 4,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced a well-structured design document with clear rationale for HTML comments over info strings, blacken-docs compatibility, and reasonable code. However, this is a proposal/sketch rather than a shipped contribution — no PR was opened, no real code was committed to the ruff repo, and the test output is truncated mid-assertion. The task asked whether ruff should support blacken-docs directives, and the agent jumped straight to implementation without confirming the design direction with maintainers or checking existing discussion on the issue.",
+    "timestamp": "2026-04-13T21:46:39.183Z"
+  },
+  "duration_ms": 258715,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

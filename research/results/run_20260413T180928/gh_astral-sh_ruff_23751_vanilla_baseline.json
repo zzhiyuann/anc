@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23751",
+    "title": "`--add-noqa` for diagnostics on blank lines results in bad whitespace",
+    "description": "Repository: astral-sh/ruff\nIssue #23751\n\n### Summary\n\nRules like `D100` can produce diagnostics on `TextRange::ZERO` even if the line is blank.  In these cases, running ruff with `--add-noqa` produces a line with leading whitespace:\n\nCreate an empty file, and run `ruff check --add-noqa`:\n\n```\n$ echo \"\" > test.py\n\n$ ruff check --isolated --select D100 --add-noqa test.py\nAdded 1 noqa directive.\n\n$ cat test.py\n  # noqa: D100\n```\n\n### Version\n\nmain",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "suppression"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23751",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent correctly identified the root cause in the edit range calculation for blank lines and produced a clean, minimal fix. Communication was excellent — clear bug analysis, precise root cause explanation, and well-structured summary. Both unit and integration tests were added. Minor deduction: the fix uses a conditional branch where trimming leading whitespace from trimmed_line might have been slightly more elegant, but the approach is correct and readable. Zero CEO intervention needed.",
+    "timestamp": "2026-04-13T19:23:30.483Z"
+  },
+  "duration_ms": 393507,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

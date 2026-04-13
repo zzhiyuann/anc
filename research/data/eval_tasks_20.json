@@ -1,0 +1,211 @@
+[
+  {
+    "id": "gh_astral-sh_ruff_22635",
+    "title": "Handle markdown code blocks with syntax errors",
+    "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22636",
+    "title": "Mechanism to opt-in or opt-out of markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #22636\n\nOnce we have more of the feature set completed and want to stabilize support, there are a few paths we could take:\n\n- Require users who want markdown formatting on-by-default to set `extend-include = [\"**/*.md\"]` in their project config (opt-in).\n- Add a new `format.markdown-code-blocks = true` config option, similar to docstring formatting, that would automatically include `.md` files in the global default search path (opt-in). What do do if the user explicitly passes a `.md` file while the feature is disabled is tbd.\n- Turn it on by default, including `.md` in the global default search path, and allow users to set `exclude = [\"**/*.md\"]` or similar in their project config if they don't want the feature (opt-out).",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "configuration"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22637",
+    "title": "Skip directives for markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #22637\n\nBlacken docs uses HTML comments: https://github.com/adamchainz/blacken-docs/#markdown\n\nDo we want something different? Should we support blacken docs' directives?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22638",
+    "title": "Markdown formatting options based on code block language",
+    "description": "Repository: astral-sh/ruff\nIssue #22638\n\n`````\n\n```py\n...\n```\n\nvs\n\n```pyi\n```\n\n`````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22639",
+    "title": "Adopt ruffen docs in ty mdtests",
+    "description": "Repository: astral-sh/ruff\nIssue #22639\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22640",
+    "title": "LSP formatting support for markdown files",
+    "description": "Repository: astral-sh/ruff\nIssue #22640\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22881",
+    "title": "Skip walking toml/markdown files for linter",
+    "description": "Repository: astral-sh/ruff\nIssue #22881\n\n> Let's add a test that `ruff check markdown.md` logs a warning that no python files were found\r> \n> \r> \n> \r> \n> ```\r> \n> \u276f cargo run --bin ruff -p ruff check README.md --no-cache -v\r> \n>     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s\r> \n>      Running `target/debug/ruff check README.md --no-cache -v`\r> \n> [2026-01-21][10:43:37][ruff::resolve][DEBUG] Using configuration file (via parent) at: /Users/micha/astral/ruff/pyproject.toml\r> \n> [2026-01-21][10:43:37][ignore::gitignore][DEBUG] opened gitignore file: /Users/micha/.gitignore_global\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Identified files to lint in: 5.983166ms\r> \n> [2026-01-21][10:43:37][ruff::diagnostics][DEBUG] Checking: /Users/micha/astral/ruff/README.md\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Checked 1 files in: 1.230625ms\r> \n> All checks passed!\r> \n> ```\r> \n> \r> \n> We might also want to add a preview and non-preview test for what Ruff does when checking a directory. \n\n _Originally posted by @MichaReiser in [#22470](https://github.com/astral-sh/ruff/pull/22470/changes#r2711756342)_",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "internal"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22905",
+    "title": "Handle `~~~` and arbitrary length code fences",
+    "description": "Repository: astral-sh/ruff\nIssue #22905\n\n````markdown\n~~~py\nprint('hello')\n~~~\n````\n\n`````markdown\n````markdown\n~~~py\nprint('hello')\n~~~\n````\n`````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22951",
+    "title": "Support quarto markdown language markers",
+    "description": "Repository: astral-sh/ruff\nIssue #22951\n\n~~~markdown\n```{py}\nprint('hello')\n```\n~~~",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23078",
+    "title": "Support Python console (`pycon`) markdown code blocks",
+    "description": "Repository: astral-sh/ruff\nIssue #23078\n\n````markdown\n```pycon\n>>> print(\"hello\")\nhello\n>>> list(reversed(range(10)))\n[9, 8, 7, 6, 5, 4, 3, 2, 1, 0]\n```\n````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23204",
+    "title": "Better extension mapping for markdown files",
+    "description": "Repository: astral-sh/ruff\nIssue #23204\n\nRather than having an exhaustive list of all possible markdown file extensions in `SourceType::from(<path>)`, maybe this could be configurable in some way? Maybe this could also affect default file discovery when we stabilize markdown formatting?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23235",
+    "title": "Range suppression diagnostics not being surfaced",
+    "description": "Repository: astral-sh/ruff\nIssue #23235\n\n### Summary\n\nThis should generate both a RUF100 and RUF104: https://play.ruff.rs/ca35d323-c80e-4be3-80ed-e02f05fcaab1\n\n### Version\n\n0.15.0",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "suppression"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23456",
+    "title": "Resolve overlap between RUF100 and RUF102",
+    "description": "Repository: astral-sh/ruff\nIssue #23456\n\nWhen both rules are selected, any `#noqa` with unknown/invalid rule codes will be flagged by both RUF100 and RUF102. The RUF100 diagnostic will treat the code as \"unknown\", while RUF102 will call it \"invalid\".\n\nWe could either:\n- drop the \"unknown\" codes section from RUF100 entirely and leave that for RUF102\n- hide the \"unknown\" codes section of RUF100 iff the RUF102 rule is enabled\n\nI'm in favor of the first, as it simplifies the code and is easier to \"explain\" IMO.",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "suppression"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23457",
+    "title": "Make RUF102 also flag file-level noqa codes",
+    "description": "Repository: astral-sh/ruff\nIssue #23457\n\n> It turns out that there are actually two instances of this warning: one for file-level `noqa` comments and one for line-level comments. RUF102 only covers the line-level case:\n> \n> ```console\n> \u276f ruff check --select RUF102 - <<EOF\n> # ruff: noqa: X111\n> \n> 1 # noqa: X111\n> EOF\n> warning: Invalid rule code provided to `# ruff: noqa` at -:1: X111\n> warning: Invalid rule code provided to `# noqa` at -:3: X111\n> RUF102 [*] Invalid rule code in `# noqa`: X111\n>  --> -:3:3\n>   |\n> 1 | # ruff: noqa: X111\n> 2 |\n> 3 | 1 # noqa: X111\n>   |   ^^^^^^^^^^^^\n>   |\n> help: Remove the `# noqa` comment\n> ```\n> \n> I'll go ahead and remove the warning for the covered case, but I think we should also make RUF102 cover file-level suppression comments and then remove that warning as well. We'll probably need to make that a preview change since the rule has already been stabilized. \n\n _Originally posted by @ntBre in [#23267](https://github.com/astral-sh/ruff/issues/23267#issuecomment-3898448613)_",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "suppression"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23751",
+    "title": "`--add-noqa` for diagnostics on blank lines results in bad whitespace",
+    "description": "Repository: astral-sh/ruff\nIssue #23751\n\n### Summary\n\nRules like `D100` can produce diagnostics on `TextRange::ZERO` even if the line is blank.  In these cases, running ruff with `--add-noqa` produces a line with leading whitespace:\n\nCreate an empty file, and run `ruff check --add-noqa`:\n\n```\n$ echo \"\" > test.py\n\n$ ruff check --isolated --select D100 --add-noqa test.py\nAdded 1 noqa directive.\n\n$ cat test.py\n  # noqa: D100\n```\n\n### Version\n\nmain",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "suppression"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23857",
+    "title": "Release new version of VS Code extension to ship markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #23857\n\nIt looks as if we never shipped a VS Code extension version with the new markdown formatting. Is this intentional? What's left to do?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23168",
+    "title": "upgrade shell completion documentation to be equal to that of `uv`",
+    "description": "Repository: astral-sh/ruff\nIssue #23168\n\n[ruff](https://docs.astral.sh/ruff/configuration/#shell-autocompletion) vs [uv](https://docs.astral.sh/uv/getting-started/installation/#shell-autocompletion)",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "documentation"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23258",
+    "title": "Move to npm's Trusted Publishing",
+    "description": "Repository: astral-sh/ruff\nIssue #23258\n\nFor the Ruff Wasm packages.",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "release"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23429",
+    "title": "UP045 fixes `None | Optional[None | int]` to `None | None | int | None`",
+    "description": "Repository: astral-sh/ruff\nIssue #23429\n\n### Summary\n\nThe underlying issue behind #18508 still exists. [The following example](https://play.ruff.rs/f2035b9d-f908-46cb-bd7d-121e1ab9f86d) is contrived, but it implies that the implementation of [`non-pep604-annotation-optional` (UP045)](https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional/) doesn\u2019t properly model the rules of `None` and `|`, instead special-casing specific patterns.\n\n```console\n$ cat >up045.py <<'# EOF'\nfrom typing import Optional\nfoo: None | Optional[None | int] = None\n# EOF\n\n$ ruff --isolated check --select UP045 up045.py --target-version py313 --fix\nFound 1 error (1 fixed, 0 remaining).\n\n$ cat up045.py\nfrom typing import Optional\nfoo: None | None | int | None = None\n\n$ python3.13 up045.py 2>&1 | tail -n 1\nTypeError: unsupported operand type(s) for |: 'NoneType' and 'NoneType'\n```\n\n### Version\n\nruff 0.15.1 (a2f11d239 2026-02-12)",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "fixes"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23645",
+    "title": "[T203] False positives for non-debugging use",
+    "description": "Repository: astral-sh/ruff\nIssue #23645\n\n### Summary\n\nAll uses of `pprint` are currently flagged as the [documentation notes][docs].\n\nAs a heuristic, it would be convenient for me at least if the rule were disapplied if a `stream=` were passed to the call. Needing to direct the output somewhere specific makes it much less likely this is debugging, and automatically suppressing the rule in that case would avoid false-positive noise.\n\n[docs]: https://docs.astral.sh/ruff/rules/p-print/",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "rule"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  }
+]

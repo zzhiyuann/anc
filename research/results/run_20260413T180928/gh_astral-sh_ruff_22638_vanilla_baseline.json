@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22638",
+    "title": "Markdown formatting options based on code block language",
+    "description": "Repository: astral-sh/ruff\nIssue #22638\n\n`````\n\n```py\n...\n```\n\nvs\n\n```pyi\n```\n\n`````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22638",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "The agent provided a thorough, well-structured analysis of how the issue was resolved, tracing the solution across all relevant layers with code references and test coverage. No code was written since the issue was already resolved — the agent correctly identified this and documented the existing solution instead of making unnecessary changes. Communication was excellent with clear layered explanation, though it could have been more concise given the low complexity rating.",
+    "timestamp": "2026-04-13T18:31:11.881Z"
+  },
+  "duration_ms": 275518,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23258",
+    "title": "Move to npm's Trusted Publishing",
+    "description": "Repository: astral-sh/ruff\nIssue #23258\n\nFor the Ruff Wasm packages.",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "release"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23258",
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent completed the task fully with zero CEO intervention. The solution was broken into three logical, well-explained PRs covering token removal, npm version upgrade, and environment configuration — demonstrating strong understanding of the OIDC trusted publishing flow. Communication was excellent: clear diffs, rationale for each change, final workflow state, registry-side setup instructions, and a non-obvious gotcha about caller vs reusable workflow verification.",
+    "timestamp": "2026-04-13T19:34:01.207Z"
+  },
+  "duration_ms": 156459,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

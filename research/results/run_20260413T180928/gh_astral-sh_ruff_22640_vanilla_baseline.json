@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22640",
+    "title": "LSP formatting support for markdown files",
+    "description": "Repository: astral-sh/ruff\nIssue #22640\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22640",
+    "satisfaction": 3,
+    "task_completion": 0,
+    "code_quality": 3,
+    "communication_quality": 4,
+    "autonomy_score": 4,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced a thorough analysis of PR #23063 with clear end-to-end explanation and code snippets, but delivered no actual code changes — this is a research summary, not an implementation. For a low-complexity task, I expected a working PR or at minimum committed code, not a writeup describing someone else's PR. Communication was solid but misdirected: the task was to implement, not document.",
+    "timestamp": "2026-04-13T18:41:04.574Z"
+  },
+  "duration_ms": 271727,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

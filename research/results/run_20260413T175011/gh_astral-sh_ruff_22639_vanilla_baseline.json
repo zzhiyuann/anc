@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22639",
+    "title": "Adopt ruffen docs in ty mdtests",
+    "description": "Repository: astral-sh/ruff\nIssue #22639\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22639",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent completed the task fully autonomously with zero CEO interventions. The solution is well-structured across 4 files with a clean separation of concerns — adding a lookup method, wiring it into the formatter with proper fallback, and including a focused test. Communication is excellent: clear problem statement, precise diffs, and a 'why this matters' section. Docking one point on satisfaction/code_quality only because the output describes the solution rather than showing a merged PR or verifiable artifact — it reads as a plan rather than confirmed-shipped work.",
+    "timestamp": "2026-04-13T18:09:05.364Z"
+  },
+  "duration_ms": 143427,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

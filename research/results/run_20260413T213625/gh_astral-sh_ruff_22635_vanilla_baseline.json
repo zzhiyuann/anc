@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22635",
+    "title": "Handle markdown code blocks with syntax errors",
+    "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22635",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent fully analyzed the issue, identified the correct approach (silent skip matching existing docstring behavior), and provided a clear explanation with code references and test coverage. Communication was excellent — well-structured with rationale, code snippets, edge cases, and a dedicated test. Minor dock: this was a low-complexity analysis task and the output is more of a thorough writeup than a shipped PR, but for an autonomous review-policy run with no memory, this is strong work.",
+    "timestamp": "2026-04-13T21:38:46.449Z"
+  },
+  "duration_ms": 141016,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

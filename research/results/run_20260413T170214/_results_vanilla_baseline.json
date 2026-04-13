@@ -1,0 +1,673 @@
+[
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22635",
+      "title": "Handle markdown code blocks with syntax errors",
+      "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22635",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever — no code, no analysis, no HANDOFF.md, no communication. The task was low complexity and clearly scoped (investigate a ruff issue about markdown code blocks with syntax errors), yet nothing was delivered. This requires full reassignment.",
+      "timestamp": "2026-04-13T17:04:28.364Z"
+    },
+    "duration_ms": 134213,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22636",
+      "title": "Mechanism to opt-in or opt-out of markdown formatting",
+      "description": "Repository: astral-sh/ruff\nIssue #22636\n\nOnce we have more of the feature set completed and want to stabilize support, there are a few paths we could take:\n\n- Require users who want markdown formatting on-by-default to set `extend-include = [\"**/*.md\"]` in their project config (opt-in).\n- Add a new `format.markdown-code-blocks = true` config option, similar to docstring formatting, that would automatically include `.md` files in the global default search path (opt-in). What do do if the user explicitly passes a `.md` file while the feature is disabled is tbd.\n- Turn it on by default, including `.md` in the global default search path, and allow users to set `exclude = [\"**/*.md\"]` or similar in their project config if they don't want the feature (opt-out).",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "configuration"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22636",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever. There is no code, no design document, no analysis of the three proposed approaches, and no communication artifacts (HANDOFF.md, comments, or status updates). A medium-complexity design task with clear requirements was completely ignored or failed silently — this requires full recovery and reassignment.",
+      "timestamp": "2026-04-13T17:06:43.576Z"
+    },
+    "duration_ms": 135210,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22637",
+      "title": "Skip directives for markdown formatting",
+      "description": "Repository: astral-sh/ruff\nIssue #22637\n\nBlacken docs uses HTML comments: https://github.com/adamchainz/blacken-docs/#markdown\n\nDo we want something different? Should we support blacken docs' directives?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22637",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever. No research, no analysis, no recommendation, no code, no communication artifact. A low-complexity design question that required reading blacken-docs' directive format and proposing whether ruff should adopt or diverge from it — the agent did nothing.",
+      "timestamp": "2026-04-13T17:08:56.914Z"
+    },
+    "duration_ms": 133338,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22638",
+      "title": "Markdown formatting options based on code block language",
+      "description": "Repository: astral-sh/ruff\nIssue #22638\n\n`````\n\n```py\n...\n```\n\nvs\n\n```pyi\n```\n\n`````",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22638",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever — no code, no analysis, no HANDOFF.md, no comments. The task was low complexity (investigating markdown formatting differences for code block languages in ruff), yet nothing was delivered. This is a complete failure to engage with the assigned work.",
+      "timestamp": "2026-04-13T17:11:07.331Z"
+    },
+    "duration_ms": 130415,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22639",
+      "title": "Adopt ruffen docs in ty mdtests",
+      "description": "Repository: astral-sh/ruff\nIssue #22639\n\n",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22639",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever — no code changes, no HANDOFF.md, no communication, nothing. This is a complete failure to execute. The task needs to be reassigned or the agent session investigated for crashes.",
+      "timestamp": "2026-04-13T17:13:20.614Z"
+    },
+    "duration_ms": 133282,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22640",
+      "title": "LSP formatting support for markdown files",
+      "description": "Repository: astral-sh/ruff\nIssue #22640\n\n",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22640",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever — no code, no HANDOFF.md, no comments, no indication of progress or blockers. A low-complexity task with zero deliverables is a complete failure. Recovery required: reassign to another agent or re-dispatch with explicit instructions.",
+      "timestamp": "2026-04-13T17:15:32.863Z"
+    },
+    "duration_ms": 132248,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22869",
+      "title": "0.14.14 breaks block suppresion",
+      "description": "Repository: astral-sh/ruff\nIssue #22869\n\n### Summary\n\nHere's a comparison between version 0.14.13 and 0.14.14, no code change:\n\n```\n$ uv run ruff version\nruff 0.14.13 (b4b8299d6 2026-01-15)\n\n$ rg -B 1 'preview = true' pyproject.toml\n82-[tool.ruff.lint]\n83:preview = true\n\n$ uv run ruff check\nAll checks passed!\n\n$ # edit pyproject.toml\n\n$ uv sync\nResolved 191 packages in 131ms\n      Built app @ file:///Users/aquarhead/work/a\nPrepared 1 package in 19ms\nUninstalled 2 packages in 3ms\nInstalled 2 packages in 2ms\n ~ app==1.10.0 (from file:///Users/aquarhead/work/a)\n - ruff==0.14.13\n + ruff==0.14.14\n \n$ rg -B 1 'preview = true' pyproject.toml\n82-[tool.ruff.lint]\n83:preview = true\n\n$ uv run ruff version\nruff 0.14.14 (8b2e7b36f 2026-01-22)\n\n$ uv run ruff check\nE402 Module level import not at top of file\n   --> app/router.py:113:1\n    |\n112 | # ruff: disable[E402, F401]\n113 | import app.demand.worksheets\n    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n114 | import app.supply.worksheets\n115 | import app.masterdata.worksheets\n    |\n... (every line in the block gets 2 errors)\n```\n\nOur actual code usage is like this - we have 2 blocks with the exact same suppresion config, not sure if that's relevant:\n\n```py\n# ruff: disable[E402, F401]\nimport app.demand.worksheets\nimport ...\n# ruff: enable[E402, F401]\n\nrouter.include_router(prefix=\"/blah\", router=dynamic_router) # this relies on the imports above\n\n# ruff: disable[E402, F401]\nimport ...\n\n# ruff: enable[E402, F401]\n```\n\nNot sure if it's the block suppresion or the preview mode check, I think this is the only feature we use from the preview mode.\n\nHere's all the ruff configuration in pyproject.toml:\n\n```toml\n[tool.ruff]\nline-length = 120\nextend-exclude = [\"alembic/versions/*.py\"]\n\n[tool.ruff.lint]\npreview = true\nselect = [\n  \"E\",   # pycodestyle errors\n  \"W\",   # pycodestyle warnings\n  \"F\",   # pyflakes\n  \"C\",   # flake8-comprehensions\n  \"B\",   # flake8-bugbear\n  \"DTZ\", # flake8-datetimez\n  \"UP\",  # pyupgrade\n  \"I\",   # isort\n]\nignore = [\n  \"E266\", # We want more obvious block comments\n",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "bug",
+        "suppression"
+      ],
+      "complexity": "high",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22869",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever. No investigation, no diagnosis, no code changes, no communication artifacts. A high-complexity bug in ruff's block suppression was assigned and the agent appears to have done nothing at all.",
+      "timestamp": "2026-04-13T17:17:45.105Z"
+    },
+    "duration_ms": 132240,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22881",
+      "title": "Skip walking toml/markdown files for linter",
+      "description": "Repository: astral-sh/ruff\nIssue #22881\n\n> Let's add a test that `ruff check markdown.md` logs a warning that no python files were found\r> \n> \r> \n> \r> \n> ```\r> \n> ❯ cargo run --bin ruff -p ruff check README.md --no-cache -v\r> \n>     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s\r> \n>      Running `target/debug/ruff check README.md --no-cache -v`\r> \n> [2026-01-21][10:43:37][ruff::resolve][DEBUG] Using configuration file (via parent) at: /Users/micha/astral/ruff/pyproject.toml\r> \n> [2026-01-21][10:43:37][ignore::gitignore][DEBUG] opened gitignore file: /Users/micha/.gitignore_global\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Identified files to lint in: 5.983166ms\r> \n> [2026-01-21][10:43:37][ruff::diagnostics][DEBUG] Checking: /Users/micha/astral/ruff/README.md\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Checked 1 files in: 1.230625ms\r> \n> All checks passed!\r> \n> ```\r> \n> \r> \n> We might also want to add a preview and non-preview test for what Ruff does when checking a directory. \n\n _Originally posted by @MichaReiser in [#22470](https://github.com/astral-sh/ruff/pull/22470/changes#r2711756342)_",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "internal"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22881",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever. No code changes, no communication, no HANDOFF.md, no comments — nothing. This is a complete failure to execute on the assigned task.",
+      "timestamp": "2026-04-13T17:19:55.130Z"
+    },
+    "duration_ms": 130025,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22905",
+      "title": "Handle `~~~` and arbitrary length code fences",
+      "description": "Repository: astral-sh/ruff\nIssue #22905\n\n````markdown\n~~~py\nprint('hello')\n~~~\n````\n\n`````markdown\n````markdown\n~~~py\nprint('hello')\n~~~\n````\n`````",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "formatter"
+      ],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22905",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever — no code, no communication, no HANDOFF.md, nothing. The task was low complexity and the agent failed to even attempt it. This needs to be re-dispatched to a functioning agent immediately.",
+      "timestamp": "2026-04-13T17:22:06.589Z"
+    },
+    "duration_ms": 131457,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22951",
+      "title": "Support quarto markdown language markers",
+      "description": "Repository: astral-sh/ruff\nIssue #22951\n\n~~~markdown\n```{py}\nprint('hello')\n```\n~~~",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22951",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever — no code, no communication, no HANDOFF.md, nothing. The task was low complexity and should have been straightforward for an agent working on the Ruff codebase. Complete failure to execute; needs to be re-dispatched to a functioning agent.",
+      "timestamp": "2026-04-13T17:24:24.476Z"
+    },
+    "duration_ms": 137888,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23078",
+      "title": "Support Python console (`pycon`) markdown code blocks",
+      "description": "Repository: astral-sh/ruff\nIssue #23078\n\n````markdown\n```pycon\n>>> print(\"hello\")\nhello\n>>> list(reversed(range(10)))\n[9, 8, 7, 6, 5, 4, 3, 2, 1, 0]\n```\n````",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "formatter"
+      ],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23078",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever — no code, no HANDOFF.md, no comments, no indication of progress or blockers. This is a complete failure to execute. The task needs to be reassigned or the agent session investigated for what went wrong.",
+      "timestamp": "2026-04-13T17:26:35.883Z"
+    },
+    "duration_ms": 131408,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23204",
+      "title": "Better extension mapping for markdown files",
+      "description": "Repository: astral-sh/ruff\nIssue #23204\n\nRather than having an exhaustive list of all possible markdown file extensions in `SourceType::from(<path>)`, maybe this could be configurable in some way? Maybe this could also affect default file discovery when we stabilize markdown formatting?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "formatter"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23204",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever. No code changes, no analysis, no HANDOFF.md, no communication of any kind. This is a complete failure — the task was not even started, let alone completed. Need to reassign immediately.",
+      "timestamp": "2026-04-13T17:28:46.795Z"
+    },
+    "duration_ms": 130909,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23235",
+      "title": "Range suppression diagnostics not being surfaced",
+      "description": "Repository: astral-sh/ruff\nIssue #23235\n\n### Summary\n\nThis should generate both a RUF100 and RUF104: https://play.ruff.rs/ca35d323-c80e-4be3-80ed-e02f05fcaab1\n\n### Version\n\n0.15.0",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "bug",
+        "suppression"
+      ],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23235",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever — no code, no analysis, no communication. The task required diagnosing why RUF100 and RUF104 diagnostics aren't surfaced for range suppressions in ruff, which is a low-complexity issue that should have at minimum yielded a root cause analysis and proposed fix. Complete failure to execute.",
+      "timestamp": "2026-04-13T17:30:58.953Z"
+    },
+    "duration_ms": 132158,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23349",
+      "title": "`RUF102` fix causes syntax error by not handling text following directive",
+      "description": "Repository: astral-sh/ruff\nIssue #23349\n\nFixing a rule creates a syntax error as of Ruff 0.15 (still an issue in 0.15.1)\n\nRule code RUF102\n\n**ruff.toml:**\n\n```\nline-length = 99\ntarget-version = \"py311\"\noutput-format = \"grouped\"\nextend-exclude = [\".uv-cache\"]\n\n[format]\nquote-style = \"single\"\n\n[lint]\nallowed-confusables = [\"‘\", \"’\", \"×\", \"–\"]\nselect = [\"ALL\"]\nignore = [\n\t# General configuration (see https://www.chasefinch.com/nitpick-style.toml)\n\t\"D203\", \"D213\", \"TID252\", \"S101\", \"INT001\",  # Rule conflicts\n\t\"COM812\", \"ISC001\", \"Q000\", \"Q003\",  # Recommended when using formatter\n\t\"RUF100\",  # Conflicts with WPS\n\t\"ARG\",  # Unused arguments often required in heirarchy\n\t\"ERA\",  # Commented-out code is OK\n\t\"S105\", \"S106\",  # Don't sniff for secrets\n\t\"S311\",  # Random is OK. Don't use them for \"cryptographic purpses\"\n\t\"S308\",  # Mark safe is OK\n\t\"S610\",  # Django \"extra\" is OK\n\t\"E731\", \"B023\",  # Lambda & unbound lambda is OK\n\t\"B024\",  # Allow ABCs without abstract methods\n\t\"BLE001\",  # Allow catching bare exception explicitly\n\t\"FIX002\", \"TD003\",  # Allow fully-formed TODOs\n\n\t# Temporary exclusions\n\t\"G\", \"EM\", \"TRY\",  # Log formatting\n\t\"PT\",  # Test conventions (Use a regular `assert` instead of unittest-style `assertIn`)\n\t\"RUF012\",  # Typing convention (Mutable class attributes should be annotated with `typing.ClassVar`)\n\t\"DTZ\",  # Timezone enforcement ignored while we use naive datetimes\n\t\"FLY002\",  # String joins avoided\n\t\"PERF401\",  # Prefer list joins\n\t\"ANN\",  # No type annotation stuff yet\n\t\"D\", \"DOC\",  # No docstring requirements stuff yet\n\t\"S108\", \"S113\", \"S202\", \"S301\", \"S603\", \"S607\", \"S611\", \"SIM115\",  # Security notices\n\t\"PLW2901\",  # For loop target assignment\n\t\"PLC0415\",  # Inline imports, awaiting cleanup\n\n\t# BringFido-specific opt-outs\n\t\"SLF\",  # Private member access\n\t\"PTH\",  # Path conventions\n\t\"CPY\",  # Copyright text\n\t\"C\", \"PLR09\",  # Complexity rules\n\t\"PLR2004\"  # Magic values\n]\n\n[lint.isort]\ncombine-as-imports = true\ndetect-same-package = true\nsection-order = [\n\t\"future\",\n\t\"standard-library\"",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "bug",
+        "fixes"
+      ],
+      "complexity": "high",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23349",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever. No code, no communication, no HANDOFF.md, no comments — nothing. This is a complete failure to engage with the task. The issue (RUF102 fix causing syntax errors by not handling trailing text after directives) remains entirely unaddressed and needs to be reassigned.",
+      "timestamp": "2026-04-13T17:33:11.068Z"
+    },
+    "duration_ms": 132114,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23456",
+      "title": "Resolve overlap between RUF100 and RUF102",
+      "description": "Repository: astral-sh/ruff\nIssue #23456\n\nWhen both rules are selected, any `#noqa` with unknown/invalid rule codes will be flagged by both RUF100 and RUF102. The RUF100 diagnostic will treat the code as \"unknown\", while RUF102 will call it \"invalid\".\n\nWe could either:\n- drop the \"unknown\" codes section from RUF100 entirely and leave that for RUF102\n- hide the \"unknown\" codes section of RUF100 iff the RUF102 rule is enabled\n\nI'm in favor of the first, as it simplifies the code and is easier to \"explain\" IMO.",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "suppression"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23456",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever. No code changes, no HANDOFF.md, no communication, no evidence of any work attempted. This is the worst possible outcome — a silent failure with zero visibility into what happened.",
+      "timestamp": "2026-04-13T17:35:22.664Z"
+    },
+    "duration_ms": 131596,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23457",
+      "title": "Make RUF102 also flag file-level noqa codes",
+      "description": "Repository: astral-sh/ruff\nIssue #23457\n\n> It turns out that there are actually two instances of this warning: one for file-level `noqa` comments and one for line-level comments. RUF102 only covers the line-level case:\n> \n> ```console\n> ❯ ruff check --select RUF102 - <<EOF\n> # ruff: noqa: X111\n> \n> 1 # noqa: X111\n> EOF\n> warning: Invalid rule code provided to `# ruff: noqa` at -:1: X111\n> warning: Invalid rule code provided to `# noqa` at -:3: X111\n> RUF102 [*] Invalid rule code in `# noqa`: X111\n>  --> -:3:3\n>   |\n> 1 | # ruff: noqa: X111\n> 2 |\n> 3 | 1 # noqa: X111\n>   |   ^^^^^^^^^^^^\n>   |\n> help: Remove the `# noqa` comment\n> ```\n> \n> I'll go ahead and remove the warning for the covered case, but I think we should also make RUF102 cover file-level suppression comments and then remove that warning as well. We'll probably need to make that a preview change since the rule has already been stabilized. \n\n _Originally posted by @ntBre in [#23267](https://github.com/astral-sh/ruff/issues/23267#issuecomment-3898448613)_",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "suppression"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23457",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever — no code, no communication, no HANDOFF.md, nothing. A medium-complexity task was assigned and the agent appears to have done zero work. This requires full recovery: reassign the task to another agent or re-dispatch.",
+      "timestamp": "2026-04-13T17:37:36.660Z"
+    },
+    "duration_ms": 133995,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23751",
+      "title": "`--add-noqa` for diagnostics on blank lines results in bad whitespace",
+      "description": "Repository: astral-sh/ruff\nIssue #23751\n\n### Summary\n\nRules like `D100` can produce diagnostics on `TextRange::ZERO` even if the line is blank.  In these cases, running ruff with `--add-noqa` produces a line with leading whitespace:\n\nCreate an empty file, and run `ruff check --add-noqa`:\n\n```\n$ echo \"\" > test.py\n\n$ ruff check --isolated --select D100 --add-noqa test.py\nAdded 1 noqa directive.\n\n$ cat test.py\n  # noqa: D100\n```\n\n### Version\n\nmain",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "bug",
+        "suppression"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23751",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever — no code changes, no communication, no HANDOFF.md, nothing. This is the worst possible outcome: a task was assigned and the agent either never started or silently failed without any indication. Complete recovery is needed with a new agent assignment.",
+      "timestamp": "2026-04-13T17:39:48.398Z"
+    },
+    "duration_ms": 131736,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23857",
+      "title": "Release new version of VS Code extension to ship markdown formatting",
+      "description": "Repository: astral-sh/ruff\nIssue #23857\n\nIt looks as if we never shipped a VS Code extension version with the new markdown formatting. Is this intentional? What's left to do?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23857",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever. The task required investigating whether the VS Code extension version was intentionally not shipped and identifying what's left to do — a low-complexity research task. Complete failure to engage with the task.",
+      "timestamp": "2026-04-13T17:41:58.797Z"
+    },
+    "duration_ms": 130398,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22797",
+      "title": "Fix for W391 does not Work for Notebooks",
+      "description": "Repository: astral-sh/ruff\nIssue #22797\n\n### Summary\n\nNotebooks containing multiple empty cells in a row trigger the warning W391 which is reported as fixable.\nWhen running `ruff --isolated check --select W391 --preview --fix Two_empty_cells.ipynb` ruff will report the error W391 \"Extra newline at end of cell\" and reports it as fixed. However the cell is not removed, running the command multiple times results in ruff reporting the error every time and each time saying 0 remaining errors:\n```bash\n$ ruff --isolated check --select W391 --preview --fix Two_empty_cells.ipynb \nFound 1 error (1 fixed, 0 remaining).\n\n$ ruff --isolated check --select W391 --preview --fix Two_empty_cells.ipynb \nFound 1 error (1 fixed, 0 remaining).\n\n$ ruff --isolated check --select W391 --preview --fix Two_empty_cells.ipynb\nFound 1 error (1 fixed, 0 remaining).\n```\n\nIf there are more than two empty cells the `--fix` option causes ruff to panic:\n```bash\n$ ruff --isolated check --select W391 --preview --fix Three_empty_cells.ipynb                                                                                                            (base) \npanic: Panicked at crates/ruff_notebook/src/notebook.rs:281:21 when checking `Three_empty_cells.ipynb`: `Transformed content out of bounds (25..24) for cell at 2`\n--> Three_empty_cells.ipynb:1:1\ninfo: This indicates a bug in Ruff.\ninfo: If you could open an issue at https://github.com/astral-sh/ruff/issues/new?title=%5Bpanic%5D, we'd be very appreciative!\ninfo: run with `RUST_BACKTRACE=1` environment variable to show the full backtrace information\n\nFound 1 error.\nerror: Panic during linting indicates a bug in Ruff. If you could open an issue at:\n\nhttps://github.com/astral-sh/ruff/issues/new?title=%5BLinter%20panic%5D\n\n...with the relevant file contents, the `pyproject.toml` settings, and the stack trace above, we'd be very appreciative!\n```\n\nNotebook files:\n[Two_empty_cells.ipynb](https://github.com/user-attachments/files/24792457/Two_empty_cells.ipynb)\n[Three_empty_cells.ipynb](https://github.c",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "bug",
+        "notebook"
+      ],
+      "complexity": "high",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22797",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced no output whatsoever. No code changes, no analysis, no communication, no HANDOFF.md — nothing. This is a high-complexity Rust bug involving notebook cell boundary handling and a panic, and the agent failed to even begin working on it. Full recovery with a new agent assignment is required.",
+      "timestamp": "2026-04-13T17:44:10.062Z"
+    },
+    "duration_ms": 131264,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23168",
+      "title": "upgrade shell completion documentation to be equal to that of `uv`",
+      "description": "Repository: astral-sh/ruff\nIssue #23168\n\n[ruff](https://docs.astral.sh/ruff/configuration/#shell-autocompletion) vs [uv](https://docs.astral.sh/uv/getting-started/installation/#shell-autocompletion)",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "documentation"
+      ],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23168",
+      "satisfaction": 1,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 1,
+      "autonomy_score": 1,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "Agent produced no output whatsoever — no code, no HANDOFF.md, no comments, no indication of progress or blockers. This is the worst possible outcome: silent failure with zero communication. The task was low complexity (documentation update) and should have been straightforward to complete or at minimum to explain why it couldn't be done.",
+      "timestamp": "2026-04-13T17:46:22.909Z"
+    },
+    "duration_ms": 132846,
+    "cost_usd": 0,
+    "tokens_used": 0
+  }
+]

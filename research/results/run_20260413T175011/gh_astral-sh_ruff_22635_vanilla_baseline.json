@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22635",
+    "title": "Handle markdown code blocks with syntax errors",
+    "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22635",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent fully answered the diagnostic question with well-structured analysis, citing exact code paths, test coverage, and design rationale. No code changes were required (research task), so code_quality reflects the accuracy and depth of the analysis. Slight ding on satisfaction because the task was low-complexity and the output is more verbose than strictly necessary for an issue that boils down to 'silently skip, same as docstrings.'",
+    "timestamp": "2026-04-13T17:52:12.114Z"
+  },
+  "duration_ms": 120842,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23235",
+    "title": "Range suppression diagnostics not being surfaced",
+    "description": "Repository: astral-sh/ruff\nIssue #23235\n\n### Summary\n\nThis should generate both a RUF100 and RUF104: https://play.ruff.rs/ca35d323-c80e-4be3-80ed-e02f05fcaab1\n\n### Version\n\n0.15.0",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "suppression"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23235",
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
+    "communication_quality": 4,
+    "autonomy_score": 3,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced a thorough analysis and a plausible fix, but never actually implemented the changes — no code was committed, no tests were run, and no PR was opened. The output is essentially a design document, not completed work. For a low-complexity bug fix in autonomous mode, I expect a merged-ready PR with passing tests, not a writeup of what the fix would look like.",
+    "timestamp": "2026-04-13T19:05:29.618Z"
+  },
+  "duration_ms": 249815,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

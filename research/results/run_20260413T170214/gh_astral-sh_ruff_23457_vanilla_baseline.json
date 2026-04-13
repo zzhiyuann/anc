@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23457",
+    "title": "Make RUF102 also flag file-level noqa codes",
+    "description": "Repository: astral-sh/ruff\nIssue #23457\n\n> It turns out that there are actually two instances of this warning: one for file-level `noqa` comments and one for line-level comments. RUF102 only covers the line-level case:\n> \n> ```console\n> ❯ ruff check --select RUF102 - <<EOF\n> # ruff: noqa: X111\n> \n> 1 # noqa: X111\n> EOF\n> warning: Invalid rule code provided to `# ruff: noqa` at -:1: X111\n> warning: Invalid rule code provided to `# noqa` at -:3: X111\n> RUF102 [*] Invalid rule code in `# noqa`: X111\n>  --> -:3:3\n>   |\n> 1 | # ruff: noqa: X111\n> 2 |\n> 3 | 1 # noqa: X111\n>   |   ^^^^^^^^^^^^\n>   |\n> help: Remove the `# noqa` comment\n> ```\n> \n> I'll go ahead and remove the warning for the covered case, but I think we should also make RUF102 cover file-level suppression comments and then remove that warning as well. We'll probably need to make that a preview change since the rule has already been stabilized. \n\n _Originally posted by @ntBre in [#23267](https://github.com/astral-sh/ruff/issues/23267#issuecomment-3898448613)_",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "suppression"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23457",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever — no code, no communication, no HANDOFF.md, nothing. A medium-complexity task was assigned and the agent appears to have done zero work. This requires full recovery: reassign the task to another agent or re-dispatch.",
+    "timestamp": "2026-04-13T17:37:36.660Z"
+  },
+  "duration_ms": 133995,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

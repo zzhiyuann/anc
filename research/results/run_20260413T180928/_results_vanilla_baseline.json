@@ -1,0 +1,671 @@
+[
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22635",
+      "title": "Handle markdown code blocks with syntax errors",
+      "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22635",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent delivered a thorough analysis of the issue and its resolution with zero CEO intervention. The write-up clearly explains the code path, testing strategy, and design rationale with a well-structured comparison table. Docking one point on satisfaction because the agent analyzed an already-merged PR rather than producing original code — this was more research than engineering — but the quality of the analysis itself is strong.",
+      "timestamp": "2026-04-13T18:12:03.997Z"
+    },
+    "duration_ms": 155972,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22636",
+      "title": "Mechanism to opt-in or opt-out of markdown formatting",
+      "description": "Repository: astral-sh/ruff\nIssue #22636\n\nOnce we have more of the feature set completed and want to stabilize support, there are a few paths we could take:\n\n- Require users who want markdown formatting on-by-default to set `extend-include = [\"**/*.md\"]` in their project config (opt-in).\n- Add a new `format.markdown-code-blocks = true` config option, similar to docstring formatting, that would automatically include `.md` files in the global default search path (opt-in). What do do if the user explicitly passes a `.md` file while the feature is disabled is tbd.\n- Turn it on by default, including `.md` in the global default search path, and allow users to set `exclude = [\"**/*.md\"]` or similar in their project config if they don't want the feature (opt-out).",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "configuration"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22636",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent completed the task fully with zero CEO intervention, choosing option 2 from the issue which is a reasonable design call. Communication is excellent — clear summary, file-by-file breakdown, behavior matrix, and usage examples. Docking one point on satisfaction and code quality because I'd want to see more tests (edge cases like passing .md explicitly when disabled, interaction with extend-include, config merging precedence) and confirmation that existing tests still pass, but overall this is solid autonomous work.",
+      "timestamp": "2026-04-13T18:21:29.815Z"
+    },
+    "duration_ms": 565812,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22637",
+      "title": "Skip directives for markdown formatting",
+      "description": "Repository: astral-sh/ruff\nIssue #22637\n\nBlacken docs uses HTML comments: https://github.com/adamchainz/blacken-docs/#markdown\n\nDo we want something different? Should we support blacken docs' directives?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22637",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent worked fully autonomously with zero CEO intervention. The output is exceptionally well-documented — clear code snippets, usage examples, test coverage table, and design rationale. Minor deduction: the task was about deciding whether to support blacken-docs directives (a design question), and the agent treated it as already-implemented code to explain rather than proposing a design; however, the implementation analysis is thorough and the answer effectively resolves the issue.",
+      "timestamp": "2026-04-13T18:26:36.362Z"
+    },
+    "duration_ms": 306546,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22638",
+      "title": "Markdown formatting options based on code block language",
+      "description": "Repository: astral-sh/ruff\nIssue #22638\n\n`````\n\n```py\n...\n```\n\nvs\n\n```pyi\n```\n\n`````",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22638",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "The agent provided a thorough, well-structured analysis of how the issue was resolved, tracing the solution across all relevant layers with code references and test coverage. No code was written since the issue was already resolved — the agent correctly identified this and documented the existing solution instead of making unnecessary changes. Communication was excellent with clear layered explanation, though it could have been more concise given the low complexity rating.",
+      "timestamp": "2026-04-13T18:31:11.881Z"
+    },
+    "duration_ms": 275518,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22639",
+      "title": "Adopt ruffen docs in ty mdtests",
+      "description": "Repository: astral-sh/ruff\nIssue #22639\n\n",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22639",
+      "satisfaction": 2,
+      "task_completion": 0,
+      "code_quality": 1,
+      "communication_quality": 4,
+      "autonomy_score": 3,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced a detailed analysis and explanation of how the issue was solved in existing PRs, but did not actually implement anything itself. This is a research report, not a code contribution — the task was to adopt ruffen-docs, not to describe how someone else did it. Communication was clear and well-structured, but zero code was written or committed, so task completion and code quality are minimal.",
+      "timestamp": "2026-04-13T18:36:32.846Z"
+    },
+    "duration_ms": 320964,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22640",
+      "title": "LSP formatting support for markdown files",
+      "description": "Repository: astral-sh/ruff\nIssue #22640\n\n",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22640",
+      "satisfaction": 3,
+      "task_completion": 0,
+      "code_quality": 3,
+      "communication_quality": 4,
+      "autonomy_score": 4,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced a thorough analysis of PR #23063 with clear end-to-end explanation and code snippets, but delivered no actual code changes — this is a research summary, not an implementation. For a low-complexity task, I expected a working PR or at minimum committed code, not a writeup describing someone else's PR. Communication was solid but misdirected: the task was to implement, not document.",
+      "timestamp": "2026-04-13T18:41:04.574Z"
+    },
+    "duration_ms": 271727,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22881",
+      "title": "Skip walking toml/markdown files for linter",
+      "description": "Repository: astral-sh/ruff\nIssue #22881\n\n> Let's add a test that `ruff check markdown.md` logs a warning that no python files were found\r> \n> \r> \n> \r> \n> ```\r> \n> ❯ cargo run --bin ruff -p ruff check README.md --no-cache -v\r> \n>     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s\r> \n>      Running `target/debug/ruff check README.md --no-cache -v`\r> \n> [2026-01-21][10:43:37][ruff::resolve][DEBUG] Using configuration file (via parent) at: /Users/micha/astral/ruff/pyproject.toml\r> \n> [2026-01-21][10:43:37][ignore::gitignore][DEBUG] opened gitignore file: /Users/micha/.gitignore_global\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Identified files to lint in: 5.983166ms\r> \n> [2026-01-21][10:43:37][ruff::diagnostics][DEBUG] Checking: /Users/micha/astral/ruff/README.md\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Checked 1 files in: 1.230625ms\r> \n> All checks passed!\r> \n> ```\r> \n> \r> \n> We might also want to add a preview and non-preview test for what Ruff does when checking a directory. \n\n _Originally posted by @MichaReiser in [#22470](https://github.com/astral-sh/ruff/pull/22470/changes#r2711756342)_",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "internal"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22881",
+      "satisfaction": 3,
+      "task_completion": 0,
+      "code_quality": 3,
+      "communication_quality": 5,
+      "autonomy_score": 4,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent demonstrated excellent understanding of the codebase and clearly explained the two-stage filtering pipeline. However, the tests were never actually run — 'Cargo is not installed' is a significant gap since we can't verify the snapshots are correct or that the tests even compile. Communication and analysis were top-notch, but task completion requires verified, passing tests, not just plausible test code.",
+      "timestamp": "2026-04-13T18:47:10.986Z"
+    },
+    "duration_ms": 366411,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22905",
+      "title": "Handle `~~~` and arbitrary length code fences",
+      "description": "Repository: astral-sh/ruff\nIssue #22905\n\n````markdown\n~~~py\nprint('hello')\n~~~\n````\n\n`````markdown\n````markdown\n~~~py\nprint('hello')\n~~~\n````\n`````",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "formatter"
+      ],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22905",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent correctly identified the root cause (backtick-only regex), proposed a solid line-by-line parser respecting CommonMark fence rules (same char, length comparison, no info string on closer), and included thorough tests covering tildes, long fences, nesting, and cross-character mismatch. Dinged slightly on code quality because the closing-fence check uses chars().all() + chars().next().unwrap() which is slightly fragile — extracting the fence char once would be cleaner — but overall this is a clean, well-communicated, autonomous solution.",
+      "timestamp": "2026-04-13T18:50:31.215Z"
+    },
+    "duration_ms": 200228,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22951",
+      "title": "Support quarto markdown language markers",
+      "description": "Repository: astral-sh/ruff\nIssue #22951\n\n~~~markdown\n```{py}\nprint('hello')\n```\n~~~",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22951",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent correctly identified that the issue was already solved by a merged PR and provided a thorough, well-structured explanation of the 3-file solution including the regex change, extension mapping, and tests. Communication was excellent — clear diffs, reasoning about why it works, and no unnecessary escalation. Docking one point on satisfaction because the agent didn't actually write or submit any code; it essentially reported on someone else's merged work, which is useful but not the same as solving the task.",
+      "timestamp": "2026-04-13T18:53:15.996Z"
+    },
+    "duration_ms": 164781,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23078",
+      "title": "Support Python console (`pycon`) markdown code blocks",
+      "description": "Repository: astral-sh/ruff\nIssue #23078\n\n````markdown\n```pycon\n>>> print(\"hello\")\nhello\n>>> list(reversed(range(10)))\n[9, 8, 7, 6, 5, 4, 3, 2, 1, 0]\n```\n````",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "formatter"
+      ],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23078",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent correctly identified the issue was already resolved via PR #23112 and provided a thorough, well-structured analysis of the implementation — algorithm, design decisions, test coverage, and files changed. No CEO intervention needed. Slight ding on satisfaction because the agent analyzed existing work rather than producing it, but the analysis itself is excellent and the autonomous judgment to not duplicate already-merged work is the right call.",
+      "timestamp": "2026-04-13T18:57:02.838Z"
+    },
+    "duration_ms": 226841,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23204",
+      "title": "Better extension mapping for markdown files",
+      "description": "Repository: astral-sh/ruff\nIssue #23204\n\nRather than having an exhaustive list of all possible markdown file extensions in `SourceType::from(<path>)`, maybe this could be configurable in some way? Maybe this could also affect default file discovery when we stabilize markdown formatting?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "formatter"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23204",
+      "satisfaction": 2,
+      "task_completion": 0,
+      "code_quality": 2,
+      "communication_quality": 4,
+      "autonomy_score": 3,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced a well-structured summary of existing PRs that already solved the issue, but did not actually write any code or submit a PR itself. This is a research report, not engineering output — the task was to implement a solution, not describe one that already exists. Communication was clear but directed at the wrong deliverable entirely.",
+      "timestamp": "2026-04-13T19:01:19.804Z"
+    },
+    "duration_ms": 256964,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23235",
+      "title": "Range suppression diagnostics not being surfaced",
+      "description": "Repository: astral-sh/ruff\nIssue #23235\n\n### Summary\n\nThis should generate both a RUF100 and RUF104: https://play.ruff.rs/ca35d323-c80e-4be3-80ed-e02f05fcaab1\n\n### Version\n\n0.15.0",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "bug",
+        "suppression"
+      ],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23235",
+      "satisfaction": 2,
+      "task_completion": 0,
+      "code_quality": 2,
+      "communication_quality": 4,
+      "autonomy_score": 3,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent produced a thorough analysis and a plausible fix, but never actually implemented the changes — no code was committed, no tests were run, and no PR was opened. The output is essentially a design document, not completed work. For a low-complexity bug fix in autonomous mode, I expect a merged-ready PR with passing tests, not a writeup of what the fix would look like.",
+      "timestamp": "2026-04-13T19:05:29.618Z"
+    },
+    "duration_ms": 249815,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23456",
+      "title": "Resolve overlap between RUF100 and RUF102",
+      "description": "Repository: astral-sh/ruff\nIssue #23456\n\nWhen both rules are selected, any `#noqa` with unknown/invalid rule codes will be flagged by both RUF100 and RUF102. The RUF100 diagnostic will treat the code as \"unknown\", while RUF102 will call it \"invalid\".\n\nWe could either:\n- drop the \"unknown\" codes section from RUF100 entirely and leave that for RUF102\n- hide the \"unknown\" codes section of RUF100 iff the RUF102 rule is enabled\n\nI'm in favor of the first, as it simplifies the code and is easier to \"explain\" IMO.",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "suppression"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23456",
+      "satisfaction": 5,
+      "task_completion": 1,
+      "code_quality": 5,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent fully completed the task with zero CEO intervention. The solution correctly implements Option 1 from the issue — clean separation of concerns between RUF100 and RUF102 with a minimal 3-line change. Communication was excellent: clear problem statement, before/after behavior table, rationale for approach choice, and snapshot updates confirming correctness.",
+      "timestamp": "2026-04-13T19:10:02.253Z"
+    },
+    "duration_ms": 272632,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23457",
+      "title": "Make RUF102 also flag file-level noqa codes",
+      "description": "Repository: astral-sh/ruff\nIssue #23457\n\n> It turns out that there are actually two instances of this warning: one for file-level `noqa` comments and one for line-level comments. RUF102 only covers the line-level case:\n> \n> ```console\n> ❯ ruff check --select RUF102 - <<EOF\n> # ruff: noqa: X111\n> \n> 1 # noqa: X111\n> EOF\n> warning: Invalid rule code provided to `# ruff: noqa` at -:1: X111\n> warning: Invalid rule code provided to `# noqa` at -:3: X111\n> RUF102 [*] Invalid rule code in `# noqa`: X111\n>  --> -:3:3\n>   |\n> 1 | # ruff: noqa: X111\n> 2 |\n> 3 | 1 # noqa: X111\n>   |   ^^^^^^^^^^^^\n>   |\n> help: Remove the `# noqa` comment\n> ```\n> \n> I'll go ahead and remove the warning for the covered case, but I think we should also make RUF102 cover file-level suppression comments and then remove that warning as well. We'll probably need to make that a preview change since the rule has already been stabilized. \n\n _Originally posted by @ntBre in [#23267](https://github.com/astral-sh/ruff/issues/23267#issuecomment-3898448613)_",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "suppression"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23457",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent correctly identified the root cause (hardcoded InvalidRuleCodeKind::Noqa in diagnostic functions) and made a minimal, well-scoped fix passing the kind through the closure. Communication is excellent — clear problem statement, precise change descriptions, and honest about snapshot regeneration needing a Rust toolchain. Docking one point because snapshots weren't actually generated/verified, which means the solution is plausible but unconfirmed; a staff engineer would want cargo test passing before marking done.",
+      "timestamp": "2026-04-13T19:16:56.974Z"
+    },
+    "duration_ms": 414719,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23751",
+      "title": "`--add-noqa` for diagnostics on blank lines results in bad whitespace",
+      "description": "Repository: astral-sh/ruff\nIssue #23751\n\n### Summary\n\nRules like `D100` can produce diagnostics on `TextRange::ZERO` even if the line is blank.  In these cases, running ruff with `--add-noqa` produces a line with leading whitespace:\n\nCreate an empty file, and run `ruff check --add-noqa`:\n\n```\n$ echo \"\" > test.py\n\n$ ruff check --isolated --select D100 --add-noqa test.py\nAdded 1 noqa directive.\n\n$ cat test.py\n  # noqa: D100\n```\n\n### Version\n\nmain",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "bug",
+        "suppression"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23751",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent correctly identified the root cause in the edit range calculation for blank lines and produced a clean, minimal fix. Communication was excellent — clear bug analysis, precise root cause explanation, and well-structured summary. Both unit and integration tests were added. Minor deduction: the fix uses a conditional branch where trimming leading whitespace from trimmed_line might have been slightly more elegant, but the approach is correct and readable. Zero CEO intervention needed.",
+      "timestamp": "2026-04-13T19:23:30.483Z"
+    },
+    "duration_ms": 393507,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23857",
+      "title": "Release new version of VS Code extension to ship markdown formatting",
+      "description": "Repository: astral-sh/ruff\nIssue #23857\n\nIt looks as if we never shipped a VS Code extension version with the new markdown formatting. Is this intentional? What's left to do?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23857",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 3,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent did excellent research and produced a clear, well-structured timeline showing exactly why the extension hadn't shipped and confirming it has since been resolved. No code changes were needed so code_quality is neutral. Only missing a half-point on satisfaction because the agent could have proactively posted the closing comment rather than asking permission, given the autonomous review policy.",
+      "timestamp": "2026-04-13T19:26:25.348Z"
+    },
+    "duration_ms": 174864,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23168",
+      "title": "upgrade shell completion documentation to be equal to that of `uv`",
+      "description": "Repository: astral-sh/ruff\nIssue #23168\n\n[ruff](https://docs.astral.sh/ruff/configuration/#shell-autocompletion) vs [uv](https://docs.astral.sh/uv/getting-started/installation/#shell-autocompletion)",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "documentation"
+      ],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23168",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent correctly identified the core issue (discoverability, not formatting) and proposed the right fix: move the section to installation.md with a cross-reference. Communication was excellent — clear comparison table, rationale, and verification steps. Docking one point because the agent only produced a proposed diff rather than actually committing the changes and opening a PR, though for a docs-only low-complexity task the analysis is solid and actionable.",
+      "timestamp": "2026-04-13T19:31:24.747Z"
+    },
+    "duration_ms": 299398,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23258",
+      "title": "Move to npm's Trusted Publishing",
+      "description": "Repository: astral-sh/ruff\nIssue #23258\n\nFor the Ruff Wasm packages.",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "release"
+      ],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23258",
+      "satisfaction": 5,
+      "task_completion": 1,
+      "code_quality": 5,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent completed the task fully with zero CEO intervention. The solution was broken into three logical, well-explained PRs covering token removal, npm version upgrade, and environment configuration — demonstrating strong understanding of the OIDC trusted publishing flow. Communication was excellent: clear diffs, rationale for each change, final workflow state, registry-side setup instructions, and a non-obvious gotcha about caller vs reusable workflow verification.",
+      "timestamp": "2026-04-13T19:34:01.207Z"
+    },
+    "duration_ms": 156459,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23429",
+      "title": "UP045 fixes `None | Optional[None | int]` to `None | None | int | None`",
+      "description": "Repository: astral-sh/ruff\nIssue #23429\n\n### Summary\n\nThe underlying issue behind #18508 still exists. [The following example](https://play.ruff.rs/f2035b9d-f908-46cb-bd7d-121e1ab9f86d) is contrived, but it implies that the implementation of [`non-pep604-annotation-optional` (UP045)](https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional/) doesn’t properly model the rules of `None` and `|`, instead special-casing specific patterns.\n\n```console\n$ cat >up045.py <<'# EOF'\nfrom typing import Optional\nfoo: None | Optional[None | int] = None\n# EOF\n\n$ ruff --isolated check --select UP045 up045.py --target-version py313 --fix\nFound 1 error (1 fixed, 0 remaining).\n\n$ cat up045.py\nfrom typing import Optional\nfoo: None | None | int | None = None\n\n$ python3.13 up045.py 2>&1 | tail -n 1\nTypeError: unsupported operand type(s) for |: 'NoneType' and 'NoneType'\n```\n\n### Version\n\nruff 0.15.1 (a2f11d239 2026-02-12)",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "bug",
+        "fixes"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23429",
+      "satisfaction": 2,
+      "task_completion": 0,
+      "code_quality": 2,
+      "communication_quality": 4,
+      "autonomy_score": 3,
+      "recovery_needed": true,
+      "ceo_interventions": 0,
+      "rationale": "The agent described a plausible fix in detail but provided no evidence of actually implementing it — no commit, no PR, no test run output. The writeup reads like a plan or walkthrough, not completed work. For an autonomous review policy, I expect a merged or ready-to-review PR with passing CI, not a code walkthrough.",
+      "timestamp": "2026-04-13T19:38:06.519Z"
+    },
+    "duration_ms": 245311,
+    "cost_usd": 0,
+    "tokens_used": 0
+  },
+  {
+    "condition": {
+      "name": "vanilla_baseline",
+      "memory": "none",
+      "ceo_office": false,
+      "review_policy": "autonomous"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_23645",
+      "title": "[T203] False positives for non-debugging use",
+      "description": "Repository: astral-sh/ruff\nIssue #23645\n\n### Summary\n\nAll uses of `pprint` are currently flagged as the [documentation notes][docs].\n\nAs a heuristic, it would be convenient for me at least if the rule were disapplied if a `stream=` were passed to the call. Needing to direct the output somewhere specific makes it much less likely this is debugging, and automatically suppressing the rule in that case would avoid false-positive noise.\n\n[docs]: https://docs.astral.sh/ruff/rules/p-print/",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [
+        "rule"
+      ],
+      "complexity": "medium",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_23645",
+      "satisfaction": 4,
+      "task_completion": 1,
+      "code_quality": 4,
+      "communication_quality": 5,
+      "autonomy_score": 5,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "Agent correctly identified that the requested feature already exists in the codebase, citing specific file locations, line numbers, and the logic flow. Communication was excellent — clear, structured, with code evidence and test case references. Slight deduction because the agent could have gone further by drafting a comment for the issue or checking which ruff version introduced the change, but the core analysis is solid and required zero intervention.",
+      "timestamp": "2026-04-13T19:40:29.271Z"
+    },
+    "duration_ms": 142751,
+    "cost_usd": 0,
+    "tokens_used": 0
+  }
+]

@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23645",
+    "title": "[T203] False positives for non-debugging use",
+    "description": "Repository: astral-sh/ruff\nIssue #23645\n\n### Summary\n\nAll uses of `pprint` are currently flagged as the [documentation notes][docs].\n\nAs a heuristic, it would be convenient for me at least if the rule were disapplied if a `stream=` were passed to the call. Needing to direct the output somewhere specific makes it much less likely this is debugging, and automatically suppressing the rule in that case would avoid false-positive noise.\n\n[docs]: https://docs.astral.sh/ruff/rules/p-print/",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "rule"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23645",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent correctly identified that the requested feature already exists in the codebase, citing specific file locations, line numbers, and the logic flow. Communication was excellent — clear, structured, with code evidence and test case references. Slight deduction because the agent could have gone further by drafting a comment for the issue or checking which ruff version introduced the change, but the core analysis is solid and required zero intervention.",
+    "timestamp": "2026-04-13T19:40:29.271Z"
+  },
+  "duration_ms": 142751,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

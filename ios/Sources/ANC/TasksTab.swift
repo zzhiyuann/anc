@@ -30,6 +30,15 @@ struct TasksTab: View {
 struct TaskListView: View {
     @EnvironmentObject var store: AppStore
     @State private var filterState: TaskEntityState? = nil
+    @State private var isLoading = false
+
+    private static let filterOptions: [(TaskEntityState?, String)] = [
+        (nil, "All"),
+        (.running, "Running"),
+        (.todo, "Todo"),
+        (.review, "Review"),
+        (.done, "Done"),
+    ]
 
     private var grouped: [(TaskEntityState, [ANCTask])] {
         let filtered = filterState == nil ? store.tasks : store.tasks.filter { $0.state == filterState }
@@ -42,67 +51,168 @@ struct TaskListView: View {
     }
 
     var body: some View {
-        List {
-            if store.tasks.isEmpty && store.connected {
-                ContentUnavailableView("No Tasks", systemImage: "checklist", description: Text("Create a new task to get started."))
-            } else if !store.connected {
-                ContentUnavailableView("Not Connected", systemImage: "wifi.slash", description: Text(store.lastError ?? "Check server URL in Settings."))
-            } else {
-                ForEach(grouped, id: \.0) { state, tasks in
-                    Section {
-                        ForEach(tasks) { task in
-                            NavigationLink(value: task.id) {
-                                TaskRowView(task: task)
+        VStack(spacing: 0) {
+            // Status filter
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Self.filterOptions, id: \.1) { state, label in
+                        Button {
+                            let generator = UIImpactFeedbackGenerator(style: .light)
+                            generator.impactOccurred()
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                filterState = state
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    Task { await store.deleteTask(id: task.id) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                if task.state == .todo {
-                                    Button {
-                                        Task { await store.updateTask(id: task.id, patch: PatchTaskPayload(state: "running")) }
-                                    } label: {
-                                        Label("Start", systemImage: "play.fill")
-                                    }
-                                    .tint(Color.ancRunning)
-                                } else if task.state == .running {
-                                    Button {
-                                        Task { await store.updateTask(id: task.id, patch: PatchTaskPayload(state: "done")) }
-                                    } label: {
-                                        Label("Done", systemImage: "checkmark")
-                                    }
-                                    .tint(.green)
-                                } else if task.state == .review {
-                                    Button {
-                                        Task { await store.updateTask(id: task.id, patch: PatchTaskPayload(state: "done")) }
-                                    } label: {
-                                        Label("Approve", systemImage: "checkmark.seal")
-                                    }
-                                    .tint(.green)
-                                }
-                            }
+                        } label: {
+                            Text(label)
+                                .font(.subheadline.weight(filterState == state ? .semibold : .regular))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(filterState == state ? Color.ancAccent.opacity(0.15) : Color.ancSurface)
+                                .foregroundStyle(filterState == state ? Color.ancAccent : .secondary)
+                                .clipShape(Capsule())
                         }
-                    } header: {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(state.color)
-                                .frame(width: 8, height: 8)
-                            Text(state.displayName)
-                                .font(.subheadline.weight(.semibold))
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            }
+
+            List {
+                if !store.connected {
+                    Section {
+                        VStack(spacing: 12) {
+                            Image(systemName: "wifi.slash")
+                                .font(.largeTitle)
+                                .foregroundStyle(.red)
+                            Text("Could not connect")
+                                .font(.headline)
+                            Text(store.lastError ?? "Check server URL in Settings")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button {
+                                let generator = UIImpactFeedbackGenerator(style: .medium)
+                                generator.impactOccurred()
+                                Task {
+                                    isLoading = true
+                                    await store.refreshTasks()
+                                    isLoading = false
+                                }
+                            } label: {
+                                HStack {
+                                    if isLoading {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    }
+                                    Text("Retry")
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 32)
+                    }
+                } else if store.tasks.isEmpty {
+                    Section {
+                        VStack(spacing: 12) {
+                            Image(systemName: "checklist")
+                                .font(.largeTitle)
+                                .foregroundStyle(.secondary)
+                            Text("No Tasks")
+                                .font(.headline)
+                            Text("Create a new task to get started.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Button {
+                                store.showCreateTask = true
+                            } label: {
+                                Label("New Task", systemImage: "plus")
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 32)
+                    }
+                } else if grouped.isEmpty && filterState != nil {
+                    Section {
+                        VStack(spacing: 12) {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                                .font(.largeTitle)
+                                .foregroundStyle(.secondary)
+                            Text("No \(filterState?.displayName ?? "") Tasks")
+                                .font(.headline)
+                            Text("Try a different filter.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 32)
+                    }
+                } else {
+                    ForEach(grouped, id: \.0) { state, tasks in
+                        Section {
+                            ForEach(tasks) { task in
+                                NavigationLink(value: task.id) {
+                                    TaskRowView(task: task)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        let generator = UIImpactFeedbackGenerator(style: .medium)
+                                        generator.impactOccurred()
+                                        Task { await store.deleteTask(id: task.id) }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                    if task.state == .todo {
+                                        Button {
+                                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                                            generator.impactOccurred()
+                                            Task { await store.updateTask(id: task.id, patch: PatchTaskPayload(state: "running")) }
+                                        } label: {
+                                            Label("Start", systemImage: "play.fill")
+                                        }
+                                        .tint(Color.ancRunning)
+                                    } else if task.state == .running {
+                                        Button {
+                                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                                            generator.impactOccurred()
+                                            Task { await store.updateTask(id: task.id, patch: PatchTaskPayload(state: "done")) }
+                                        } label: {
+                                            Label("Done", systemImage: "checkmark")
+                                        }
+                                        .tint(.green)
+                                    } else if task.state == .review {
+                                        Button {
+                                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                                            generator.impactOccurred()
+                                            Task { await store.updateTask(id: task.id, patch: PatchTaskPayload(state: "done")) }
+                                        } label: {
+                                            Label("Approve", systemImage: "checkmark.seal")
+                                        }
+                                        .tint(.green)
+                                    }
+                                }
+                            }
+                        } header: {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(state.color)
+                                    .frame(width: 8, height: 8)
+                                Text(state.displayName)
+                                    .font(.subheadline.weight(.semibold))
+                            }
                         }
                     }
                 }
             }
-        }
-        .refreshable {
-            await store.refreshTasks()
-        }
-        .navigationDestination(for: String.self) { taskId in
-            TaskDetailView(taskId: taskId)
+            .refreshable {
+                await store.refreshTasks()
+            }
+            .navigationDestination(for: String.self) { taskId in
+                TaskDetailView(taskId: taskId)
+            }
         }
     }
 }

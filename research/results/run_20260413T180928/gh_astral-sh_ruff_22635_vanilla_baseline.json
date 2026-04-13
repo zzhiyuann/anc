@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22635",
+    "title": "Handle markdown code blocks with syntax errors",
+    "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22635",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent delivered a thorough analysis of the issue and its resolution with zero CEO intervention. The write-up clearly explains the code path, testing strategy, and design rationale with a well-structured comparison table. Docking one point on satisfaction because the agent analyzed an already-merged PR rather than producing original code — this was more research than engineering — but the quality of the analysis itself is strong.",
+    "timestamp": "2026-04-13T18:12:03.997Z"
+  },
+  "duration_ms": 155972,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

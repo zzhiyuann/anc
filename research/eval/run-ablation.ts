@@ -193,7 +193,8 @@ async function main() {
   }
 
   // Load tasks
-  const tasksFile = join(DATA_DIR, 'github', 'tasks.json');
+  const tasksFileArg = args.find((a) => a.startsWith('--tasks='))?.split('=')[1];
+  const tasksFile = tasksFileArg || join(DATA_DIR, 'github', 'tasks.json');
   if (!existsSync(tasksFile)) {
     console.error(`Tasks file not found: ${tasksFile}`);
     console.error('Run github-streams.ts first to generate tasks.');
@@ -214,8 +215,9 @@ async function main() {
   }
 
   // Select task subset for experiments
-  // For longitudinal memory evaluation, use sequential tasks from the same stream
-  const taskSubset = allTasks.slice(0, 20); // Start with 20 tasks per condition
+  const nTasksArg = args.find((a) => a.startsWith('--n='))?.split('=')[1];
+  const nTasks = nTasksArg ? parseInt(nTasksArg) : allTasks.length;
+  const taskSubset = allTasks.slice(0, nTasks);
 
   const runId = `run_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}`;
   const runDir = join(RESULTS_DIR, runId);

@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23857",
+    "title": "Release new version of VS Code extension to ship markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #23857\n\nIt looks as if we never shipped a VS Code extension version with the new markdown formatting. Is this intentional? What's left to do?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23857",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "Agent produced no output whatsoever. The task required investigating whether the VS Code extension version was intentionally not shipped and identifying what's left to do — a low-complexity research task. Complete failure to engage with the task.",
+    "timestamp": "2026-04-13T17:41:58.797Z"
+  },
+  "duration_ms": 130398,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

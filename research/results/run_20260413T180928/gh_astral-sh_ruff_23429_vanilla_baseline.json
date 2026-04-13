@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23429",
+    "title": "UP045 fixes `None | Optional[None | int]` to `None | None | int | None`",
+    "description": "Repository: astral-sh/ruff\nIssue #23429\n\n### Summary\n\nThe underlying issue behind #18508 still exists. [The following example](https://play.ruff.rs/f2035b9d-f908-46cb-bd7d-121e1ab9f86d) is contrived, but it implies that the implementation of [`non-pep604-annotation-optional` (UP045)](https://docs.astral.sh/ruff/rules/non-pep604-annotation-optional/) doesn’t properly model the rules of `None` and `|`, instead special-casing specific patterns.\n\n```console\n$ cat >up045.py <<'# EOF'\nfrom typing import Optional\nfoo: None | Optional[None | int] = None\n# EOF\n\n$ ruff --isolated check --select UP045 up045.py --target-version py313 --fix\nFound 1 error (1 fixed, 0 remaining).\n\n$ cat up045.py\nfrom typing import Optional\nfoo: None | None | int | None = None\n\n$ python3.13 up045.py 2>&1 | tail -n 1\nTypeError: unsupported operand type(s) for |: 'NoneType' and 'NoneType'\n```\n\n### Version\n\nruff 0.15.1 (a2f11d239 2026-02-12)",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "fixes"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23429",
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
+    "communication_quality": 4,
+    "autonomy_score": 3,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent described a plausible fix in detail but provided no evidence of actually implementing it — no commit, no PR, no test run output. The writeup reads like a plan or walkthrough, not completed work. For an autonomous review policy, I expect a merged or ready-to-review PR with passing CI, not a code walkthrough.",
+    "timestamp": "2026-04-13T19:38:06.519Z"
+  },
+  "duration_ms": 245311,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

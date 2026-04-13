@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23078",
+    "title": "Support Python console (`pycon`) markdown code blocks",
+    "description": "Repository: astral-sh/ruff\nIssue #23078\n\n````markdown\n```pycon\n>>> print(\"hello\")\nhello\n>>> list(reversed(range(10)))\n[9, 8, 7, 6, 5, 4, 3, 2, 1, 0]\n```\n````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23078",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent correctly identified the issue was already resolved via PR #23112 and provided a thorough, well-structured analysis of the implementation — algorithm, design decisions, test coverage, and files changed. No CEO intervention needed. Slight ding on satisfaction because the agent analyzed existing work rather than producing it, but the analysis itself is excellent and the autonomous judgment to not duplicate already-merged work is the right call.",
+    "timestamp": "2026-04-13T18:57:02.838Z"
+  },
+  "duration_ms": 226841,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

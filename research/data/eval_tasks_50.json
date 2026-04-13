@@ -1,0 +1,524 @@
+[
+  {
+    "id": "gh_astral-sh_ruff_22635",
+    "title": "Handle markdown code blocks with syntax errors",
+    "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22636",
+    "title": "Mechanism to opt-in or opt-out of markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #22636\n\nOnce we have more of the feature set completed and want to stabilize support, there are a few paths we could take:\n\n- Require users who want markdown formatting on-by-default to set `extend-include = [\"**/*.md\"]` in their project config (opt-in).\n- Add a new `format.markdown-code-blocks = true` config option, similar to docstring formatting, that would automatically include `.md` files in the global default search path (opt-in). What do do if the user explicitly passes a `.md` file while the feature is disabled is tbd.\n- Turn it on by default, including `.md` in the global default search path, and allow users to set `exclude = [\"**/*.md\"]` or similar in their project config if they don't want the feature (opt-out).",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "configuration"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22637",
+    "title": "Skip directives for markdown formatting",
+    "description": "Repository: astral-sh/ruff\nIssue #22637\n\nBlacken docs uses HTML comments: https://github.com/adamchainz/blacken-docs/#markdown\n\nDo we want something different? Should we support blacken docs' directives?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22638",
+    "title": "Markdown formatting options based on code block language",
+    "description": "Repository: astral-sh/ruff\nIssue #22638\n\n`````\n\n```py\n...\n```\n\nvs\n\n```pyi\n```\n\n`````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22639",
+    "title": "Adopt ruffen docs in ty mdtests",
+    "description": "Repository: astral-sh/ruff\nIssue #22639\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22640",
+    "title": "LSP formatting support for markdown files",
+    "description": "Repository: astral-sh/ruff\nIssue #22640\n\n",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22881",
+    "title": "Skip walking toml/markdown files for linter",
+    "description": "Repository: astral-sh/ruff\nIssue #22881\n\n> Let's add a test that `ruff check markdown.md` logs a warning that no python files were found\r> \n> \r> \n> \r> \n> ```\r> \n> \u276f cargo run --bin ruff -p ruff check README.md --no-cache -v\r> \n>     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s\r> \n>      Running `target/debug/ruff check README.md --no-cache -v`\r> \n> [2026-01-21][10:43:37][ruff::resolve][DEBUG] Using configuration file (via parent) at: /Users/micha/astral/ruff/pyproject.toml\r> \n> [2026-01-21][10:43:37][ignore::gitignore][DEBUG] opened gitignore file: /Users/micha/.gitignore_global\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Identified files to lint in: 5.983166ms\r> \n> [2026-01-21][10:43:37][ruff::diagnostics][DEBUG] Checking: /Users/micha/astral/ruff/README.md\r> \n> [2026-01-21][10:43:37][ruff::commands::check][DEBUG] Checked 1 files in: 1.230625ms\r> \n> All checks passed!\r> \n> ```\r> \n> \r> \n> We might also want to add a preview and non-preview test for what Ruff does when checking a directory. \n\n _Originally posted by @MichaReiser in [#22470](https://github.com/astral-sh/ruff/pull/22470/changes#r2711756342)_",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "internal"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22905",
+    "title": "Handle `~~~` and arbitrary length code fences",
+    "description": "Repository: astral-sh/ruff\nIssue #22905\n\n````markdown\n~~~py\nprint('hello')\n~~~\n````\n\n`````markdown\n````markdown\n~~~py\nprint('hello')\n~~~\n````\n`````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_22951",
+    "title": "Support quarto markdown language markers",
+    "description": "Repository: astral-sh/ruff\nIssue #22951\n\n~~~markdown\n```{py}\nprint('hello')\n```\n~~~",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23078",
+    "title": "Support Python console (`pycon`) markdown code blocks",
+    "description": "Repository: astral-sh/ruff\nIssue #23078\n\n````markdown\n```pycon\n>>> print(\"hello\")\nhello\n>>> list(reversed(range(10)))\n[9, 8, 7, 6, 5, 4, 3, 2, 1, 0]\n```\n````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23204",
+    "title": "Better extension mapping for markdown files",
+    "description": "Repository: astral-sh/ruff\nIssue #23204\n\nRather than having an exhaustive list of all possible markdown file extensions in `SourceType::from(<path>)`, maybe this could be configurable in some way? Maybe this could also affect default file discovery when we stabilize markdown formatting?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_astral-sh_ruff_23235",
+    "title": "Range suppression diagnostics not being surfaced",
+    "description": "Repository: astral-sh/ruff\nIssue #23235\n\n### Summary\n\nThis should generate both a RUF100 and RUF104: https://play.ruff.rs/ca35d323-c80e-4be3-80ed-e02f05fcaab1\n\n### Version\n\n0.15.0",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "bug",
+      "suppression"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_10127",
+    "title": "Cannot use `Response` type hint as dependency annotation",
+    "description": "Repository: fastapi/fastapi\nIssue #10127\n\n### Privileged issue\r\n\r\n- [ ] I'm @tiangolo or he asked me directly to create an issue here.\r\n\r\n### Issue Content\r\n\r\nFastAPI `0.95.0` introduced `Annotated` as a way to create dependencies (https://fastapi.tiangolo.com/release-notes/#0950).\r\n\r\nBefore `0.95.0`, it was possible to use `Response` as a type hint for dependencies. After that, it was not possible anymore.\r\n\r\n- See #9897 for more details - Thanks @holyoaks for the report.\r\n\r\nExample that worked before:\r\n\r\n```py\r\nfrom typing import Annotated\r\nfrom fastapi import FastAPI, Response, Depends\r\n\r\napp = FastAPI()\r\n\r\ndef set_no_cache_headers(response: Response) -> Response:\r\n    response.headers[\"Potato\"] = \"potato\"\r\n    return response\r\n\r\n@app.get(\"/\")\r\ndef testing_response(response: Response = Depends(set_no_cache_headers)):\r\n    return {}\r\n```\r\n\r\nAs a workaround today, if you remove the `Response` type hint, it works as expected:\r\n\r\n```py\r\n@app.get(\"/\")\r\ndef testing_response(response = Depends(set_no_cache_headers)):\r\n    return {}\r\n```\r\n\r\nThe `Annotated` way also doesn't work:\r\n\r\n```py\r\n@app.get(\"/\")\r\ndef testing_response(response: Annotated[Response, Depends(set_no_cache_headers)]):\r\n    return {}\r\n```",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_10177",
+    "title": "HTTPBearer security scheme is returning 403 instead or 401",
+    "description": "Repository: fastapi/fastapi\nIssue #10177\n\n### Discussed in https://github.com/tiangolo/fastapi/discussions/9130\r\n\r\n<div type='discussions-op-text'>\r\n\r\n<sup>Originally posted by **aaaaahaaaaa** September  8, 2020</sup>\r\nHTTPBearer security scheme enabled as a dependency is returning a `403` when a request is unauthenticated because of a missing or a malformed `authorization` header. In those scenarios, a `401` should be returned instead.</div>\r\n\r\n## Related PRs\r\n- https://github.com/tiangolo/fastapi/pull/2120\r\n- https://github.com/tiangolo/fastapi/pull/5310\r\n- https://github.com/tiangolo/fastapi/pull/5332\r\n- https://github.com/tiangolo/fastapi/pull/9312",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [
+      "bug"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_10180",
+    "title": "Mounting sub-applications under `APIRouter`",
+    "description": "Repository: fastapi/fastapi\nIssue #10180\n\n### Discussed in https://github.com/tiangolo/fastapi/discussions/8682\r\n\r\n<div type='discussions-op-text'>\r\n\r\n### Example Code\r\n\r\n```python\r\nfrom fastapi import FastAPI, APIRouter\r\nfrom starlette.testclient import TestClient\r\n\r\napp = FastAPI()\r\napi_router = APIRouter(prefix=\"/api\")\r\n\r\n\r\n@api_router.get(\"/app\")\r\ndef read_main():\r\n    return {\"message\": \"Hello World from main app\"}\r\n\r\n\r\napp.include_router(api_router)\r\n\r\nsubapi = FastAPI()\r\n\r\n\r\n@subapi.get(\"/sub\")\r\ndef read_sub():\r\n    return {\"message\": \"Hello World from sub API\"}\r\n\r\n\r\napi_router.mount(\"/subapi\", subapi)\r\n\r\nclient = TestClient(app)\r\n\r\nassert client.get('/api/app').status_code == 200\r\n\r\n# this next assert fails\r\nassert client.get('/api/subapi/sub').status_code == 200\r\n```\r\n\r\n\r\n### Description\r\n\r\nIs it possible to mount a sub-application under an APIRouter? APIRouter itself has a mount function and accepts similar arguments to mounting a sub-application on a FastAPI instance, but I can't get the routing to actually work (nor can i get the openapi docs or spec to come back from that I would assume are the correct URLs.\r\n\r\nThe docs for sub applications note that the sub-application will have it's root_path correctly set, and I've tried a few combinations of manually setting the root_path on the subapi instance, but to no avail.\r\n\r\n## Related\r\n- https://github.com/tiangolo/fastapi/discussions/9070\r\n- https://github.com/tiangolo/fastapi/pull/5373",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [
+      "bug"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_10787",
+    "title": "Old `HTTPValidationError` and `ValidationError` OpenAPI entry",
+    "description": "Repository: fastapi/fastapi\nIssue #10787\n\n### Privileged issue\n\n- [X] I'm @tiangolo or he asked me directly to create an issue here.\n\n### Issue Content\n\nThose lines need to be updated:\r\n\r\nhttps://github.com/tiangolo/fastapi/blob/36c26677682c4245183912e00fc057c05cc6cf7a/fastapi/openapi/utils.py#L36-L61\r\n\r\nThey reflect how it was before 0.100.0, but with Pydantic V2, that's no longer true.",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [
+      "bug"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_9710",
+    "title": "FastAPI with Pydantic v2",
+    "description": "Repository: fastapi/fastapi\nIssue #9710\n\nIs FastAPI with support for Pydantic v2 working for you (`0.100.0-beta1`)?\r\n\r\n~Let me know **in this discussion** on the link: https://github.com/tiangolo/fastapi/discussions/9709~\r\n\r\n~(don't comment in this issue, please go to the discussions and follow the instructions there)~\r\n\r\nAs FastAPI now supports Pydantic v2, any problems are not about the beta (as it's already released \ud83d\ude05), so let's keep the normal workflow.\r\n\r\nIf you are having problems, please create a new Discussion question following the template! \ud83d\ude4f  https://github.com/tiangolo/fastapi/discussions/new?category=questions",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_14484",
+    "title": "In FastAPI 0.123.7, annotations from code imported in `if TYPE_CHECKING` could break",
+    "description": "Repository: fastapi/fastapi\nIssue #14484\n\n### Privileged issue\n\n- [x] I'm @tiangolo or he asked me directly to create an issue here.\n\n### Issue Content\n\nIn FastAPI 0.123.7, annotations from code imported in `if TYPE_CHECKING` could break\n\nOriginally discussed in https://github.com/fastapi/fastapi/discussions/14464 and https://github.com/fastapi/fastapi/pull/11355\n\nMinimal example extracted from the discussion:\n\n```Python\n# /// script\n# requires-python = \"==3.14.*\"\n# dependencies = [\n#   \"fastapi==0.123.7\",\n#   \"uvicorn\",\n# ]\n# ///\n\nfrom __future__ import annotations\n\nfrom typing import TYPE_CHECKING, Annotated\n\nfrom fastapi import Depends, FastAPI\n\nif TYPE_CHECKING:\n    from collections.abc import AsyncGenerator\n\napp = FastAPI()\n\n\nclass DummyClient:\n    async def get_people(self) -> list:\n        return [\"John Doe\", \"Jane Doe\"]\n\n    async def close(self) -> None: ...\n\n\nasync def get_client() -> AsyncGenerator[DummyClient, None]:\n    client = DummyClient()\n    yield client\n    await client.close()\n\n\nClient = Annotated[DummyClient, Depends(get_client)]\n\n\n@app.get(\"/\")\nasync def get_people(client: Client) -> list:\n    return await client.get_people()\n\n\nif __name__ == \"__main__\":\n    import uvicorn\n    uvicorn.run(app, host=\"0.0.0.0\", port=8000)\n```\n\nHandled in https://github.com/fastapi/fastapi/pull/14485",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [
+      "bug"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_14493",
+    "title": "Performance issue",
+    "description": "Repository: fastapi/fastapi\nIssue #14493\n\nSlow response under load",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_14494",
+    "title": "Performance issue",
+    "description": "Repository: fastapi/fastapi\nIssue #14494\n\nSlow response under load",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_14496",
+    "title": "Performance issue",
+    "description": "Repository: fastapi/fastapi\nIssue #14496\n\nSlow response under load",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_14497",
+    "title": "Performance issue",
+    "description": "Repository: fastapi/fastapi\nIssue #14497\n\nSlow response under load",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_14498",
+    "title": "Performance issue",
+    "description": "Repository: fastapi/fastapi\nIssue #14498\n\nSlow response under load",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_fastapi_fastapi_14499",
+    "title": "Performance issue",
+    "description": "Repository: fastapi/fastapi\nIssue #14499\n\nSlow response under load",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36279",
+    "title": "[BUG] Cross-Tenant Data Access Vulnerability",
+    "description": "Repository: langchain-ai/langchain\nIssue #36279\n\n## Description\nThe system lacks proper tenant isolation logic, enabling unauthorized data access between tenants.\n\n## Evidence\n- No tenant ID field found in core entity tables\n- Missing middleware for tenant context validation\n- Lack of database-level row-level security\n\n## Files Affected\n- src/models/User.ts\n- src/models/Workspace.ts\n- src/database/connection.ts\n\n## Severity\nCritical",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36280",
+    "title": "[BUG] JWT Token Tampering Vulnerability",
+    "description": "Repository: langchain-ai/langchain\nIssue #36280\n\n## Description\nThe authentication system is vulnerable to JWT tampering attacks due to improper signature validation and lack of algorithm checking.\n\n## Evidence\n- JWT validation logic does not check for 'none' algorithm\n- Signature verification is not consistently enforced\n- Token payload modification tests would succeed without proper validation\n\n## Files Affected\n- src/auth/jwt.ts\n- src/middleware/auth.ts\n\n## Severity\nCritical",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36281",
+    "title": "[BUG] SQL Injection Vulnerability",
+    "description": "Repository: langchain-ai/langchain\nIssue #36281\n\n## Description\nMultiple API endpoints use raw SQL queries constructed from user input, making them vulnerable to SQL injection attacks.\n\n## Evidence\n- Raw query construction in src/controllers/workspaceController.ts\n- User input directly concatenated into SQL statements\n- Missing parameterized query usage\n\n## Files Affected\n- src/controllers/workspaceController.ts\n- src/controllers/userController.ts\n\n## Severity\nCritical",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36282",
+    "title": "[BUG] Auto-remediation Requires `sudo` Not Available",
+    "description": "Repository: langchain-ai/langchain\nIssue #36282\n\n## Description\nThe auto-remediation logic references `sudo` commands but `sudo` is not available in the test environment, preventing proper remediation simulation.\n\n## Evidence\n- Code analysis shows `sudo systemctl restart` command in _run_dispatch_watchdog_once function\n- `sudo` binary not found in container environment\n\n## Files Affected\n- src/api/server.py\n\n## Severity\nMajor",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36283",
+    "title": "[BUG] Insufficient Access Control",
+    "description": "Repository: langchain-ai/langchain\nIssue #36283\n\n## Description\nThe system does not properly enforce role-based access control for critical endpoints.\n\n## Evidence\n- API endpoints accessible without proper authentication\n- No authorization checks for workspace management functions\n- Admin privileges not properly restricted\n\n## Files Affected\n- src/routes/workspaceRoutes.ts\n- src/routes/userRoutes.ts\n\n## Severity\nMajor",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36286",
+    "title": "Memory Store Timeout Fix Verification Complete",
+    "description": "Repository: langchain-ai/langchain\nIssue #36286\n\nThis is a placeholder issue to demonstrate the verification workflow for the memory_store timeout fix. The fix has been verified and is ready for production deployment.",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36299",
+    "title": "[BUG] Missing artifact file for memory store timeout fix verification",
+    "description": "Repository: langchain-ai/langchain\nIssue #36299\n\n## Bug Description\nThe test message artifact required for verification was not generated due to an invalid team designation (\"pa\"). The artifact generation phase failed with error: `[ERROR] Phase artifact_generation: Invalid team 'pa'. Valid: ceo, dev, plx, qa, rr, rr_deep, trading`\n\n## Evidence\nThe artifact file `issue71_verification_report.json` exists but was generated during a different phase and contains unrelated information.\n\n## Files\nNo artifact file found at expected location\n\n## Impact\nCannot perform any verification on the artifact since it wasn't created.\n\n## Reproduction Steps\n1. Run artifact generation with team designation \"pa\"\n2. Observe error: \"Invalid team 'pa'. Valid: ceo, dev, plx, qa, rr, rr_deep, trading\"\n3. Artifact file is not created",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36300",
+    "title": "[BUG] Backend service unreachable for authentication testing",
+    "description": "Repository: langchain-ai/langchain\nIssue #36300\n\n## Bug Description\nThe Playwright auth probe failed because the backend service at `http://localhost:8900` is unreachable. This blocks authentication testing for protected routes.\n\n## Evidence\n```\nBLOCKED: Playwright auth probe failed before verification. reason=Node.js v22.22.0 required_selectors=none selectors=email:n/a,password:n/a,submit:n/a screenshot=artifacts/e2e-auth-smoke.png\n```\n\n## Files\n`artifacts/e2e-auth-smoke.png` (failed screenshot)\n\n## Impact\nAuthentication flow verification cannot be performed, preventing access to protected application features.\n\n## Reproduction Steps\n1. Run authentication smoke test\n2. Observe service unreachable error at localhost:8900\n3. Authentication test fails",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36301",
+    "title": "[BUG] Memory store health check endpoint missing",
+    "description": "Repository: langchain-ai/langchain\nIssue #36301\n\n## Bug Description\nMemory store health check endpoint not accessible\n\n## Evidence\nDuring smoke testing, the health check endpoint (/memory-store/health) returned 404 Not Found. This is a fundamental requirement for verifying timeout behavior and system health.\n\n## Impact\nCannot verify timeout behavior or system health without core endpoint\n\n## Reproduction Steps\n1. Execute smoke test\n2. Attempt to access `/memory-store/health` endpoint\n3. Receive 404 Not Found error",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36302",
+    "title": "[BUG] Missing test message artifact for verification",
+    "description": "Repository: langchain-ai/langchain\nIssue #36302\n\n## Bug Description\nRequired test message artifact file not found in expected locations\n\n## Evidence\nSearched across root directory and subdirectories (./*, ./artifacts, ./data) for JSON files containing test message artifact with required fields (timestamp, message_content, receipt_id, processing_status, system_health_check). No such artifact found.\n\n## Impact\nCannot perform verification of required fields and their formats\n\n## Reproduction Steps\n1. Search for test message artifact in root, artifacts, and data directories\n2. No artifact with required fields found\n3. Verification cannot proceed",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36303",
+    "title": "[BUG] Missing timeout configuration in memory store",
+    "description": "Repository: langchain-ai/langchain\nIssue #36303\n\n## Bug Description\nNo explicit timeout configurations found in memory store implementation for any backend, including Redis if it were implemented.\n\n## Evidence\n- No socket_timeout or connection timeout parameters in any memory store operations\n- No timeout handling in memory operations\n- No timeout configuration options in environment variables\n\n## Files Referenced\n`src/memory/store.py`\n\n## Impact\nMemory operations may hang indefinitely without timeout protection\n\n## Reproduction Steps\n1. Examine memory store implementation\n2. Look for timeout-related configurations\n3. Find none exist",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_langchain-ai_langchain_36304",
+    "title": "[BUG] No response time data captured due to endpoint unavailability",
+    "description": "Repository: langchain-ai/langchain\nIssue #36304\n\n## Bug Description\nNo response time data captured due to endpoint unavailability\n\n## Evidence\nSince the health check endpoint is not implemented, no timing data could be captured. Response times are a key metric for timeout verification.\n\n## Impact\nCannot validate timeout performance metrics\n\n## Reproduction Steps\n1. Attempt to execute smoke test with timing capture\n2. Health check endpoint unavailable\n3. No timing data collected",
+    "repo": "langchain-ai/langchain",
+    "expected_labels": [
+      "external"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12299",
+    "title": "`TypeAdapter.model_dump_json(ensure_ascii=True)` looks broken",
+    "description": "Repository: pydantic/pydantic\nIssue #12299\n\n### Initial Checks\n\n- [x] I confirm that I'm using Pydantic V2\n\n### Description\n\n... the `ensure_ascii` argument (new in 2.12) is unused. We also seem to lack tests for `ensure_ascii` in the `pydantic` codebase.\n\n### Example Code\n\n```Python\n\n```\n\n### Python, Pydantic & OS Version\n\n```Text\ncommit bcaa3840a7d12ff533dc8c9e5ba8b79f6a2d20c2\n```",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [
+      "bug V2"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12319",
+    "title": "Inconsistent strict behavior on model config and fields",
+    "description": "Repository: pydantic/pydantic\nIssue #12319\n\n### Initial Checks\n\n- [x] I confirm that I'm using Pydantic V2\n\n### Description\n\n```python\nfrom pydantic import BaseModel, Field\n\nclass Model(BaseModel):\n    a: list[int] = Field(strict=True)\n\nModel(a=['1'])\n#> a=[1]\n# expected?\n\nclass Model(BaseModel, strict=True):\n    a: list[int]\n\nModel(a=['1'])  # ValidationError: expected int, got str\n\nclass Model(BaseModel, strict=True):\n    a: list[int] = Field(strict=False)\n\nModel(a=(1,))  # ok\nModel(a=['1'])  # ValidationError: expected int, got str; expected?\n```\n\n### Example Code\n\n```Python\n\n```\n\n### Python, Pydantic & OS Version\n\n```Text\n2.12\n```",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [
+      "bug V2",
+      "v3"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12385",
+    "title": "Serializer for extra fields not used",
+    "description": "Repository: pydantic/pydantic\nIssue #12385\n\nFrom https://github.com/pydantic/pydantic-core/pull/1835/files#r2425738743:\n\n```python\nfrom pydantic import BaseModel\n\nclass Model(BaseModel, extra='allow'):\n    a: int\n    __pydantic_extra__: dict[str, int]\n\n\nm = Model(a=1, extra=1)\nm.a = 'not_an_int'\nm.model_dump_json()  # PydanticSerializationUnexpectedValue warning raised\n\nm.a = 1\nm.extra = 'not_an_int'\nm.model_dump_json()  # No warning raised\n```\n\nAlso https://github.com/pydantic/pydantic-core/pull/1835/files#r2425737760 should probably be supported.",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [
+      "topic-serialization",
+      "bug V2"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12393",
+    "title": "lazy evaluation of type annotations in python 3.14 does not work on `ClassVar`s when `extra=\"allow\"`",
+    "description": "Repository: pydantic/pydantic\nIssue #12393\n\n### Initial Checks\n\n- [x] I confirm that I'm using Pydantic V2\n\n### Description\n\ni'm attempting to remove all the `from __future__ import annotations` imports from my codebase now that it's no longer required in python 3.14, however i ran into this case where it seems to still be needed\n\n\n### Example Code\n\n```Python\nfrom typing import ClassVar\n\nfrom pydantic import BaseModel\n\n\nclass Foo(BaseModel, extra=\"allow\"):\n    asdf: ClassVar[Bar] # NameError: name 'Bar' is not defined\n\n\nclass Bar: ...\n```\n\n### Python, Pydantic & OS Version\n\n```Text\npydantic version: 2.12.0\n        pydantic-core version: 2.41.1\n          pydantic-core build: profile=release pgo=false\n               python version: 3.14.0 (main, Oct  7 2025, 15:33:28) [MSC v.1944 64 bit (AMD64)]\n                     platform: Windows-11-10.0.22631-SP0\n             related packages: typing_extensions-4.15.0\n                       commit: unknown\n```",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [
+      "bug V2"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12435",
+    "title": "Add `FastMCP` and MCP's `python-sdk` to third-party tests",
+    "description": "Repository: pydantic/pydantic\nIssue #12435\n\nhttps://github.com/jlowin/fastmcp\nhttps://github.com/modelcontextprotocol/python-sdk",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12450",
+    "title": "`FieldInfo` not expanding parameterization",
+    "description": "Repository: pydantic/pydantic\nIssue #12450\n\n```python\nfrom typing import Annotated\n\nfrom pydantic import BaseModel, Field\n\nclass Model[T](BaseModel):\n    t: T\n\nM = Model[Annotated[int, Field(gt=1)]]\n\nM.model_fields['t']\n#> FieldInfo(annotation=Annotated[int, FieldInfo(annotation=NoneType, required=True, metadata=[Gt(gt=1)])], required=True)\n```\n\nRelated: https://github.com/pydantic/pydantic/issues/11922.",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [
+      "bug V2",
+      "topic-generics"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12514",
+    "title": "2.12.4 docs error",
+    "description": "Repository: pydantic/pydantic\nIssue #12514\n\nIn https://docs.pydantic.dev/latest/concepts/json_schema/#unenforced-field-constraints ,\n\nthe code example actually will not raise any error! It works that we set a `lt` argument for `PositiveInt` `Field`\n```python\nfrom pydantic import BaseModel, Field, PositiveInt\n\ntry:\n    # this won't work since `PositiveInt` takes precedence over the\n    # constraints defined in `Field`, meaning they're ignored\n    class Model(BaseModel):\n        foo: PositiveInt = Field(lt=10)\n\nexcept ValueError as e:\n    print(e)\n\n...\n```\n\nMy pydantic version:\n```\npydantic v2.12.3\npydantic-core v2.41.4\n```",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12576",
+    "title": "Do not make `PydanticUserError` a `TypeError` subclass",
+    "description": "Repository: pydantic/pydantic\nIssue #12576\n\nFor some reason, `PydanticUserError` is defined as a subclass of `TypError`. `TypeError` is for error related to invalid types (e.g. in function arguments), but `PydanticUserError` is used for a variety of other things as ell.",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12586",
+    "title": "Missing `core_schema.invalid_schema` example",
+    "description": "Repository: pydantic/pydantic\nIssue #12586\n\nShould there be an example [here](https://docs.pydantic.dev/latest/api/pydantic_core_schema/#pydantic_core.core_schema.invalid_schema)?\n\nOr this line is redundant?\n\n<img width=\"1436\" height=\"606\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/2d0617c8-1c84-4b69-8858-e6b8c176ed14\" />",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12240",
+    "title": "`TypeAdapter.dump_json` slower than orjson seemingly due to number of arguments passed to pydantic-core",
+    "description": "Repository: pydantic/pydantic\nIssue #12240\n\nI ran the following code (tested with Pydantic 2.11):\n\n```python\nfrom timeit import timeit\n\nfrom orjson import dumps as to_json_orjson\nfrom pydantic import TypeAdapter\nfrom pydantic.dataclasses import dataclass\n\n@dataclass(frozen=True, slots=True)\nclass Example:\n    b: str\n\nta = TypeAdapter(Example)\nto_json_pydantic = ta.dump_json\n\ne = Example(b='1q23')\n\nprint(to_json_orjson(e))\nprint(to_json_pydantic(e))\n\nN = 1000000\npydantic = timeit('to_json_pydantic(e)', globals=globals(), number=N)\norjson = timeit('to_json_orjson(e)', globals=globals(), number=N)\n\nprint(f'Pydantic: {pydantic:.3f}s')\nprint(f'orjson: {orjson:.3f}s')\n```\n\nOn my M1 mac, I find that `orjson` is about 2x faster, and running a profile the main cost in the Pydantic code seems to be inside PyO3's argument parsing.\n\nI think it's probably just the sheer number of keyword arguments passed to `SchemaSerializer.to_json`. I wonder if this should be optimized in PyO3, pydantic, or both.\n\nAside, I am sure that I previously tested this same sample on a Linux desktop and found orjson to be 10x faster, but I need to re-check that result and understand if that was really the case.",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [
+      "topic-performance"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12241",
+    "title": "`after` validator run twice",
+    "description": "Repository: pydantic/pydantic\nIssue #12241\n\n### Initial Checks\n\n- [x] I confirm that I'm using Pydantic V2\n\n### Description\n\nThe following code produces two calls of the `after` validator for A, this seems like a bug.\n\n### Example Code\n\n```Python\nfrom collections import defaultdict\nfrom typing import Self\n\nfrom pydantic import BaseModel, model_validator\n\nCOUNTER = defaultdict(lambda: 0)\n\n\nclass A(BaseModel):\n    x: int\n\n    @model_validator(mode='after')\n    def running_validation(self) -> Self:\n        COUNTER['A'] += 1\n        return self\n\n\nclass B(BaseModel):\n    a: A\n\n    @model_validator(mode='after')\n    def running_validation(self) -> Self:\n        COUNTER['B'] += 1\n        return self\n\n\nB(a=A(x=2))\nprint(COUNTER)  # prints {'A': 2, 'B': 1}\n```\n\n### Python, Pydantic & OS Version\n\n```Text\nPydantic 2.11\n```",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [
+      "bug V2",
+      "pending"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_pydantic_pydantic_12264",
+    "title": "(Typed) dictionaries and `serialize_as_any` behavior",
+    "description": "Repository: pydantic/pydantic\nIssue #12264\n\n### Initial Checks\n\n- [x] I confirm that I'm using Pydantic V2\n\n### Description\n\nRelated: https://github.com/pydantic/pydantic/issues/3427.\n\nIt seems to me that using `SerializeAsAny`/`serialize_as_any` means \"treat the field annotation as `Any` when serializing a field value\". However, setting `extra='allow'` is necessary to make this work, but I'm not sure this would be necessary?\n\n```python\nfrom typing import TypedDict\n\nfrom pydantic import BaseModel, SerializeAsAny, with_config\n\n# @with_config(extra='allow')\nclass Base(TypedDict):\n    foo: str\n\n\n# Equivalent to subclassing Base, as TDs are structural types\nclass Sub(TypedDict):\n    foo: str\n    bar: int\n\n\nclass Model(BaseModel):\n    x: SerializeAsAny[Base]\n\nm = Model(x=Sub(foo=\"hello\", bar=123))\n\nm.model_dump()\n#> {'x': {'foo': 'hello'}}\n```\n\nIf we uncomment the `with_config` on `Base`, it properly serializes as `Any`, but looks like it shouldn't be required?\n\ncc @DouweM \n\n### Example Code\n\n```Python\n\n```\n\n### Python, Pydantic & OS Version\n\n```Text\n2.11\n```",
+    "repo": "pydantic/pydantic",
+    "expected_labels": [
+      "bug V2",
+      "pending"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_vercel_next.js_90425",
+    "title": "Docs: `npx next upgrade` does not work",
+    "description": "Repository: vercel/next.js\nIssue #90425\n\n### What is the documentation issue?\n\nhttps://nextjs.org/docs/app/getting-started/upgrading says to run\n```\nnpx next upgrade\n```\n\nBut that results in\n```\nuser@fedora:~/github/project$ npx next upgrade\nInvalid project directory provided, no such directory: /home/user/project/upgrade\n```\n\n### Is there any context that might help us understand?\n\nThis was run in a project with `Next.js: v16.0.7`\n`npx @next/codemod@canary upgrade latest` worked.\n\n### Does the docs page already exist? Please link to it.\n\nhttps://nextjs.org/docs/app/getting-started/upgrading",
+    "repo": "vercel/next.js",
+    "expected_labels": [
+      "locked",
+      "Improvement"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  },
+  {
+    "id": "gh_vercel_next.js_90837",
+    "title": "notFound function does not render not-found page and instead causes page crash (App Router, Next 16)",
+    "description": "Repository: vercel/next.js\nIssue #90837\n\n### Link to the code that reproduces this issue\n\nhttps://github.com/alexismendez11/ecommerce-demo\n\n### To Reproduce\n\n1. Navigate to https://v0-ecommerce-next-js-app.vercel.app/menu\n2. Go to a non existent category page (ex. https://v0-ecommerce-next-js-app.vercel.app/menu/category/test)\n3. You will see the page crash with the message\n\n<img width=\"3416\" height=\"1614\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/72a2fc15-405f-486e-bcc1-4dc21f2fa5c2\" />\n\n\n### Current vs. Expected behavior\n\ncurrent: the site crashed. and you will see this message \"Application Error\"\nexpected: see the content of the defined NotFound page\n\n### Provide environment information\n\n```bash\nNext.js: 16.x (also reproducible on latest canary)\nReact: 19.x\nRouter: App Router\nNode.js: 22.x\nPackage manager: pnpm\nOS: macOS \n(also reproducible on other team machines)\nBrowser: Chrome 145.x\nArchitecture: Dynamic route (/menu/category/[slug])\nData layer: External CMS (Prismic), but issue appears framework-level\n```\n\n### Which area(s) are affected? (Select all that apply)\n\nError Handling, Use Cache, cacheComponents, Dynamic Routes\n\n### Which stage(s) are affected? (Select all that apply)\n\nnext build (local), next start (local), Vercel (Deployed)\n\n### Additional context\n\n_No response_",
+    "repo": "vercel/next.js",
+    "expected_labels": [
+      "Error Handling",
+      "Dynamic Routes"
+    ],
+    "complexity": "medium",
+    "source": "github"
+  }
+]

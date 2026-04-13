@@ -1,0 +1,16 @@
+[
+  {
+    "condition": "vanilla_baseline",
+    "n_tasks": 20,
+    "avg_satisfaction": 3.6,
+    "std_satisfaction": 0.9403246919632545,
+    "completion_rate": 0.7,
+    "avg_code_quality": 3.5,
+    "avg_communication": 4.75,
+    "avg_autonomy": 4.5,
+    "avg_interventions": 0,
+    "recovery_rate": 0.3,
+    "avg_duration_s": 273.061,
+    "avg_cost_usd": 0
+  }
+]
