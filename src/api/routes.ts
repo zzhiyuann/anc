@@ -1664,6 +1664,84 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
+    // === Performance Metrics ===
+    if (method === 'GET' && path === '/metrics') {
+      try {
+        const db = getDb();
+        const now = Date.now();
+        const oneDayAgo = now - 86400_000;
+        const sevenDaysAgo = now - 7 * 86400_000;
+
+        // Avg task completion time (7d) — from sessions that have a matching completion event
+        const completionRows = db.prepare(
+          `SELECT s.spawned_at, e.created_at AS completed_at
+           FROM sessions s
+           JOIN events e ON e.issue_key = s.issue_key AND e.event_type = 'agent:completed'
+           WHERE s.spawned_at > ?`
+        ).all(sevenDaysAgo) as Array<{ spawned_at: number; completed_at: string }>;
+
+        const durations = completionRows
+          .map(r => new Date(r.completed_at).getTime() - r.spawned_at)
+          .filter(d => d > 0);
+        const avgCompletionMs = durations.length > 0
+          ? durations.reduce((s, d) => s + d, 0) / durations.length
+          : null;
+
+        // Success rate (7d) — completed / (completed + failed)
+        const completedCount = (db.prepare(
+          "SELECT COUNT(*) AS n FROM events WHERE event_type = 'agent:completed' AND created_at > datetime(?, 'unixepoch')"
+        ).get(Math.floor(sevenDaysAgo / 1000)) as { n: number }).n;
+        const failedCount = (db.prepare(
+          "SELECT COUNT(*) AS n FROM events WHERE event_type = 'agent:failed' AND created_at > datetime(?, 'unixepoch')"
+        ).get(Math.floor(sevenDaysAgo / 1000)) as { n: number }).n;
+        const total = completedCount + failedCount;
+        const successRate = total > 0 ? completedCount / total : null;
+
+        // Queue depth — current queued items
+        const queueDepth = (db.prepare(
+          "SELECT COUNT(*) AS n FROM queue WHERE status = 'queued'"
+        ).get() as { n: number }).n;
+
+        // Capacity utilization — active sessions / total max concurrency
+        const agents = getRegisteredAgents();
+        const tracked = getTrackedSessions();
+        const activeSessions = tracked.filter(s => s.state === 'active').length;
+        const totalCapacity = agents.reduce((s, a) => s + (a.maxConcurrency ?? 2), 0);
+        const capacityUtilization = totalCapacity > 0 ? activeSessions / totalCapacity : 0;
+
+        // Cost today
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const costRow = db.prepare(
+          'SELECT COALESCE(SUM(cost_usd), 0) AS usd FROM budget_log WHERE created_at >= ?'
+        ).get(todayStart.getTime()) as { usd: number };
+
+        // Tasks by state
+        const stateRows = db.prepare(
+          'SELECT state, COUNT(*) AS n FROM tasks GROUP BY state'
+        ).all() as Array<{ state: string; n: number }>;
+        const tasksByState: Record<string, number> = {};
+        for (const r of stateRows) tasksByState[r.state] = r.n;
+
+        json(res, {
+          avgCompletionMs,
+          successRate,
+          queueDepth,
+          capacityUtilization,
+          activeSessions,
+          totalCapacity,
+          costTodayUsd: costRow.usd,
+          tasksByState,
+          completedLast7d: completedCount,
+          failedLast7d: failedCount,
+          computedAt: now,
+        });
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+
     // No match
     return false;
   } catch (err) {

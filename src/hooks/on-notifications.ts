@@ -127,6 +127,56 @@ export function registerNotificationHandlers(): void {
     }
   });
 
+  // --- Circuit breaker tripped ---
+  bus.on('system:circuit-breaker-tripped', ({ issueKey, failCount, backoffMs }) => {
+    try {
+      const backoffSec = Math.round(backoffMs / 1000);
+      const n = createNotification({
+        kind: 'circuit-breaker',
+        severity: 'warning',
+        title: `Circuit breaker tripped on ${issueKey}`,
+        body: `${failCount} failures — backing off ${backoffSec}s`,
+      });
+      emitCreated(n);
+    } catch (err) {
+      log.warn(`on-circuit-breaker: ${(err as Error).message}`);
+    }
+  });
+
+  // --- Kill switch engaged ---
+  bus.on('system:kill-switch-engaged', ({ suspended, failed }) => {
+    try {
+      const n = createNotification({
+        kind: 'kill-switch',
+        severity: 'critical',
+        title: 'Kill switch engaged — all agents paused',
+        body: `Suspended ${suspended} session${suspended === 1 ? '' : 's'}${failed > 0 ? `, ${failed} failed to suspend` : ''}`,
+      });
+      emitCreated(n);
+    } catch (err) {
+      log.warn(`on-kill-switch: ${(err as Error).message}`);
+    }
+  });
+
+  // --- Task stuck > 2x median ---
+  bus.on('system:task-stuck', ({ taskId, role, issueKey, durationMs, medianMs }) => {
+    try {
+      const mins = Math.round(durationMs / 60_000);
+      const medianMins = Math.round(medianMs / 60_000);
+      const n = createNotification({
+        kind: 'stuck',
+        severity: 'warning',
+        title: `${role} stuck on ${issueKey} (${mins}min)`,
+        body: `Running ${mins}min vs median ${medianMins}min (>${2}x). May need intervention.`,
+        taskId: taskId !== issueKey ? taskId : null,
+        agentRole: role,
+      });
+      emitCreated(n);
+    } catch (err) {
+      log.warn(`on-stuck: ${(err as Error).message}`);
+    }
+  });
+
   // --- Queue depth warning ---
   bus.on('queue:enqueued', () => {
     try {

@@ -9,7 +9,8 @@ import { getDb } from './db.js';
 
 export type NotificationKind =
   | 'mention' | 'alert' | 'briefing' | 'completion'
-  | 'failure' | 'dispatch' | 'queue' | 'budget' | 'a2a';
+  | 'failure' | 'dispatch' | 'queue' | 'budget' | 'a2a'
+  | 'circuit-breaker' | 'kill-switch' | 'stuck';
 export type NotificationSeverity = 'info' | 'warning' | 'critical';
 
 export interface Notification {

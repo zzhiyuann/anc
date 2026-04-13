@@ -3,6 +3,8 @@
  * Tracks consecutive failures per issue with exponential backoff.
  */
 
+import { bus } from '../bus.js';
+
 interface BreakerEntry {
   failCount: number;
   lastFailAt: number;
@@ -34,6 +36,11 @@ export function recordFailure(issueKey: string): number {
     const backoff = Math.min(BASE_BACKOFF_MS * Math.pow(2, exponent), MAX_BACKOFF_MS);
     entry.backoffUntil = Date.now() + backoff;
     breakers.set(issueKey, entry);
+    void bus.emit('system:circuit-breaker-tripped', {
+      issueKey,
+      failCount: entry.failCount,
+      backoffMs: backoff,
+    });
     return backoff;
   }
 

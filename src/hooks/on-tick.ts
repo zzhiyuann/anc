@@ -12,6 +12,7 @@ import { sessionExists, getTmuxPath } from '../runtime/runner.js';
 import { getIssuesByRole, getUnassignedTodoIssues, getIssuesByStatus, setIssueStatus, getIssue } from '../linear/client.js';
 import { routeIssue } from '../routing/router.js';
 import { cleanupBreakers } from '../runtime/circuit-breaker.js';
+import { getDb } from '../core/db.js';
 import { createLogger } from '../core/logger.js';
 
 const log = createLogger('scheduler');
@@ -42,8 +43,61 @@ export function registerTickHandlers(): void {
         log.error(`janitor error: ${(err as Error).message}`);
       }
       cleanupBreakers();
+      try { detectStuckTasks(); } catch (err) {
+        log.error(`stuck-task detection error: ${(err as Error).message}`);
+      }
     }
   });
+}
+
+/** Detect tasks running > 2x median completion time and emit alerts. */
+const stuckAlerted = new Set<string>();
+
+function detectStuckTasks(): void {
+  const db = getDb();
+  const now = Date.now();
+
+  // Compute median completion time from recently completed sessions (last 30 days).
+  const completedRows = db.prepare(
+    `SELECT s.spawned_at, e.created_at AS completed_at
+     FROM sessions s
+     JOIN events e ON e.issue_key = s.issue_key AND e.event_type = 'agent:completed'
+     WHERE s.spawned_at > ?`
+  ).all(now - 30 * 86400_000) as Array<{ spawned_at: number; completed_at: string }>;
+
+  if (completedRows.length < 3) return; // not enough data
+
+  const durations = completedRows
+    .map(r => new Date(r.completed_at).getTime() - r.spawned_at)
+    .filter(d => d > 0)
+    .sort((a, b) => a - b);
+
+  if (durations.length < 3) return;
+  const medianMs = durations[Math.floor(durations.length / 2)];
+  const threshold = medianMs * 2;
+
+  // Find active sessions running longer than 2x median.
+  const tracked = getTrackedSessions().filter(s => s.state === 'active');
+  for (const s of tracked) {
+    const elapsed = now - s.spawnedAt;
+    if (elapsed <= threshold) continue;
+    if (stuckAlerted.has(s.issueKey)) continue;
+
+    stuckAlerted.add(s.issueKey);
+    void bus.emit('system:task-stuck', {
+      taskId: s.taskId ?? s.issueKey,
+      role: s.role,
+      issueKey: s.issueKey,
+      durationMs: elapsed,
+      medianMs,
+    });
+  }
+
+  // Clean up alerts for sessions that are no longer active.
+  const activeKeys = new Set(tracked.map(s => s.issueKey));
+  for (const key of stuckAlerted) {
+    if (!activeKeys.has(key)) stuckAlerted.delete(key);
+  }
 }
 
 /** True if we have a usable Linear API key. Treats blank or obvious dummies as missing. */

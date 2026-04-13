@@ -82,6 +82,9 @@ export interface AncEvents {
   // System events
   'system:tick': { timestamp: number };  // periodic health check
   'system:budget-alert': { agentRole?: string; spent: number; limit: number; percent: number };
+  'system:circuit-breaker-tripped': { issueKey: string; failCount: number; backoffMs: number };
+  'system:kill-switch-engaged': { suspended: number; failed: number };
+  'system:task-stuck': { taskId: string; role: string; issueKey: string; durationMs: number; medianMs: number };
 
   // Task-level events (first-class Task entity)
   'task:created': { taskId: string; projectId: string | null; title: string; source: string };
@@ -90,6 +93,8 @@ export interface AncEvents {
   'task:updated': { taskId: string; patch: Record<string, unknown>; by: string };
   'task:completed': { taskId: string; handoffSummary: string | null };
   'task:progress': { taskId: string; content: string };
+  'task:feedback-ready': { parentTaskId: string; pendingCount: number };
+  'task:all-children-done': { parentTaskId: string };
 
   // Notification events
   'notification:created': { id: number; kind: string; severity: string; title: string; taskId?: string | null };

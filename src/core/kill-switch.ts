@@ -13,6 +13,7 @@ import { homedir } from 'os';
 import { dirname, join } from 'path';
 import { getTrackedSessions } from '../runtime/health.js';
 import { suspendSession } from '../runtime/runner.js';
+import { bus } from '../bus.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('kill-switch');
@@ -75,6 +76,9 @@ export function pauseAll(): PauseResult {
   }
 
   log.info(`kill switch engaged: suspended=${suspended} failed=${failed}`);
+  if (!wasPaused) {
+    void bus.emit('system:kill-switch-engaged', { suspended, failed });
+  }
   return { ok: true, alreadyPaused: wasPaused, suspended, failed };
 }
 
