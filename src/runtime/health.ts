@@ -33,6 +33,7 @@ export interface TrackedSession {
   useContinue: boolean;       // has prior context → use --continue on next spawn
   isDuty: boolean;            // proactive duty session (uses separate capacity pool)
   taskId?: string;            // FK → tasks.id (many sessions can share a task)
+  lastCompletedAt?: number;   // epoch ms of last HANDOFF completion (for cooldown tracking)
   // linearSessionId removed — AgentSession API no longer used
 }
 
@@ -141,6 +142,7 @@ export function markIdle(issueKey: string): boolean {
   if (!s || s.state !== 'active') return false;
   s.state = 'idle';
   s.idleSince = Date.now();
+  s.lastCompletedAt = Date.now();
   s.useContinue = true;  // can now --continue
   return true;
 }

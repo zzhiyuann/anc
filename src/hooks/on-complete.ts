@@ -24,7 +24,8 @@ import { sessionExists } from '../runtime/runner.js';
 import type { TaskType, IssueStatus } from '../linear/types.js';
 import { createLogger } from '../core/logger.js';
 import { recordSpend, estimateCost } from '../core/budget.js';
-import { resolveTaskIdFromIssueKey, setTaskState, createTask, getTask } from '../core/tasks.js';
+import { resolveTaskIdFromIssueKey, setTaskState, createTask, getTask, addTaskComment } from '../core/tasks.js';
+import { setCooldown } from '../routing/queue.js';
 
 const log = createLogger('complete');
 
@@ -117,6 +118,13 @@ export function registerCompletionHandlers(): void {
       // SUSPEND.md exists → suspended (capacity eviction)
       if (existsSync(suspendPath)) {
         log.info(`${session.role}/${session.issueKey}: SUSPEND.md → suspended`, { role: session.role, issueKey: session.issueKey });
+        // Auto-comment on task for dashboard visibility
+        const suspendContent = readFileSync(suspendPath, 'utf-8').trim();
+        const suspendReason = suspendContent.length > 200 ? suspendContent.substring(0, 200) + '...' : suspendContent;
+        const suspendTaskId = resolveTaskIdFromIssueKey(session.issueKey);
+        if (suspendTaskId) {
+          addTaskComment(suspendTaskId, `agent:${session.role}`, `Suspended: ${suspendReason || 'capacity eviction'}`);
+        }
         markSuspended(session.issueKey);
         bus.emit('agent:suspended', { role: session.role, issueKey: session.issueKey, reason: 'SUSPEND.md' });
         continue;
@@ -188,6 +196,14 @@ async function processHandoff(
     commentBody += `\n\n**Quality check warnings:**\n${warnings.map(w => `- ${w}`).join('\n')}`;
   }
   await addComment(session.issueKey, commentBody, session.role);
+
+  // Auto-comment on local task for dashboard visibility
+  const taskId = resolveTaskIdFromIssueKey(session.issueKey);
+  if (taskId) {
+    const statusLabel = actions?.status ?? decideStatus(taskType, handoff);
+    const shortSummary = summary.length > 500 ? summary.substring(0, 500) + '...' : summary;
+    addTaskComment(taskId, `agent:${session.role}`, `Completed. Summary: ${shortSummary}\n\nStatus: ${statusLabel}`);
+  }
 
   // Determine status: agent-decided (from Actions) or system-decided (fallback)
   const newStatus = actions?.status ?? decideStatus(taskType, handoff);
@@ -267,6 +283,9 @@ async function processHandoff(
     log.warn(`${session.issueKey}: status change failed, will retry next tick`);
     return;
   }
+
+  // Cooldown: prevent rapid-fire re-dispatch after completion (30s per-task)
+  setCooldown(session.issueKey, 30_000);
 
   // Status changed successfully — archive HANDOFF to prevent re-triggering
   session.handoffProcessed = true;

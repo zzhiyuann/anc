@@ -15,17 +15,58 @@ import {
   getSessionForIssue,
 } from './health.js';
 import { isBreakerTripped, recordFailure, recordSuccess } from './circuit-breaker.js';
-import { enqueue } from '../routing/queue.js';
+import { enqueue, isInCooldown } from '../routing/queue.js';
 import { spawnClaude, suspendSession, sessionExists, sendToAgent } from './runner.js';
 import { canSpend, estimateCost } from '../core/budget.js';
 import { isGlobalPaused } from '../core/kill-switch.js';
 
 const log = createLogger('resolve');
 
+// --- Dedup / Rate-limit ---
+
+const DEDUP_WINDOW_MS = 60_000;
+const recentlyHandled = new Map<string, number>();
+
+/** Returns true if this key was seen within the dedup window. */
+export function shouldDedup(key: string): boolean {
+  const last = recentlyHandled.get(key);
+  if (last && Date.now() - last < DEDUP_WINDOW_MS) return true;
+  recentlyHandled.set(key, Date.now());
+  // Prune old entries when map grows
+  if (recentlyHandled.size > 200) {
+    const cutoff = Date.now() - DEDUP_WINDOW_MS * 5;
+    for (const [k, v] of recentlyHandled) {
+      if (v < cutoff) recentlyHandled.delete(k);
+    }
+  }
+  return false;
+}
+
+/** Reset dedup state (for testing) */
+export function _resetDedup(): void {
+  recentlyHandled.clear();
+}
+
+// --- Artifact cleanup ---
+
+const STALE_ARTIFACTS = ['HANDOFF.md', 'BLOCKED.md', 'PROGRESS.md', 'SUSPEND.md'];
+
+/** Remove stale lifecycle artifacts from a workspace before a fresh spawn. */
+function cleanStaleArtifacts(issueKey: string): void {
+  const workspace = getWorkspacePath(issueKey);
+  for (const file of STALE_ARTIFACTS) {
+    const p = join(workspace, file);
+    if (existsSync(p)) {
+      try { unlinkSync(p); } catch { /**/ }
+      log.debug(`Cleaned stale ${file} from ${issueKey}`, { issueKey });
+    }
+  }
+}
+
 // --- Public types ---
 
 export interface ResolveResult {
-  action: 'piped' | 'resumed' | 'spawned' | 'queued' | 'blocked';
+  action: 'piped' | 'resumed' | 'spawned' | 'queued' | 'blocked' | 'deduped';
   tmuxSession?: string;
   error?: string;
 }
@@ -47,7 +88,20 @@ export function resolveSession(opts: {
 }): ResolveResult {
   const { role, issueKey, prompt, priority, ceoAssigned, isDuty, taskId } = opts;
 
-  // 0. Global kill switch — refuse to spawn anything while paused.
+  // 0a. Dedup — reject duplicate dispatch within 60s window
+  const dedupKey = `resolve:${issueKey}`;
+  if (shouldDedup(dedupKey)) {
+    log.debug(`${issueKey}: deduped (within ${DEDUP_WINDOW_MS / 1000}s window)`, { issueKey });
+    return { action: 'deduped', error: `duplicate within ${DEDUP_WINDOW_MS / 1000}s` };
+  }
+
+  // 0b. Per-task cooldown — prevents rapid-fire re-dispatch after completion
+  if (isInCooldown(issueKey)) {
+    log.debug(`${issueKey}: in cooldown, refusing spawn`, { issueKey });
+    return { action: 'blocked', error: 'task cooldown active' };
+  }
+
+  // 0c. Global kill switch — refuse to spawn anything while paused.
   if (isGlobalPaused()) {
     log.warn(`${issueKey}: kill-switch engaged, refusing to spawn`, { issueKey });
     return { action: 'blocked', error: 'kill-switch engaged' };
@@ -105,6 +159,8 @@ export function resolveSession(opts: {
   }
 
   // 5. No session → need to spawn fresh
+  //    Clean stale artifacts from previous attempts first
+  cleanStaleArtifacts(issueKey);
   //    Duty sessions use separate pool; task sessions use main pool
   const poolHasRoom = isDuty ? hasDutyCapacity(role) : hasCapacity(role);
   if (!poolHasRoom) {
