@@ -11,7 +11,6 @@ import type {
   WsMessage,
 } from "@/lib/types";
 import { TaskHeader } from "@/components/task-detail/TaskHeader";
-import { LiveTerminalTabs } from "@/components/task-detail/LiveTerminalTabs";
 import { ProcessStream } from "@/components/task-detail/ProcessStream";
 import { ActivityStream } from "@/components/task-detail/ActivityStream";
 import { AttachmentList } from "@/components/task-detail/AttachmentList";
@@ -334,14 +333,10 @@ function RuntimeStrip({
   taskId,
   data,
   liveEvents,
-  activeRole,
-  onActiveRoleChange,
 }: {
   taskId: string;
   data: TaskFull;
   liveEvents: ProcessEvent[];
-  activeRole?: string;
-  onActiveRoleChange?: (r: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const status = useMemo(
@@ -384,12 +379,11 @@ function RuntimeStrip({
         </span>
       </button>
       {expanded && (
-        <div className="border-t border-border p-3">
-          <LiveTerminalTabs
+        <div className="border-t border-border">
+          <ProcessStream
             taskId={taskId}
-            sessions={data.sessions}
-            activeRole={activeRole}
-            onActiveRoleChange={onActiveRoleChange}
+            initialEvents={data.events}
+            liveEvents={liveEvents}
           />
         </div>
       )}
@@ -566,16 +560,8 @@ export function TaskDetailCenter({
           taskId={taskId}
           data={localData}
           liveEvents={processEvents}
-          activeRole={activeRole}
-          onActiveRoleChange={setActiveRole}
         />
       </section>
-
-      <ProcessStream
-        taskId={taskId}
-        initialEvents={localData.events}
-        liveEvents={processEvents}
-      />
 
       {localData.handoff && <HandoffRenderer handoff={localData.handoff} />}
 
