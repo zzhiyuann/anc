@@ -32,6 +32,15 @@ import {
   markRead, markAllRead, archiveNotification,
 } from '../core/notifications.js';
 import { bus } from '../bus.js';
+import {
+  getConfig as getBudgetConfig,
+  saveConfig as saveBudgetConfig,
+  resetTodayBudget,
+  isDisabled as isBudgetDisabled,
+  getSummary as getBudgetSummary,
+  type BudgetConfig,
+  type BudgetConfigPatch,
+} from '../core/budget.js';
 
 const log = createLogger('api');
 
@@ -106,6 +115,76 @@ async function readBody(req: IncomingMessage, maxBytes = 1_048_576): Promise<str
 
 function parseJson(body: string): Record<string, unknown> | null {
   try { return JSON.parse(body); } catch { return null; }
+}
+
+/**
+ * Validate a PATCH /config/budget body and coerce to a BudgetConfigPatch.
+ * Returns { value } on success, { error } on invalid input. Numeric fields
+ * must be finite; alertAt must be in [0, 1]; limit must be >= 0. Per-agent
+ * roles are restricted to the same identifier shape used elsewhere.
+ */
+function validateBudgetPatch(
+  body: Record<string, unknown>,
+): { value: BudgetConfigPatch } | { error: string } {
+  const out: BudgetConfigPatch = {};
+
+  if (body.daily !== undefined) {
+    if (typeof body.daily !== 'object' || body.daily === null) {
+      return { error: 'daily must be an object' };
+    }
+    const d = body.daily as Record<string, unknown>;
+    const daily: Partial<BudgetConfig['daily']> = {};
+    if (d.limit !== undefined) {
+      if (typeof d.limit !== 'number' || !Number.isFinite(d.limit) || d.limit < 0) {
+        return { error: 'daily.limit must be a non-negative number' };
+      }
+      daily.limit = d.limit;
+    }
+    if (d.alertAt !== undefined) {
+      if (typeof d.alertAt !== 'number' || !Number.isFinite(d.alertAt) || d.alertAt < 0 || d.alertAt > 1) {
+        return { error: 'daily.alertAt must be a number in [0, 1]' };
+      }
+      daily.alertAt = d.alertAt;
+    }
+    out.daily = daily;
+  }
+
+  if (body.agents !== undefined) {
+    if (typeof body.agents !== 'object' || body.agents === null) {
+      return { error: 'agents must be an object' };
+    }
+    const agents: Record<string, { limit?: number; alertAt?: number } | null> = {};
+    for (const [role, value] of Object.entries(body.agents as Record<string, unknown>)) {
+      if (!ENTITY_ID_REGEX.test(role)) {
+        return { error: `Invalid agent role: ${role}` };
+      }
+      if (value === null) {
+        agents[role] = null;
+        continue;
+      }
+      if (typeof value !== 'object') {
+        return { error: `agents.${role} must be an object or null` };
+      }
+      const v = value as Record<string, unknown>;
+      const entry: { limit?: number; alertAt?: number } = {};
+      if (v.limit !== undefined) {
+        if (typeof v.limit !== 'number' || !Number.isFinite(v.limit) || v.limit < 0) {
+          return { error: `agents.${role}.limit must be a non-negative number` };
+        }
+        entry.limit = v.limit;
+      }
+      if (v.alertAt !== undefined) {
+        if (typeof v.alertAt !== 'number' || !Number.isFinite(v.alertAt) || v.alertAt < 0 || v.alertAt > 1) {
+          return { error: `agents.${role}.alertAt must be a number in [0, 1]` };
+        }
+        entry.alertAt = v.alertAt;
+      }
+      agents[role] = entry;
+    }
+    out.agents = agents;
+  }
+
+  return { value: out };
 }
 
 // --- Route matcher ---
@@ -741,6 +820,34 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
+    // === Config: Budget ===
+
+    if (method === 'GET' && path === '/config/budget') {
+      const summary = getBudgetSummary();
+      json(res, {
+        config: getBudgetConfig(),
+        disabled: isBudgetDisabled(),
+        summary: { today: summary.today, perAgent: summary.perAgent },
+      });
+      return true;
+    }
+
+    if (method === 'PATCH' && path === '/config/budget') {
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      const patch = validateBudgetPatch(body);
+      if ('error' in patch) { error(res, patch.error, 400); return true; }
+      const updated = saveBudgetConfig(patch.value);
+      json(res, { config: updated });
+      return true;
+    }
+
+    if (method === 'POST' && path === '/config/budget/reset') {
+      resetTodayBudget();
+      json(res, { ok: true });
+      return true;
+    }
+
     // Mark unused to silence TS when only a subset of helpers is used.
     void createNotification;
 
@@ -891,11 +998,13 @@ function buildTaskDetail(task: NonNullable<ReturnType<typeof getTask>>): TaskDet
   ).all(task.id) as Array<Record<string, unknown>>;
   const comments = commentRows.map(mapCommentRow);
 
-  // Attachments from the first session's workspace (if any)
-  const firstSessionKey = sessionRows[0]?.issue_key as string | undefined;
+  // Attachments from the first session's workspace (if any). Fall back to the
+  // task id itself so orphaned workspaces (session rows lost on restart) still
+  // surface their artifacts.
+  const firstSessionKey = (sessionRows[0]?.issue_key as string | undefined) ?? task.id;
   let attachments: AttachmentEntry[] = [];
   let handoff: { body: string; actions?: unknown } | null = null;
-  if (firstSessionKey) {
+  {
     const base = process.env.ANC_WORKSPACE_BASE || join(homedir(), 'anc-workspaces');
     const wsDir = join(base, firstSessionKey);
     if (existsSync(wsDir)) {
@@ -932,5 +1041,22 @@ function buildTaskDetail(task: NonNullable<ReturnType<typeof getTask>>): TaskDet
   // Note: filename of the workspace file (basename) used here for clarity.
   void basename;
 
-  return { task, sessions, events, comments, attachments, cost, children, handoff };
+  // Auto-derive task state from live sessions and workspace artifacts, because
+  // agents don't yet self-report status transitions (planned feature).
+  //   - any session alive + state==='todo'          → running
+  //   - all sessions ended + HANDOFF.md exists      → review
+  //   - all sessions ended + workspace has any non-memory artifacts → review
+  //   - otherwise                                   → keep stored state
+  const anyAlive = sessions.some(s => s.alive);
+  const hasDeliverable = handoff !== null || attachments.some(
+    a => !a.name.startsWith('.') && !a.name.startsWith('retrospectives/')
+  );
+  let derivedState: typeof task.state = task.state;
+  if (task.state === 'todo') {
+    if (anyAlive) derivedState = 'running';
+    else if (hasDeliverable) derivedState = 'review';
+  }
+  const derivedTask = derivedState !== task.state ? { ...task, state: derivedState } : task;
+
+  return { task: derivedTask, sessions, events, comments, attachments, cost, children, handoff };
 }
