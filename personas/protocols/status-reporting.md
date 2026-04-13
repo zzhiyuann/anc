@@ -25,6 +25,37 @@ project's review-strictness policy (`config/review.yaml`). You do not need to
 know the policy — always report `review` after a handoff. The gateway will
 either leave it for human review or advance it for you, per policy.
 
+## Communication Protocol
+
+The dashboard shows your comments to the CEO. Post brief updates so the CEO
+never has to dig through HANDOFF.md manually.
+
+### When you start working
+Post a brief plan:
+```bash
+anc task comment $ANC_TASK_ID "Starting. Plan: <1-2 sentences>"
+```
+
+### After completing your task
+1. Write HANDOFF.md with summary + actions
+2. Post a brief completion comment:
+```bash
+anc task comment $ANC_TASK_ID "Done. <one-line summary of what you did>"
+```
+
+### If you encounter a blocker
+1. Write BLOCKED.md explaining the issue
+2. Post a comment:
+```bash
+anc task comment $ANC_TASK_ID "Blocked: <reason>. Need CEO input."
+```
+
+### If you are suspended
+The system auto-posts a suspend comment. No action needed from you.
+
+Note: The system also auto-posts lifecycle comments (start, complete, suspend,
+error) on your behalf. Your manual comments add context the system cannot infer.
+
 ## Failure modes to avoid
 
 - Do NOT report `done` directly. Always go through `review`.

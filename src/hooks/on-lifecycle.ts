@@ -10,6 +10,7 @@ import { addComment } from '../linear/client.js';
 import { postToDiscord, addReactions, replyInDiscord } from '../channels/discord.js';
 import { getRootLink } from '../bridge/mappings.js';
 import { createLogger } from '../core/logger.js';
+import { resolveTaskIdFromIssueKey, addTaskComment } from '../core/tasks.js';
 
 const log = createLogger('lifecycle');
 
@@ -29,6 +30,9 @@ export function registerLifecycleHandlers(): void {
     if (!startedCommented.has(issueKey)) {
       startedCommented.add(issueKey);
       await addComment(issueKey, `**${role}** picked up this issue.`, role).catch(() => {});
+      // Post to local task_comments for dashboard visibility
+      const taskId = resolveTaskIdFromIssueKey(issueKey);
+      if (taskId) addTaskComment(taskId, `agent:${role}`, 'Starting work on this task.');
     }
   });
 
@@ -36,6 +40,8 @@ export function registerLifecycleHandlers(): void {
   bus.on('agent:failed', async ({ role, issueKey, error }) => {
     if (isDutyIssue(issueKey)) return;
     await addComment(issueKey, `**${role}** encountered an error:\n\n\`${error}\`\n\nCircuit breaker may delay retry.`, role).catch(() => {});
+    const failedTaskId = resolveTaskIdFromIssueKey(issueKey);
+    if (failedTaskId) addTaskComment(failedTaskId, `agent:${role}`, `Error: ${error}`);
 
     const msg = await postToDiscord(role, `failed on **${issueKey}**: \`${error.substring(0, 200)}\``);
     if (msg) await addReactions(msg, ['❌']);
@@ -45,12 +51,16 @@ export function registerLifecycleHandlers(): void {
   bus.on('agent:suspended', async ({ role, issueKey, reason }) => {
     if (isDutyIssue(issueKey)) return;
     await addComment(issueKey, `**${role}** suspended (${reason}). Will resume when a slot opens.`, role).catch(() => {});
+    const suspTaskId = resolveTaskIdFromIssueKey(issueKey);
+    if (suspTaskId) addTaskComment(suspTaskId, `agent:${role}`, `Suspended: ${reason}`);
   });
 
   // --- RESUMED: comment ---
   bus.on('agent:resumed', async ({ role, issueKey }) => {
     if (isDutyIssue(issueKey)) return;
     await addComment(issueKey, `**${role}** resumed working.`, role).catch(() => {});
+    const resumeTaskId = resolveTaskIdFromIssueKey(issueKey);
+    if (resumeTaskId) addTaskComment(resumeTaskId, `agent:${role}`, 'Resumed working.');
   });
 
   // --- IDLE: no-op (on-complete handles the completion comment) ---

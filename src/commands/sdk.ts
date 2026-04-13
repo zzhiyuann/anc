@@ -222,6 +222,34 @@ export async function taskStatusCommand(
   console.log(`✓ Task ${taskId} → ${state}`);
 }
 
+/**
+ * Post a comment on a local task via the ANC API.
+ * Uses AGENT_ROLE to set the author as "agent:<role>".
+ * Falls back to "ceo" if AGENT_ROLE is not set.
+ */
+export async function taskCommentCommand(taskId: string, message: string): Promise<void> {
+  if (!taskId || !message) {
+    throw new Error('Usage: anc task comment <taskId> <message>');
+  }
+  const role = process.env.AGENT_ROLE;
+  const author = role ? `agent:${role}` : 'ceo';
+  const port = process.env.ANC_API_PORT ?? '3849';
+  const base = process.env.ANC_API_BASE ?? `http://127.0.0.1:${port}`;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = process.env.ANC_API_TOKEN;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${base}/api/v1/tasks/${encodeURIComponent(taskId)}/comments`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ body: message, author }),
+  });
+  const body = await res.text();
+  if (!res.ok) {
+    throw new Error(`task comment failed (${res.status}): ${body}`);
+  }
+  console.log(`✓ Comment posted on task ${taskId} as ${author}`);
+}
+
 export async function planCommand(issueKey: string | undefined, summary: string): Promise<void> {
   const key = getIssueKey(issueKey);
   const role = getAgentRole();

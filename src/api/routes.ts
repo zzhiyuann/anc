@@ -444,25 +444,30 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         const parentIdRaw = body?.parentId;
         const parentId = typeof parentIdRaw === 'number' && Number.isFinite(parentIdRaw)
           ? parentIdRaw : null;
+        // Accept author from body — agents post as "agent:<role>", dashboard defaults to "ceo"
+        const authorRaw = body?.author;
+        const author = typeof authorRaw === 'string' && authorRaw.trim() ? authorRaw.trim() : 'ceo';
         const result = getDb().prepare(
           'INSERT INTO task_comments (task_id, author, body, parent_id) VALUES (?, ?, ?, ?)'
-        ).run(id, 'ceo', text, parentId);
+        ).run(id, author, text, parentId);
         const commentId = Number(result.lastInsertRowid);
         const row = getDb().prepare(
           'SELECT * FROM task_comments WHERE id = ?'
         ).get(commentId) as Record<string, unknown>;
         const comment = mapCommentRow(row);
 
-        // Pipe CEO message to any active session on this task
-        const sessRows = getDb().prepare(
-          "SELECT * FROM sessions WHERE task_id = ? AND state = 'active'"
-        ).all(id) as Array<Record<string, unknown>>;
-        for (const s of sessRows) {
-          const tmux = s.tmux_session as string;
-          if (tmux && sessionExists(tmux)) sendToAgent(tmux, text);
+        // Pipe CEO message to any active session on this task (only for CEO comments)
+        if (!author.startsWith('agent:')) {
+          const sessRows = getDb().prepare(
+            "SELECT * FROM sessions WHERE task_id = ? AND state = 'active'"
+          ).all(id) as Array<Record<string, unknown>>;
+          for (const s of sessRows) {
+            const tmux = s.tmux_session as string;
+            if (tmux && sessionExists(tmux)) sendToAgent(tmux, text);
+          }
         }
 
-        void bus.emit('task:commented', { taskId: id, author: 'ceo', body: text, commentId });
+        void bus.emit('task:commented', { taskId: id, author, body: text, commentId });
 
         // Mention fanout: spawn a session for every non-CEO role mentioned.
         // Accept mentions from BOTH (a) explicit `mentions` array (string[] OR

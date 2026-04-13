@@ -282,6 +282,14 @@ task
     await taskStatusCommand(taskId, state, opts.note);
   });
 
+task
+  .command('comment <taskId> <message>')
+  .description('Post a comment on a task (uses AGENT_ROLE for author attribution)')
+  .action(async (taskId: string, message: string) => {
+    const { taskCommentCommand } = await import('./commands/sdk.js');
+    await taskCommentCommand(taskId, message);
+  });
+
 // --- Company ---
 const company = program.command('company').description('Fleet-level management');
 

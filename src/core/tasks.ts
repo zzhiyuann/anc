@@ -286,6 +286,26 @@ export function deleteTask(id: string): boolean {
   return tx(id);
 }
 
+/**
+ * Insert a comment into the local task_comments table.
+ * Used by lifecycle hooks to auto-post agent comments visible in the dashboard.
+ * Returns the comment id, or null if the task doesn't exist.
+ */
+export function addTaskComment(taskId: string, author: string, body: string): number | null {
+  try {
+    const task = getTask(taskId);
+    if (!task) return null;
+    const result = getDb().prepare(
+      'INSERT INTO task_comments (task_id, author, body) VALUES (?, ?, ?)'
+    ).run(taskId, author, body);
+    const commentId = Number(result.lastInsertRowid);
+    void bus.emit('task:commented' as never, { taskId, author, body, commentId } as never);
+    return commentId;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve task_id from either a direct taskId or a linear_issue_key. */
 export function resolveTaskIdFromIssueKey(issueKey: string | undefined | null): string | null {
   if (!issueKey) return null;

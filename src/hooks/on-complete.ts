@@ -102,6 +102,7 @@ export function registerCompletionHandlers(): void {
       const workspace = getWorkspacePath(session.issueKey);
       const handoffPath = join(workspace, 'HANDOFF.md');
       const suspendPath = join(workspace, 'SUSPEND.md');
+      const blockedPath = join(workspace, 'BLOCKED.md');
       const alive = sessionExists(session.tmuxSession);
 
       // Still working — skip
@@ -127,6 +128,21 @@ export function registerCompletionHandlers(): void {
         }
         markSuspended(session.issueKey);
         bus.emit('agent:suspended', { role: session.role, issueKey: session.issueKey, reason: 'SUSPEND.md' });
+        continue;
+      }
+
+      // BLOCKED.md exists → agent hit a blocker
+      if (existsSync(blockedPath)) {
+        log.info(`${session.role}/${session.issueKey}: BLOCKED.md → blocked`, { role: session.role, issueKey: session.issueKey });
+        const blockedContent = readFileSync(blockedPath, 'utf-8').trim();
+        const blockedReason = blockedContent.length > 200 ? blockedContent.substring(0, 200) + '...' : blockedContent;
+        const blockedTaskId = resolveTaskIdFromIssueKey(session.issueKey);
+        if (blockedTaskId) {
+          addTaskComment(blockedTaskId, `agent:${session.role}`, `Blocked: ${blockedReason || 'unknown reason'}`);
+        }
+        await addComment(session.issueKey, `**${session.role}** blocked: ${blockedReason || 'unknown reason'}`, session.role).catch(() => {});
+        markIdle(session.issueKey);
+        bus.emit('agent:idle', { role: session.role, issueKey: session.issueKey });
         continue;
       }
 
