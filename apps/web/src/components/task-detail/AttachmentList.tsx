@@ -1,16 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { api, ApiError } from "@/lib/api";
 import type { TaskAttachment } from "@/lib/types";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { FilePreview } from "./FilePreview";
 
 interface AttachmentListProps {
   taskId: string;
@@ -31,14 +25,6 @@ const KIND_ICONS: Record<string, string> = {
   other: "•",
 };
 
-function isImageName(name: string): boolean {
-  return /\.(png|jpe?g|gif|webp|svg)$/i.test(name);
-}
-
-function isBinaryKind(att: TaskAttachment): boolean {
-  return att.kind === "binary" || (att.kind !== "image" && /\.(pdf|zip|tar|gz|bin|exe|dmg)$/i.test(att.name));
-}
-
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}K`;
@@ -53,34 +39,18 @@ interface DirState {
 }
 
 export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
-  // Modal state for files
-  const [open, setOpen] = useState<{ att: TaskAttachment; path: string } | null>(null);
-  const [content, setContent] = useState<string>("");
-  const [loading, setLoading] = useState(false);
+  // Expanded file preview — stores the full path of the currently expanded file (or null)
+  const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
   // Per-path dir state. Key = relative path of the directory.
   const [dirs, setDirs] = useState<Record<string, DirState>>({});
 
-  const openFile = useCallback(
-    async (att: TaskAttachment, path: string) => {
-      setOpen({ att, path });
-      if (isImageName(att.name) || isBinaryKind(att)) return;
-      setLoading(true);
-      setContent("");
-      try {
-        const text = await api.taskAttachments.read(taskId, path);
-        setContent(text);
-      } catch (err) {
-        setContent(
-          err instanceof ApiError
-            ? `(unable to load: ${err.message})`
-            : "(unable to load attachment)",
-        );
-      } finally {
-        setLoading(false);
-      }
+  const toggleFile = useCallback(
+    (att: TaskAttachment, path: string) => {
+      if (att.kind === "dir") return;
+      setExpandedFile((prev) => (prev === path ? null : path));
     },
-    [taskId],
+    [],
   );
 
   const toggleDir = useCallback(
@@ -117,10 +87,10 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
       if (att.kind === "dir") {
         void toggleDir(path);
       } else {
-        void openFile(att, path);
+        toggleFile(att, path);
       }
     },
-    [openFile, toggleDir],
+    [toggleFile, toggleDir],
   );
 
   if (!attachments || attachments.length === 0) {
@@ -131,27 +101,69 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
     const path = parentPath ? `${parentPath}/${att.name}` : att.name;
     const dirState = att.kind === "dir" ? dirs[path] : undefined;
     const isOpen = att.kind === "dir" && dirState?.open;
+    const isExpanded = att.kind !== "dir" && expandedFile === path;
+
     return (
       <li key={path}>
-        <button
-          type="button"
-          onClick={() => handleEntryClick(att, parentPath)}
-          className="flex w-full items-center gap-2 rounded-md border border-border bg-card p-2 text-left transition-colors hover:border-border/80 hover:bg-card/80"
-          style={{ paddingLeft: `${0.5 + depth * 0.75}rem` }}
-        >
-          <span className="w-4 text-center">
-            {att.kind === "dir" ? (isOpen ? "📂" : "📁") : (KIND_ICONS[att.kind] ?? "•")}
-          </span>
-          <span className="min-w-0 flex-1 truncate font-mono text-xs">
-            {att.name}
-          </span>
-          <span className="shrink-0 text-[10px] text-muted-foreground">
-            {att.kind === "dir" ? "" : formatSize(att.size)}
-          </span>
-          <span className="shrink-0 text-[10px] text-muted-foreground">
-            {formatRelativeTime(att.mtime)}
-          </span>
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => handleEntryClick(att, parentPath)}
+            className={cn(
+              "flex flex-1 items-center gap-2 rounded-md border border-border bg-card p-2 text-left transition-colors hover:border-border/80 hover:bg-card/80",
+              isExpanded && "border-primary/30 bg-card/90",
+            )}
+            style={{ paddingLeft: `${0.5 + depth * 0.75}rem` }}
+          >
+            <span className="w-4 text-center">
+              {att.kind === "dir" ? (isOpen ? "📂" : "📁") : (KIND_ICONS[att.kind] ?? "•")}
+            </span>
+            <span className="min-w-0 flex-1 truncate font-mono text-xs">
+              {att.name}
+            </span>
+            <span className="shrink-0 text-[10px] text-muted-foreground">
+              {att.kind === "dir" ? "" : formatSize(att.size)}
+            </span>
+            <span className="shrink-0 text-[10px] text-muted-foreground">
+              {formatRelativeTime(att.mtime)}
+            </span>
+          </button>
+          {att.kind !== "dir" && (
+            <a
+              href={api.taskAttachments.url(taskId, path)}
+              download={att.name}
+              onClick={(e) => e.stopPropagation()}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              title={`Download ${att.name}`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="h-3 w-3"
+              >
+                <path d="M8 1a.75.75 0 0 1 .75.75v6.69l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 0 1 1.06-1.06l1.72 1.72V1.75A.75.75 0 0 1 8 1ZM2.75 10a.75.75 0 0 1 .75.75v1.5c0 .414.336.75.75.75h7.5a.75.75 0 0 0 .75-.75v-1.5a.75.75 0 0 1 1.5 0v1.5A2.25 2.25 0 0 1 11.75 14.5h-7.5A2.25 2.25 0 0 1 2 12.25v-1.5a.75.75 0 0 1 .75-.75Z" />
+              </svg>
+            </a>
+          )}
+        </div>
+
+        {/* Inline file preview — accordion style */}
+        {isExpanded && (
+          <div
+            className="overflow-hidden transition-all duration-200 ease-in-out"
+            style={{ paddingLeft: `${0.5 + depth * 0.75}rem` }}
+          >
+            <FilePreview
+              taskId={taskId}
+              path={path}
+              kind={att.kind}
+              size={att.size}
+              mtime={att.mtime}
+            />
+          </div>
+        )}
+
         {att.kind === "dir" && isOpen && (
           <ul className="mt-1 space-y-1">
             {dirState?.loading && (
@@ -159,7 +171,7 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
                 className="px-2 py-1 text-[11px] text-muted-foreground"
                 style={{ paddingLeft: `${0.5 + (depth + 1) * 0.75}rem` }}
               >
-                Loading…
+                Loading...
               </li>
             )}
             {dirState?.error && (
@@ -186,48 +198,8 @@ export function AttachmentList({ taskId, attachments }: AttachmentListProps) {
   };
 
   return (
-    <>
-      <ul className="space-y-1">
-        {attachments.map((att) => renderRow(att, "", 0))}
-      </ul>
-
-      <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="font-mono text-sm">
-              {open?.path ?? open?.att.name}
-            </DialogTitle>
-          </DialogHeader>
-          {open &&
-            (isImageName(open.att.name) ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={api.taskAttachments.url(taskId, open.path)}
-                alt={open.att.name}
-                className="max-h-[60vh] w-full rounded-md object-contain"
-              />
-            ) : isBinaryKind(open.att) ? (
-              <a
-                href={api.taskAttachments.url(taskId, open.path)}
-                download={open.att.name}
-                className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs hover:bg-card/80"
-              >
-                Download {open.att.name} ({formatSize(open.att.size)})
-              </a>
-            ) : (
-              <ScrollArea className="max-h-[60vh] rounded-md border border-border bg-[oklch(0.07_0.005_260)] p-3">
-                <pre
-                  className={cn(
-                    "whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed",
-                    loading && "text-muted-foreground",
-                  )}
-                >
-                  {loading ? "Loading..." : content}
-                </pre>
-              </ScrollArea>
-            ))}
-        </DialogContent>
-      </Dialog>
-    </>
+    <ul className="space-y-1">
+      {attachments.map((att) => renderRow(att, "", 0))}
+    </ul>
   );
 }
