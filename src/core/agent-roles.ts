@@ -91,6 +91,30 @@ export async function createRole(input: CreateRoleInput): Promise<AgentRoleConfi
   return config;
 }
 
+export interface UpdateRoleInput {
+  maxConcurrency?: number;
+  dutySlots?: number;
+  name?: string;
+  modelTier?: string;
+}
+
+export async function updateRole(role: string, patch: UpdateRoleInput): Promise<AgentRoleConfig> {
+  if (!ROLE_RE.test(role)) throw new Error(`invalid role slug: ${role}`);
+  const file = await load();
+  if (!file.agents[role]) throw new Error(`role not found: ${role}`);
+
+  const existing = file.agents[role];
+  if (patch.maxConcurrency !== undefined) existing.maxConcurrency = clamp(patch.maxConcurrency, 1, 10);
+  if (patch.dutySlots !== undefined) existing.dutySlots = clamp(patch.dutySlots, 0, 5);
+  if (patch.name !== undefined) existing.name = patch.name;
+  // modelTier: stored if provided (future use)
+  if (patch.modelTier !== undefined) (existing as unknown as Record<string, unknown>).modelTier = patch.modelTier;
+
+  file.agents[role] = existing;
+  await save(file);
+  return existing;
+}
+
 export async function archiveRole(role: string): Promise<boolean> {
   if (!ROLE_RE.test(role)) return false;
   const file = await load();

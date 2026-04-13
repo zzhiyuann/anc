@@ -813,6 +813,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
           try { removed = deleteTask(id); } catch (err) {
             log.error(`deleteTask(${id}) failed: ${(err as Error).message}`);
           }
+          void bus.emit('task:deleted', { taskId: id });
           json(res, { ok: true, killed: task.id, sessions: killed, deleted: removed });
           return true;
         }
@@ -1105,6 +1106,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       const patch = validateBudgetPatch(body);
       if ('error' in patch) { error(res, patch.error, 400); return true; }
       const updated = saveBudgetConfig(patch.value);
+      void bus.emit('config:updated', { type: 'budget' });
       json(res, { config: updated });
       return true;
     }
@@ -1180,6 +1182,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       }
       try {
         const updated = saveReviewConfig(body as ReviewConfigPatch);
+        void bus.emit('config:updated', { type: 'review' });
         json(res, { config: updated });
       } catch (e) {
         error(res, (e as Error).message, 400);
@@ -1218,6 +1221,25 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         const { archiveRole } = await import('../core/agent-roles.js');
         const ok = await archiveRole(m.params.role);
         json(res, { ok });
+      } catch (e) {
+        error(res, (e as Error).message, 400);
+      }
+      return true;
+    }
+    if (method === 'PATCH' && m) {
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      try {
+        const { updateRole } = await import('../core/agent-roles.js');
+        const { maxConcurrency, dutySlots, name, modelTier } = body as Record<string, unknown>;
+        const updated = await updateRole(m.params.role, {
+          maxConcurrency: maxConcurrency as number | undefined,
+          dutySlots: dutySlots as number | undefined,
+          name: name as string | undefined,
+          modelTier: modelTier as string | undefined,
+        });
+        void bus.emit('agent:config-changed', { role: m.params.role, config: updated });
+        json(res, { ok: true, config: updated });
       } catch (e) {
         error(res, (e as Error).message, 400);
       }

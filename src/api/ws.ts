@@ -111,6 +111,10 @@ export function setupWebSocket(server: Server): void {
     'task:feedback-ready', 'task:all-children-done',
     // Notifications
     'notification:created',
+    // Config & lifecycle
+    'agent:config-changed',
+    'task:deleted',
+    'config:updated',
   ] as const;
 
   for (const event of events) {

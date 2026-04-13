@@ -102,6 +102,11 @@ export interface AncEvents {
 
   // -- Wave 2B: Claude Code hook process-capture events --
   'agent:process-event': { taskId: string; role: string; eventType: string; preview: string };
+
+  // Config & lifecycle
+  'agent:config-changed': { role: string; config: import('./core/agent-roles.js').AgentRoleConfig };
+  'task:deleted': { taskId: string };
+  'config:updated': { type: string };
 }
 
 // Singleton bus instance
