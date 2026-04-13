@@ -338,7 +338,7 @@ export function consolidateRole(
     // Strategic layer files don't go stale
     if (entry.frontmatter.layer === 'strategic') continue;
 
-    const age = now - entry.mtime;
+    const age = Math.max(0, now - entry.mtime);
     if (age >= staleThreshold) {
       if (!dryRun) {
         const updated = setFrontmatterField(
@@ -358,7 +358,7 @@ export function consolidateRole(
     const importance = entry.frontmatter.importance;
     if (!importance || importance === 'critical' || importance === 'low') continue;
 
-    const age = now - entry.mtime;
+    const age = Math.max(0, now - entry.mtime);
     if (age >= decayThreshold) {
       const decayed = DECAY_MAP[importance];
       if (decayed) {

@@ -168,9 +168,9 @@ describe('consolidateRole', () => {
   it('detects contradicting numeric facts', () => {
     const memDir = setupDir('agents', 'strategist', 'memory');
     // Files must be different enough to avoid dedup (Jaccard < 0.6)
-    // but share a contradicting numeric fact
-    writeFile(memDir, 'pricing-old.md', '---\nimportance: high\n---\nMarket analysis report from January. The free tier supports 50 users with basic dashboard access included in the plan.');
-    writeFile(memDir, 'pricing-new.md', '---\nimportance: high\n---\nQuarterly product roadmap overview for April. The free tier supports 100 users with premium dashboard features and advanced analytics.');
+    // but share a contradicting numeric fact with enough context overlap (Jaccard > 0.5)
+    writeFile(memDir, 'pricing-old.md', '---\nimportance: high\n---\nMarket analysis report from January covering competitive landscape and positioning strategy for enterprise segment. The free tier plan currently allows 50 users with dashboard access and basic monitoring.');
+    writeFile(memDir, 'pricing-new.md', '---\nimportance: high\n---\nQuarterly product roadmap overview for April with detailed technical architecture and deployment timeline. The free tier plan currently allows 100 users with dashboard access and basic monitoring.');
 
     const result = consolidateRole(memDir, 'strategist');
     expect(result.contradictionsFlagged).toBeGreaterThanOrEqual(1);
