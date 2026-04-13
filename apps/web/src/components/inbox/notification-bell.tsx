@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { AncNotification, WsMessage } from "@/lib/types";
-import { InboxDrawer } from "./inbox-drawer";
 
 interface NotificationBellProps {
   /** Latest WS message piped from AppShell to drive live updates. */
@@ -13,12 +13,10 @@ interface NotificationBellProps {
 
 export function NotificationBell({ lastMessage }: NotificationBellProps) {
   const [count, setCount] = useState(0);
-  const [open, setOpen] = useState(false);
   const [pulse, setPulse] = useState(false);
   const [toast, setToast] = useState<{ id: number; title: string } | null>(null);
   const lastSeenIdRef = useRef<number | null>(null);
 
-  // Initial unread count
   useEffect(() => {
     let aborted = false;
     api.notifications
@@ -32,7 +30,6 @@ export function NotificationBell({ lastMessage }: NotificationBellProps) {
     };
   }, []);
 
-  // Live updates via WS
   useEffect(() => {
     if (!lastMessage) return;
     if (lastMessage.type !== "notification:created") return;
@@ -57,27 +54,10 @@ export function NotificationBell({ lastMessage }: NotificationBellProps) {
     };
   }, [lastMessage]);
 
-  // When opening drawer, refresh count after a beat
-  const handleToggle = () => {
-    setOpen((v) => {
-      const next = !v;
-      if (next) {
-        // Optimistically clear pulse; refresh count when closing too.
-        setPulse(false);
-      } else {
-        api.notifications
-          .unreadCount()
-          .then((c) => setCount(c))
-          .catch(() => {});
-      }
-      return next;
-    });
-  };
-
   return (
     <>
-      <button
-        onClick={handleToggle}
+      <Link
+        href="/inbox"
         aria-label="Open inbox"
         className={cn(
           "relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
@@ -106,22 +86,8 @@ export function NotificationBell({ lastMessage }: NotificationBellProps) {
         {pulse && count === 0 && (
           <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-status-active ring-2 ring-status-active/40" />
         )}
-      </button>
+      </Link>
 
-      <InboxDrawer
-        open={open}
-        onClose={() => {
-          setOpen(false);
-          // Refresh count when drawer closes (in case items were marked read)
-          api.notifications
-            .unreadCount()
-            .then((c) => setCount(c))
-            .catch(() => {});
-        }}
-        lastMessage={lastMessage}
-      />
-
-      {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-[60] max-w-sm animate-in slide-in-from-bottom-2 rounded-lg border border-border bg-card px-4 py-3 shadow-2xl">
           <div className="flex items-start gap-3">

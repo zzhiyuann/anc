@@ -1,4 +1,5 @@
 import { Separator } from "@/components/ui/separator";
+import { AgentsSection } from "@/components/settings/agents-section";
 import { api } from "@/lib/api";
 import { mockAgents } from "@/lib/mock-data";
 import { formatUptime } from "@/lib/utils";
@@ -85,6 +86,8 @@ export default async function SettingsPage() {
             </div>
           </div>
         </div>
+
+        <AgentsSection />
 
         {/* Agent capacity */}
         <div className="rounded-xl border border-border bg-card p-5">

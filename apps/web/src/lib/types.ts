@@ -222,11 +222,37 @@ export interface Task {
   createdAt: number;
   completedAt: number | null;
   handoffSummary: string | null;
+  // --- Wave A optional UI extensions (Linear-parity rebuild) ---
+  /** Optional assignee role (e.g. "engineer"). UI-only until backend supports it. */
+  assignee?: string | null;
+  /** Optional flat label list. UI-only fallback. */
+  labels?: string[];
+  /** Optional ISO date (yyyy-mm-dd). UI-only until backend supports it. */
+  dueDate?: string | null;
+}
+
+/** Patch shape accepted by `tasks.update`. Backend may not honor every field yet. */
+export interface TaskUpdateInput {
+  title?: string;
+  description?: string | null;
+  state?: TaskEntityState;
+  priority?: number;
+  projectId?: string | null;
+  assignee?: string | null;
+  labels?: string[];
+  dueDate?: string | null;
 }
 
 // --- Projects (src/core/projects.ts) ---
 
 export type ProjectState = "active" | "paused" | "archived";
+
+/**
+ * Linear-style project health. Backend gap (Wave B): not yet stored in the
+ * Project schema — the dashboard persists this client-side until the backend
+ * adds a `health` column. See apps/web/src/components/projects/local-meta.ts.
+ */
+export type ProjectHealth = "on-track" | "at-risk" | "off-track" | "no-update";
 
 export interface Project {
   id: string;
@@ -391,4 +417,70 @@ export interface ProcessEvent {
   /** One-line human-readable summary, already truncated by the backend. */
   preview: string;
   ts: number;
+}
+
+// ============================================================================
+// Wave F: /pulse surface — OKRs, Decision Log, Kill Switch, Daily Briefing.
+// Backend lives in src/core/{objectives,decisions,kill-switch}.ts and is
+// wired into src/api/routes.ts by the parent agent.
+// ============================================================================
+
+export interface KeyResult {
+  id: string;
+  objectiveId: string;
+  title: string;
+  metric: string;
+  target: number;
+  current: number;
+  createdAt: number;
+}
+
+export interface Objective {
+  id: string;
+  title: string;
+  /** e.g. "2026 Q2" */
+  quarter: string;
+  createdAt: number;
+  keyResults: KeyResult[];
+}
+
+export interface Decision {
+  id: string;
+  title: string;
+  rationale: string;
+  /** "ceo" | "agent:<role>" */
+  decidedBy: string;
+  tags: string[];
+  /** Unix epoch milliseconds. */
+  createdAt: number;
+}
+
+export interface DailyBriefing {
+  generatedAt: number;
+  yesterdayCompletions: string[];
+  todayQueue: string[];
+  costBurn: { spentUsd: number; budgetUsd: number };
+  wins: string[];
+  risks: string[];
+}
+
+// --- Budget config (for the settings page) ---
+
+export interface BudgetConfig {
+  daily: { limit: number; alertAt: number };
+  agents: Record<string, { limit: number; alertAt: number }>;
+}
+
+export type BudgetConfigPatch = {
+  daily?: Partial<BudgetConfig['daily']>;
+  agents?: Record<string, { limit: number; alertAt: number } | null>;
+};
+
+export interface BudgetConfigResponse {
+  config: BudgetConfig;
+  disabled: boolean;
+  summary: {
+    today: { spent: number; limit: number };
+    perAgent: Record<string, { spent: number; limit: number }>;
+  };
 }

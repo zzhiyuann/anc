@@ -4,23 +4,28 @@
  * Emits system:budget-alert when approaching limits.
  */
 
-import { readFileSync, existsSync, statSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { getDb } from './db.js';
 import { bus } from '../bus.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('budget');
 
-interface AgentBudget {
+export interface AgentBudget {
   limit: number;
   alertAt: number;
 }
 
-interface BudgetConfig {
+export interface BudgetConfig {
   daily: { limit: number; alertAt: number };
   agents: Record<string, AgentBudget>;
+}
+
+export interface BudgetConfigPatch {
+  daily?: Partial<BudgetConfig['daily']>;
+  agents?: Record<string, AgentBudget | null>;
 }
 
 const DEFAULT_CONFIG: BudgetConfig = {
@@ -63,6 +68,47 @@ export function reloadConfig(): void {
   cachedMtime = 0;
 }
 
+/** Public alias — read the current merged budget config. */
+export function getConfig(): BudgetConfig {
+  return loadConfig();
+}
+
+/** True when budget enforcement is disabled via `ANC_BUDGET_DISABLED=true|1`. */
+export function isDisabled(): boolean {
+  const v = process.env.ANC_BUDGET_DISABLED;
+  return v === 'true' || v === '1';
+}
+
+/**
+ * Apply a patch to the on-disk budget.yaml: deep-merge `daily`, and for
+ * `agents` allow setting a role (`{limit, alertAt}`) or deleting it by
+ * passing `null`. Writes YAML + invalidates the cache.
+ */
+export function saveConfig(patch: BudgetConfigPatch): BudgetConfig {
+  const configPath = join(process.cwd(), 'config', 'budget.yaml');
+  const current = loadConfig();
+  const next: BudgetConfig = {
+    daily: { ...current.daily, ...(patch.daily ?? {}) },
+    agents: { ...current.agents },
+  };
+  if (patch.agents) {
+    for (const [role, val] of Object.entries(patch.agents)) {
+      if (val === null) delete next.agents[role];
+      else next.agents[role] = val;
+    }
+  }
+  writeFileSync(configPath, stringifyYaml(next), 'utf-8');
+  reloadConfig();
+  return loadConfig();
+}
+
+/** Delete today's spend rows — useful for manual reset from the settings UI. */
+export function resetTodayBudget(): void {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  getDb().prepare('DELETE FROM budget_log WHERE created_at >= ?').run(startOfToday.getTime());
+}
+
 /**
  * Rough pre-spawn cost estimate for budget gating (USD).
  * Used by the resolve gate before we know the true cost.
@@ -79,17 +125,17 @@ export function estimateCost(agentRole: string): number {
 
 /** Check if an agent can spend the estimated cost */
 export function canSpend(agentRole: string, estimatedCost: number): { allowed: boolean; reason?: string } {
+  if (isDisabled()) return { allowed: true };
   const config = loadConfig();
   const todaySpend = getTodaySpend();
 
-  // Check daily limit
-  if (todaySpend.total + estimatedCost > config.daily.limit) {
+  // Treat limit <= 0 as "unlimited" so CEOs can temporarily uncap.
+  if (config.daily.limit > 0 && todaySpend.total + estimatedCost > config.daily.limit) {
     return { allowed: false, reason: `Daily limit reached ($${todaySpend.total.toFixed(2)}/$${config.daily.limit})` };
   }
 
-  // Check per-agent limit
   const agentConfig = config.agents[agentRole];
-  if (agentConfig) {
+  if (agentConfig && agentConfig.limit > 0) {
     const agentSpend = todaySpend.byAgent[agentRole] ?? 0;
     if (agentSpend + estimatedCost > agentConfig.limit) {
       return { allowed: false, reason: `${agentRole} limit reached ($${agentSpend.toFixed(2)}/$${agentConfig.limit})` };

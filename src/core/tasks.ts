@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { getDb } from './db.js';
 import { bus } from '../bus.js';
 
-export type TaskState = 'todo' | 'running' | 'review' | 'done' | 'failed' | 'canceled';
+export type TaskState = 'todo' | 'running' | 'review' | 'done' | 'failed' | 'canceled' | 'suspended';
 export type TaskSource = 'dashboard' | 'linear' | 'dispatch' | 'duty';
 
 export interface Task {
@@ -151,12 +151,9 @@ export function setTaskState(id: string, state: TaskState, completedAt?: number)
  */
 const LEGAL_TRANSITIONS: Record<TaskState, ReadonlySet<TaskState>> = {
   todo: new Set<TaskState>(['running', 'canceled']),
-  running: new Set<TaskState>(['review', 'done', 'failed', 'suspended' as TaskState, 'canceled']),
+  running: new Set<TaskState>(['review', 'done', 'failed', 'suspended', 'canceled']),
   review: new Set<TaskState>(['done', 'running', 'canceled']),
-  // `suspended` is a runtime-only state not currently in the TaskState union;
-  // it is accepted here to support the documented matrix and round-trips back
-  // to `running`. Cast through unknown to keep the column free-form.
-  ['suspended' as TaskState]: new Set<TaskState>(['running', 'canceled']),
+  suspended: new Set<TaskState>(['running', 'canceled']),
   done: new Set<TaskState>(),
   failed: new Set<TaskState>(),
   canceled: new Set<TaskState>(),

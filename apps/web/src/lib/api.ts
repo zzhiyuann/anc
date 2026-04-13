@@ -19,6 +19,7 @@ import type {
   MemoryList,
   AgentOutput,
   Task,
+  TaskUpdateInput,
   TaskFull,
   TaskComment,
   TaskAttachment,
@@ -27,6 +28,9 @@ import type {
   ProjectWithStats,
   SessionOnTask,
   AncNotification,
+  Objective,
+  Decision,
+  DailyBriefing,
 } from "./types";
 import {
   mockTask,
@@ -149,6 +153,130 @@ export const agents = {
   async memory(role: string, signal?: AbortSignal): Promise<MemoryList> {
     return request<MemoryList>(`/agents/${encodeURIComponent(role)}/memory`, { signal });
   },
+
+  // --- Custom roles (Wave C). Owned by Agent E; until shipped, calls 404. ---
+  async createRole(input: {
+    role: string;
+    name: string;
+    baseProtocol?: "coder" | "researcher" | "operator" | "executive";
+    maxConcurrency?: number;
+    dutySlots?: number;
+    iconColor?: string;
+  }): Promise<{ ok: true; role: string }> {
+    return request("/agents/roles", { method: "POST", body: input });
+  },
+
+  async archiveRole(role: string): Promise<{ ok: true }> {
+    return request(`/agents/roles/${encodeURIComponent(role)}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+// --- Personas (Wave C) ---
+
+export interface PersonaSuggestion {
+  id: string;
+  kind: "overlap" | "gap" | "rename";
+  title: string;
+  rationale: string;
+  affectedRoles: string[];
+}
+
+export const personas = {
+  async read(role: string, signal?: AbortSignal): Promise<string | null> {
+    try {
+      const res = await request<{ role: string; body: string }>(
+        `/personas/${encodeURIComponent(role)}`,
+        { signal },
+      );
+      return res.body;
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 0)) return null;
+      throw err;
+    }
+  },
+
+  async write(role: string, body: string): Promise<{ ok: true } | null> {
+    try {
+      return await request(`/personas/${encodeURIComponent(role)}`, {
+        method: "PATCH",
+        body: { body },
+      });
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 0)) return null;
+      throw err;
+    }
+  },
+
+  async suggest(
+    role: string,
+  ): Promise<{ suggestions: PersonaSuggestion[]; live: boolean }> {
+    try {
+      const res = await request<{ suggestions: PersonaSuggestion[] }>(
+        `/personas/${encodeURIComponent(role)}/suggest`,
+        { method: "POST" },
+      );
+      return { suggestions: res.suggestions ?? [], live: true };
+    } catch (err) {
+      if (!(err instanceof ApiError) || (err.status !== 404 && err.status !== 0)) throw err;
+      return {
+        live: false,
+        suggestions: [
+          {
+            id: "mock-1",
+            kind: "rename",
+            title: "Tighten the persona's opening directive",
+            rationale:
+              "The first paragraph mixes role description with operational rules. Lead with one sentence stating the agent's mandate.",
+            affectedRoles: [role],
+          },
+          {
+            id: "mock-2",
+            kind: "gap",
+            title: "Add an explicit handoff protocol reference",
+            rationale:
+              "This persona never points to personas/protocols/completion.md, so completion behaviour is implicit.",
+            affectedRoles: [role],
+          },
+        ],
+      };
+    }
+  },
+
+  async analyze(): Promise<{ suggestions: PersonaSuggestion[]; live: boolean }> {
+    try {
+      const res = await request<{ suggestions: PersonaSuggestion[] }>(
+        "/personas/analyze",
+        { method: "POST" },
+      );
+      return { suggestions: res.suggestions ?? [], live: true };
+    } catch (err) {
+      if (!(err instanceof ApiError) || (err.status !== 404 && err.status !== 0)) throw err;
+      return {
+        live: false,
+        suggestions: [
+          {
+            id: "mock-overlap-1",
+            kind: "overlap",
+            title:
+              "Engineer and Strategist both claim 'product decisions' — recommend move to Strategist",
+            rationale:
+              "Both personas describe owning product scope. Concentrating product decisions in Strategist removes ambiguity for the CEO router.",
+            affectedRoles: ["engineer", "strategist"],
+          },
+          {
+            id: "mock-gap-1",
+            kind: "gap",
+            title: "No role owns design review",
+            rationale:
+              "UI work currently falls between Engineer and Strategist. A dedicated Designer role would close this gap.",
+            affectedRoles: [],
+          },
+        ],
+      };
+    }
+  },
 };
 
 // --- Tasks ---
@@ -184,12 +312,12 @@ export const tasks = {
   async list(
     filters: { status?: string; agent?: string } = {},
     signal?: AbortSignal,
-  ): Promise<TaskRow[]> {
+  ): Promise<Task[]> {
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.agent) params.set("agent", filters.agent);
     const qs = params.toString() ? `?${params.toString()}` : "";
-    const { tasks } = await request<{ tasks: TaskRow[] }>(`/tasks${qs}`, { signal });
+    const { tasks } = await request<{ tasks: Task[] }>(`/tasks${qs}`, { signal });
     return tasks;
   },
 
@@ -207,6 +335,29 @@ export const tasks = {
 
   async resume(id: string): Promise<{ action: string; [k: string]: unknown }> {
     return request(`/tasks/${encodeURIComponent(id)}/resume`, { method: "POST" });
+  },
+
+  /**
+   * PATCH /api/v1/tasks/:id — partial update of a first-class Task.
+   * Backend may not honor every field yet (assignee, labels, dueDate are UI-only).
+   * On 404 we silently no-op and return the patch echo so optimistic UI works.
+   */
+  async update(id: string, patch: TaskUpdateInput): Promise<Partial<Task>> {
+    try {
+      const res = await request<{ task?: Task } | Task>(
+        `/tasks/${encodeURIComponent(id)}`,
+        { method: "PATCH", body: patch },
+      );
+      if (res && typeof res === "object" && "task" in res && res.task) {
+        return res.task as Task;
+      }
+      return res as Partial<Task>;
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
+        return patch as Partial<Task>;
+      }
+      throw err;
+    }
   },
 
   // --- New task-entity API (Wave 2A) ---
@@ -282,10 +433,17 @@ export const taskComments = {
     );
   },
 
-  async create(taskId: string, body: string, parentId?: number): Promise<TaskComment> {
+  async create(
+    taskId: string,
+    body: string,
+    opts: { parentId?: number; mentions?: string[] } = {},
+  ): Promise<TaskComment> {
     const res = await request<{ comment: TaskComment }>(
       `/tasks/${encodeURIComponent(taskId)}/comments`,
-      { method: "POST", body: { body, parentId } },
+      {
+        method: "POST",
+        body: { body, parentId: opts.parentId, mentions: opts.mentions },
+      },
     );
     return res.comment;
   },
@@ -482,6 +640,248 @@ export const memory = {
 
 export const system = {};
 
+// --- Pulse (Wave F) ---
+// All endpoints are owned by Agent E and may not exist yet — every method
+// uses withMockFallback so the dashboard stays usable until the routes land.
+
+const MOCK_BRIEFING: DailyBriefing = {
+  generatedAt: Date.now(),
+  yesterdayCompletions: [
+    "Engineer shipped the Pulse skeleton (Wave F)",
+    "Strategist drafted the Q2 OKRs proposal",
+    "Ops cleaned up 14 stale notifications",
+  ],
+  todayQueue: [
+    "Review OKR drafts and pick the top 3",
+    "Decide on the kill-switch UX (modal vs inline)",
+    "Triage incoming Linear issues",
+    "Sign the new vendor contract",
+    "Reply to investor update thread",
+  ],
+  costBurn: { spentUsd: 12.4, budgetUsd: 50 },
+  wins: ["Closed 5 issues", "0 production incidents"],
+  risks: ["1 task running > 2x median duration"],
+};
+
+const MOCK_OBJECTIVES: Objective[] = [
+  {
+    id: "mock-obj-1",
+    title: "Ship the Pulse command center",
+    quarter: "2026 Q2",
+    createdAt: Date.now() - 7 * 24 * 3600 * 1000,
+    keyResults: [
+      {
+        id: "mock-kr-1",
+        objectiveId: "mock-obj-1",
+        title: "All 7 cards rendered with real data",
+        metric: "cards",
+        target: 7,
+        current: 4,
+        createdAt: Date.now() - 7 * 24 * 3600 * 1000,
+      },
+      {
+        id: "mock-kr-2",
+        objectiveId: "mock-obj-1",
+        title: "Daily briefing dispatched by 8am",
+        metric: "deliveries",
+        target: 30,
+        current: 12,
+        createdAt: Date.now() - 7 * 24 * 3600 * 1000,
+      },
+    ],
+  },
+  {
+    id: "mock-obj-2",
+    title: "Reduce decision latency",
+    quarter: "2026 Q2",
+    createdAt: Date.now() - 14 * 24 * 3600 * 1000,
+    keyResults: [
+      {
+        id: "mock-kr-3",
+        objectiveId: "mock-obj-2",
+        title: "Median needs-input wait < 4h",
+        metric: "hours",
+        target: 4,
+        current: 9,
+        createdAt: Date.now() - 14 * 24 * 3600 * 1000,
+      },
+    ],
+  },
+];
+
+const MOCK_DECISIONS: Decision[] = [
+  {
+    id: "mock-dec-1",
+    title: "Adopt Apple-native palette across all surfaces",
+    rationale:
+      "Linear-style density with macOS color tokens. Easier theme parity and less CSS drift between waves.",
+    decidedBy: "ceo",
+    tags: ["design", "ui"],
+    createdAt: Date.now() - 2 * 24 * 3600 * 1000,
+  },
+  {
+    id: "mock-dec-2",
+    title: "Kill switch persists to ~/.anc/kill-switch",
+    rationale:
+      "Survives server restarts so a paused company doesn't accidentally resume on reboot.",
+    decidedBy: "agent:engineer",
+    tags: ["safety", "infra"],
+    createdAt: Date.now() - 5 * 24 * 3600 * 1000,
+  },
+  {
+    id: "mock-dec-3",
+    title: "OKRs scoped per quarter, not per year",
+    rationale:
+      "Quarterly cadence matches our shipping rhythm. Annual OKRs were never revisited in the previous loop.",
+    decidedBy: "ceo",
+    tags: ["process"],
+    createdAt: Date.now() - 9 * 24 * 3600 * 1000,
+  },
+];
+
+export const pulse = {
+  async briefing(signal?: AbortSignal): Promise<DailyBriefing> {
+    return withMockFallback(
+      () => request<DailyBriefing>("/pulse/briefing", { signal }),
+      { ...MOCK_BRIEFING, generatedAt: Date.now() },
+      "pulse.briefing()",
+    );
+  },
+
+  async listObjectives(
+    quarter?: string,
+    signal?: AbortSignal,
+  ): Promise<Objective[]> {
+    return withMockFallback(
+      async () => {
+        const qs = quarter ? `?quarter=${encodeURIComponent(quarter)}` : "";
+        const res = await request<{ objectives: Objective[] }>(
+          `/pulse/objectives${qs}`,
+          { signal },
+        );
+        return res.objectives;
+      },
+      MOCK_OBJECTIVES,
+      "pulse.listObjectives()",
+    );
+  },
+
+  async createObjective(input: {
+    title: string;
+    quarter: string;
+  }): Promise<Objective> {
+    return withMockFallback(
+      async () => {
+        const res = await request<{ objective: Objective }>(
+          "/pulse/objectives",
+          { method: "POST", body: input },
+        );
+        return res.objective;
+      },
+      {
+        id: `local-${Date.now()}`,
+        title: input.title,
+        quarter: input.quarter,
+        createdAt: Date.now(),
+        keyResults: [],
+      },
+      "pulse.createObjective()",
+    );
+  },
+
+  async listDecisions(
+    limit = 10,
+    signal?: AbortSignal,
+  ): Promise<Decision[]> {
+    return withMockFallback(
+      async () => {
+        const res = await request<{ decisions: Decision[] }>(
+          `/pulse/decisions?limit=${limit}`,
+          { signal },
+        );
+        return res.decisions;
+      },
+      MOCK_DECISIONS.slice(0, limit),
+      "pulse.listDecisions()",
+    );
+  },
+
+  async createDecision(input: {
+    title: string;
+    rationale: string;
+    tags: string[];
+  }): Promise<Decision> {
+    return withMockFallback(
+      async () => {
+        const res = await request<{ decision: Decision }>("/pulse/decisions", {
+          method: "POST",
+          body: { ...input, decidedBy: "ceo" },
+        });
+        return res.decision;
+      },
+      {
+        id: `local-${Date.now()}`,
+        title: input.title,
+        rationale: input.rationale,
+        decidedBy: "ceo",
+        tags: input.tags,
+        createdAt: Date.now(),
+      },
+      "pulse.createDecision()",
+    );
+  },
+
+  async killSwitchPause(): Promise<{
+    ok: true;
+    suspended: number;
+    backendWired: boolean;
+  }> {
+    try {
+      const res = await request<{ ok: true; suspended: number }>(
+        "/kill-switch/pause",
+        { method: "POST" },
+      );
+      return { ...res, backendWired: true };
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
+        return { ok: true, suspended: 0, backendWired: false };
+      }
+      throw err;
+    }
+  },
+
+  async killSwitchResume(): Promise<{ ok: true; backendWired: boolean }> {
+    try {
+      await request("/kill-switch/resume", { method: "POST" });
+      return { ok: true, backendWired: true };
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
+        return { ok: true, backendWired: false };
+      }
+      throw err;
+    }
+  },
+};
+
+// --- Config (budget + review settings) ---
+
+export const config = {
+  async getBudget(): Promise<import("./types").BudgetConfigResponse> {
+    return request<import("./types").BudgetConfigResponse>("/config/budget");
+  },
+  async updateBudget(
+    patch: import("./types").BudgetConfigPatch,
+  ): Promise<import("./types").BudgetConfigResponse> {
+    return request<import("./types").BudgetConfigResponse>("/config/budget", {
+      method: "PATCH",
+      body: patch,
+    });
+  },
+  async resetTodayBudget(): Promise<{ ok: true }> {
+    return request<{ ok: true }>("/config/budget/reset", { method: "POST" });
+  },
+};
+
 // --- Unified default export ---
 
 export const api = {
@@ -495,7 +895,10 @@ export const api = {
   queue,
   events,
   memory,
+  personas,
   system,
+  pulse,
+  config,
 };
 
 export default api;

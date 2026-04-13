@@ -6,7 +6,20 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { useWebSocket } from "@/lib/use-websocket";
 import { cn, formatRelativeTime } from "@/lib/utils";
-import type { Project, ProjectStats, Task, EventRow } from "@/lib/types";
+import {
+  HEALTH_DOT_CLASS,
+  HEALTH_LABEL,
+  HEALTH_TEXT_CLASS,
+  getProjectMeta,
+} from "@/components/projects/local-meta";
+import { PriorityGlyph } from "@/components/projects/priority-glyph";
+import { ProgressBar } from "@/components/projects/progress-bar";
+import type {
+  AgentStatus,
+  Project,
+  ProjectStats,
+  Task,
+} from "@/lib/types";
 
 interface Props {
   project: Project;
@@ -21,10 +34,13 @@ function fmtUsd(usd: number): string {
   return `$${usd.toFixed(2)}`;
 }
 
-const STATE_CLASS: Record<Project["state"], string> = {
-  active: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30",
-  paused: "bg-amber-500/15 text-amber-400 ring-amber-500/30",
-  archived: "bg-muted text-muted-foreground ring-border",
+const TASK_STATE_DOT: Record<Task["state"], string> = {
+  todo: "bg-muted-foreground",
+  running: "bg-status-active",
+  review: "bg-status-queued",
+  done: "bg-status-completed",
+  failed: "bg-status-failed",
+  canceled: "bg-muted",
 };
 
 export function ProjectDetailView({
@@ -36,33 +52,19 @@ export function ProjectDetailView({
   const [project, setProject] = useState(initialProject);
   const [recentTasks, setRecentTasks] = useState(initialTasks);
   const [stats, setStats] = useState(initialStats);
-  const [activity, setActivity] = useState<EventRow[]>([]);
+  const [agents, setAgents] = useState<AgentStatus[]>([]);
   const { lastMessage } = useWebSocket();
 
+  const meta = getProjectMeta(project.id);
   const accent = project.color || "#6b7280";
-  // Mock data sometimes uses string names ("rocket"); only render single-char glyphs as icon, otherwise fall back to a default emoji.
-  const rawIcon = project.icon ?? "📁";
-  const icon = rawIcon.length <= 2 ? rawIcon : "📁";
+  const pct = stats.total > 0 ? (stats.done / stats.total) * 100 : 0;
 
-  // Initial activity load.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const evs = await api.events.list(50);
-        if (cancelled) return;
-        // Filter to events tied to a task in this project, if we can correlate.
-        const taskIds = new Set(recentTasks.map((t) => t.id));
-        const linearKeys = new Set(
-          recentTasks.map((t) => t.linearIssueKey).filter((k): k is string => !!k),
-        );
-        setActivity(
-          evs.filter(
-            (e) =>
-              (e.issueKey && (taskIds.has(e.issueKey) || linearKeys.has(e.issueKey))) ||
-              false,
-          ),
-        );
+        const list = await api.agents.list();
+        if (!cancelled) setAgents(list);
       } catch {
         // ignore
       }
@@ -70,9 +72,8 @@ export function ProjectDetailView({
     return () => {
       cancelled = true;
     };
-  }, [recentTasks]);
+  }, []);
 
-  // Refresh on relevant WS events.
   useEffect(() => {
     if (!lastMessage) return;
     const t = lastMessage.type;
@@ -95,170 +96,218 @@ export function ProjectDetailView({
 
   const newTaskHref = `/tasks?new=1&projectId=${encodeURIComponent(project.id)}`;
 
+  // Filter agents to those that have any session in this project (best effort:
+  // since AgentStatus.sessions only carries an issueKey, we just show all agents
+  // that have at least one session — backend lacks per-project agent join).
+  const projectAgents = agents.filter((a) => a.activeSessions + a.idleSessions > 0);
+
   return (
-    <div className="p-6">
+    <div className="flex h-full flex-col">
       {/* Header */}
-      <div
-        className="relative overflow-hidden rounded-2xl border border-border bg-card p-6"
-        style={{
-          background: `linear-gradient(135deg, ${accent}1a 0%, transparent 60%)`,
-        }}
-      >
-        <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
+      <header className="border-b border-border px-6 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
             <div
-              className="flex size-14 items-center justify-center rounded-2xl text-3xl"
-              style={{
-                backgroundColor: `${accent}26`,
-                boxShadow: `inset 0 0 0 1px ${accent}40`,
-              }}
-            >
-              {icon}
-            </div>
+              className="size-10 shrink-0 rounded-md"
+              style={{ backgroundColor: accent }}
+              aria-hidden
+            />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
+                <h1 className="truncate text-[18px] font-semibold tracking-tight">
+                  {project.name}
+                </h1>
                 <span
                   className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ring-1",
-                    STATE_CLASS[project.state],
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                    HEALTH_TEXT_CLASS[meta.health],
                   )}
                 >
-                  {project.state}
+                  <span className={cn("size-1.5 rounded-full", HEALTH_DOT_CLASS[meta.health])} />
+                  {HEALTH_LABEL[meta.health]}
                 </span>
               </div>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              <p className="mt-1 max-w-2xl text-[13px] text-muted-foreground">
                 {project.description || "No description"}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Created {formatRelativeTime(project.createdAt)} by {project.createdBy}
-                {!live && " (mock data — backend offline)"}
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <PriorityGlyph priority={meta.priority} />
+                  Priority
+                </span>
+                <span>
+                  Lead: <span className="text-foreground">{meta.lead ?? "—"}</span>
+                </span>
+                <span>
+                  Target: <span className="text-foreground">{meta.targetDate ?? "—"}</span>
+                </span>
+                <span>Created {formatRelativeTime(project.createdAt)} by {project.createdBy}</span>
+                {!live && <span className="text-status-queued">mock data</span>}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Link href={newTaskHref}>
-              <Button size="sm" className="gap-1.5">
-                <svg
-                  className="size-3.5"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M8 3v10M3 8h10" />
-                </svg>
-                New Task
+              <Button size="sm" className="h-8 gap-1.5">
+                <PlusIcon />
+                New task
               </Button>
             </Link>
-            <Button size="sm" variant="outline" disabled title="Edit (coming soon)">
-              Edit
-            </Button>
+            <Link href="/projects">
+              <Button size="sm" variant="outline" className="h-8">
+                Back
+              </Button>
+            </Link>
           </div>
         </div>
-      </div>
 
-      {/* Stats */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Total tasks" value={String(stats.total)} />
-        <StatCard label="Running" value={String(stats.running)} accent="text-status-active" />
-        <StatCard label="Queued" value={String(stats.queued)} accent="text-status-idle" />
-        <StatCard label="Done" value={String(stats.done)} accent="text-emerald-400" />
-        <StatCard label="Total cost" value={fmtUsd(stats.totalCostUsd)} />
-        <StatCard
-          label="Avg / task"
-          value={fmtUsd(stats.total > 0 ? stats.totalCostUsd / stats.total : 0)}
-        />
-      </div>
-
-      {/* Recent tasks */}
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Recent tasks
-        </h2>
-        <div className="rounded-xl border border-border bg-card">
-          {recentTasks.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              No tasks in this project yet.{" "}
-              <Link href={newTaskHref} className="text-foreground underline">
-                Create one
-              </Link>
-              .
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {recentTasks.map((task) => (
-                <li key={task.id}>
-                  <Link
-                    href={`/tasks/${encodeURIComponent(task.id)}`}
-                    className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-secondary/40"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{task.title}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {task.state} · created {formatRelativeTime(task.createdAt)}
-                      </p>
-                    </div>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {task.linearIssueKey ?? task.id.slice(0, 8)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+        {/* Progress strip */}
+        <div className="mt-4 flex items-center gap-4">
+          <ProgressBar value={pct} />
+          <span className="text-[11px] text-muted-foreground">
+            {stats.done} of {stats.total} tasks done · {fmtUsd(stats.totalCostUsd)} spent
+          </span>
         </div>
-      </section>
+      </header>
 
-      {/* Activity */}
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Activity
-        </h2>
-        <div className="rounded-xl border border-border bg-card">
-          {activity.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              No recent activity.
-            </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {/* Overview / milestones */}
+        <Section title="Overview">
+          <div className="rounded-lg border border-dashed border-border bg-card/40 p-6">
+            <p className="text-[13px] text-muted-foreground">No milestones yet.</p>
+            <button
+              type="button"
+              className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              <PlusIcon />
+              Add milestone
+            </button>
+          </div>
+        </Section>
+
+        {/* Assigned agents */}
+        <Section title="Assigned agents">
+          {projectAgents.length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">No agents currently working on this project.</p>
           ) : (
-            <ul className="divide-y divide-border">
-              {activity.map((ev) => (
-                <li key={ev.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm">
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {ev.eventType}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {projectAgents.map((a) => (
+                <div
+                  key={a.role}
+                  className="rounded-lg border border-border bg-card p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-6 items-center justify-center rounded-full bg-accent text-[11px] font-medium">
+                        {a.name.slice(0, 1)}
                       </span>
-                      {ev.detail && <span className="ml-2">{ev.detail}</span>}
-                    </p>
+                      <span className="text-[13px] font-medium">{a.name}</span>
+                    </div>
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px]",
+                        a.hasCapacity ? "bg-status-active/15 text-status-active" : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {a.hasCapacity ? "available" : "busy"}
+                    </span>
                   </div>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {formatRelativeTime(ev.createdAt)}
-                  </span>
-                </li>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-muted-foreground">
+                    <Stat label="Active" value={a.activeSessions} />
+                    <Stat label="Idle" value={a.idleSessions} />
+                    <Stat label="Cap" value={a.maxConcurrency} />
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
-        </div>
-      </section>
+        </Section>
+
+        {/* Active tasks */}
+        <Section title="Tasks">
+          <div className="overflow-hidden rounded-lg border border-border">
+            {recentTasks.length === 0 ? (
+              <div className="p-6 text-center text-[13px] text-muted-foreground">
+                No tasks yet.{" "}
+                <Link href={newTaskHref} className="text-foreground underline">
+                  Create one
+                </Link>
+                .
+              </div>
+            ) : (
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">Title</th>
+                    <th className="px-4 py-2 font-medium">State</th>
+                    <th className="px-4 py-2 font-medium">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTasks.map((task) => (
+                    <tr
+                      key={task.id}
+                      className="border-b border-border/60 last:border-b-0 hover:bg-accent/40"
+                    >
+                      <td className="px-4 py-2">
+                        <Link
+                          href={`/tasks?task=${encodeURIComponent(task.id)}`}
+                          className="block truncate"
+                        >
+                          {task.title}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="inline-flex items-center gap-1.5 text-[12px]">
+                          <span className={cn("size-1.5 rounded-full", TASK_STATE_DOT[task.state])} />
+                          {task.state}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-[11px] text-muted-foreground">
+                        {formatRelativeTime(task.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </Section>
+      </div>
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  accent,
+function Section({
+  title,
+  children,
 }: {
-  label: string;
-  value: string;
-  accent?: string;
+  title: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 font-mono text-xl font-semibold", accent)}>{value}</p>
+    <section className="border-b border-border px-6 py-5 last:border-b-0">
+      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div className="font-mono text-[13px] text-foreground">{value}</div>
+      <div className="text-[10px] uppercase">{label}</div>
     </div>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M8 3v10M3 8h10" />
+    </svg>
   );
 }

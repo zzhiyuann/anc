@@ -28,13 +28,14 @@ export function HandoffRenderer({ handoff }: HandoffRendererProps) {
   const actions = handoff.actions;
 
   return (
-    <div className="rounded-lg border border-blue-500/30 bg-blue-500/[0.04] p-4">
+    <div>
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-base">📄</span>
-        <h3 className="text-sm font-semibold">Handoff</h3>
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Handoff
+        </h3>
         {actions?.status && (
-          <span className="ml-auto rounded-md bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium uppercase text-blue-300">
-            {actions.status}
+          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            · {actions.status}
           </span>
         )}
       </div>
@@ -86,7 +87,7 @@ export function HandoffRenderer({ handoff }: HandoffRendererProps) {
         </div>
       )}
 
-      <div className="prose prose-invert max-w-none text-sm leading-relaxed text-foreground/90">
+      <div className="max-w-none text-sm leading-relaxed text-foreground/90">
         {renderMarkdown(handoff.body)}
       </div>
     </div>

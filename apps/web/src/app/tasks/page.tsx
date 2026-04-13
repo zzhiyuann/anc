@@ -2,7 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { TaskCard } from "@/components/task-card";
+import { TaskListRail } from "@/components/task-list-rail";
+import { TaskPropertiesPanel } from "@/components/task-properties-panel";
+import { TaskDetailCenter } from "@/components/task-detail-center";
 import { ProjectPicker } from "@/components/project-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,29 +16,20 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { api, ApiError } from "@/lib/api";
 import { mockTasks } from "@/lib/mock-data";
 import type {
   ProjectWithStats,
-  SessionState,
   Task,
-  TaskRow,
+  TaskFull,
 } from "@/lib/types";
-
-const columns: { key: SessionState; label: string; color: string }[] = [
-  { key: "active", label: "Active", color: "text-status-active" },
-  { key: "idle", label: "Idle", color: "text-status-idle" },
-  { key: "suspended", label: "Suspended", color: "text-status-suspended" },
-];
 
 export default function TasksPage() {
   return (
     <Suspense
       fallback={
-        <div className="p-6">
-          <h1 className="text-xl font-semibold tracking-tight">Tasks</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Loading...</p>
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          Loading…
         </div>
       }
     >
@@ -48,19 +41,21 @@ export default function TasksPage() {
 function TasksPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const filterProjectId = searchParams.get("projectId");
+  const selectedId = searchParams.get("task");
   const initialNew = searchParams.get("new") === "1";
   const presetProjectId = searchParams.get("projectId");
 
-  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
-  const [projectTaskIds, setProjectTaskIds] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [backendError, setBackendError] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(initialNew);
 
-  // Create form state
-  const [title, setTitle] = useState("");
+  const [detail, setDetail] = useState<TaskFull | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  const [dialogOpen, setDialogOpen] = useState(initialNew);
+  const [title, setTitleValue] = useState("");
   const [description, setDescription] = useState("");
   const [agent, setAgent] = useState("engineer");
   const [priority, setPriority] = useState<number>(3);
@@ -68,7 +63,7 @@ function TasksPageInner() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refreshList = useCallback(async () => {
     try {
       const next = await api.tasks.list();
       setTasks(next);
@@ -84,10 +79,9 @@ function TasksPageInner() {
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshList();
+  }, [refreshList]);
 
-  // Load projects (for picker + filter + card tags).
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -95,7 +89,7 @@ function TasksPageInner() {
         const list = await api.projects.list();
         if (!cancelled) setProjects(list);
       } catch {
-        // ignore
+        /* ignore */
       }
     })();
     return () => {
@@ -103,65 +97,76 @@ function TasksPageInner() {
     };
   }, []);
 
-  // When a project filter is active, fetch project tasks to know which IDs match.
+  // Auto-select first task if none selected
   useEffect(() => {
-    if (!filterProjectId) {
-      setProjectTaskIds(null);
+    if (!selectedId && tasks.length > 0 && !loading) {
+      const first = tasks[0];
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("task", first.id);
+      router.replace(`/tasks?${params.toString()}`, { scroll: false });
+    }
+  }, [selectedId, tasks, loading, router, searchParams]);
+
+  // Fetch detail for selected task
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null);
       return;
     }
     let cancelled = false;
+    setDetailLoading(true);
+    setDetailError(null);
     void (async () => {
       try {
-        const projTasks: Task[] = await api.tasks.listByProject(filterProjectId);
-        if (cancelled) return;
-        const ids = new Set<string>();
-        for (const t of projTasks) {
-          ids.add(t.id);
-          if (t.linearIssueKey) ids.add(t.linearIssueKey);
+        const d = await api.tasks.getFull(selectedId);
+        if (!cancelled) setDetail(d);
+      } catch (err) {
+        if (!cancelled) {
+          setDetail(null);
+          setDetailError(
+            err instanceof ApiError ? err.message : "Failed to load task",
+          );
         }
-        setProjectTaskIds(ids);
-      } catch {
-        if (!cancelled) setProjectTaskIds(new Set());
+      } finally {
+        if (!cancelled) setDetailLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [filterProjectId]);
+  }, [selectedId]);
 
-  const projectsById = useMemo(() => {
-    const m = new Map<string, ProjectWithStats>();
-    for (const p of projects) m.set(p.id, p);
-    return m;
-  }, [projects]);
-
-  // Apply project filter on tasks list (best-effort match by id or issueKey).
-  const visibleTasks = useMemo(() => {
-    if (!filterProjectId || !projectTaskIds) return tasks;
-    return tasks.filter(
-      (t) => projectTaskIds.has(t.id) || projectTaskIds.has(t.issueKey),
-    );
-  }, [tasks, filterProjectId, projectTaskIds]);
+  const handleSelect = useCallback(
+    (id: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("task", id);
+      router.replace(`/tasks?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await api.tasks.create({
+      const res = await api.tasks.create({
         title,
         description: description || undefined,
         agent,
         priority,
         projectId: taskProjectId,
       });
-      setTitle("");
+      setTitleValue("");
       setDescription("");
       setAgent("engineer");
       setPriority(3);
-      setTaskProjectId(filterProjectId);
       setDialogOpen(false);
-      await refresh();
+      await refreshList();
+      const newId =
+        (res as Record<string, unknown>).taskId ??
+        (res as Record<string, unknown>).issueKey;
+      if (typeof newId === "string" && newId) handleSelect(newId);
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : "Failed to create task");
     } finally {
@@ -169,186 +174,141 @@ function TasksPageInner() {
     }
   };
 
-  const tasksByStatus = columns.map((col) => ({
-    ...col,
-    tasks: visibleTasks.filter((t) => t.state === col.key),
-  }));
+  const refreshDetail = useCallback(async () => {
+    if (!selectedId) return;
+    try {
+      const d = await api.tasks.getFull(selectedId);
+      setDetail(d);
+    } catch {
+      /* keep current */
+    }
+  }, [selectedId]);
 
-  const setProjectFilter = (id: string | null) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (id) params.set("projectId", id);
-    else params.delete("projectId");
-    const qs = params.toString();
-    router.replace(qs ? `/tasks?${qs}` : "/tasks");
-  };
-
-  const filterProject = filterProjectId ? projectsById.get(filterProjectId) : null;
+  const live = useMemo(() => !backendError, [backendError]);
 
   return (
-    <div className="flex h-full flex-col p-6">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Tasks</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {loading
-              ? "Loading..."
-              : `${visibleTasks.length} tracked sessions${backendError ? " (mock data — backend offline)" : ""}`}
-            {filterProject && (
-              <>
-                {" "}
-                · filtered by{" "}
-                <span className="font-medium text-foreground">{filterProject.name}</span>
-              </>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-56">
-            <ProjectPicker
-              value={filterProjectId}
-              onChange={setProjectFilter}
-              allOption
-              projects={projects}
-            />
+    <div className="grid h-full grid-cols-[340px_minmax(0,1fr)_320px]">
+      <TaskListRail
+        tasks={tasks}
+        projects={projects}
+        selectedId={selectedId}
+        onSelect={handleSelect}
+        loading={loading}
+        onNewTask={() => setDialogOpen(true)}
+      />
+
+      <div className="flex h-full min-w-0 flex-col overflow-y-auto">
+        {detailLoading && !detail && (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Loading task…
           </div>
-          <Button size="sm" className="gap-1.5" onClick={() => setDialogOpen(true)}>
-            <svg
-              className="size-3.5"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M8 3v10M3 8h10" />
-            </svg>
-            New Task
-          </Button>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Task</DialogTitle>
-              <DialogDescription>
-                Spawn a new agent session for a manual task.
-              </DialogDescription>
-            </DialogHeader>
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Title</label>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Task title..."
-                  required
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">
-                  Description
-                </label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe the task..."
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Project</label>
-                <ProjectPicker
-                  value={taskProjectId}
-                  onChange={setTaskProjectId}
-                  projects={projects}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">Agent</label>
-                  <select
-                    value={agent}
-                    onChange={(e) => setAgent(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    <option value="engineer">Engineer</option>
-                    <option value="strategist">Strategist</option>
-                    <option value="ops">Ops</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">
-                    Priority
-                  </label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(Number(e.target.value))}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    <option value={1}>1 — CEO</option>
-                    <option value={2}>2 — Urgent</option>
-                    <option value={3}>3 — Normal</option>
-                    <option value={5}>5 — Duty</option>
-                  </select>
-                </div>
-              </div>
-              {submitError && (
-                <p className="text-sm text-status-failed">{submitError}</p>
-              )}
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDialogOpen(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" size="sm" disabled={submitting || !title.trim()}>
-                  {submitting ? "Creating..." : "Create"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        )}
+        {detailError && !detail && (
+          <div className="flex h-full items-center justify-center text-sm text-status-failed">
+            {detailError}
+          </div>
+        )}
+        {!detailLoading && !detail && !detailError && !selectedId && (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Select a task from the list, or press ⌘N to create one.
+          </div>
+        )}
+        {detail && (
+          <TaskDetailCenter
+            taskId={detail.task.id}
+            data={detail}
+            live={live}
+            onRefresh={refreshDetail}
+          />
+        )}
       </div>
 
-      {/* Kanban board grouped by session state */}
-      <div className="flex flex-1 gap-4 overflow-x-auto pb-4">
-        {tasksByStatus.map((column) => (
-          <div
-            key={column.key}
-            className="flex w-64 shrink-0 flex-col rounded-xl border border-border bg-card/50"
-          >
-            <div className="flex items-center justify-between px-3 py-3">
-              <div className="flex items-center gap-2">
-                <h3 className={`text-sm font-medium ${column.color}`}>
-                  {column.label}
-                </h3>
-                <span className="flex size-5 items-center justify-center rounded-md bg-secondary text-xs text-muted-foreground">
-                  {column.tasks.length}
-                </span>
+      {detail ? (
+        <TaskPropertiesPanel data={detail} projects={projects} />
+      ) : (
+        <div className="border-l border-border bg-background" />
+      )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Task</DialogTitle>
+            <DialogDescription>
+              Spawn a new agent session for a manual task.
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Title</label>
+              <Input
+                value={title}
+                onChange={(e) => setTitleValue(e.target.value)}
+                placeholder="Task title..."
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Description</label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe the task..."
+                rows={3}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Project</label>
+              <ProjectPicker
+                value={taskProjectId}
+                onChange={setTaskProjectId}
+                projects={projects}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Agent</label>
+                <select
+                  value={agent}
+                  onChange={(e) => setAgent(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="engineer">Engineer</option>
+                  <option value="strategist">Strategist</option>
+                  <option value="ops">Ops</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Priority</label>
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(Number(e.target.value))}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value={1}>1 — CEO</option>
+                  <option value={2}>2 — Urgent</option>
+                  <option value={3}>3 — Normal</option>
+                  <option value={5}>5 — Duty</option>
+                </select>
               </div>
             </div>
-
-            <ScrollArea className="flex-1 px-2 pb-2">
-              <div className="space-y-2">
-                {column.tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    project={filterProject ?? null}
-                  />
-                ))}
-                {column.tasks.length === 0 && (
-                  <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
-                    No tasks
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </div>
-        ))}
-      </div>
+            {submitError && <p className="text-sm text-status-failed">{submitError}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setDialogOpen(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={submitting || !title.trim()}>
+                {submitting ? "Creating..." : "Create"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

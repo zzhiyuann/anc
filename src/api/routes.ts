@@ -158,7 +158,7 @@ function validateBudgetPatch(
     if (typeof body.agents !== 'object' || body.agents === null) {
       return { error: 'agents must be an object' };
     }
-    const agents: Record<string, { limit?: number; alertAt?: number } | null> = {};
+    const agents: Record<string, { limit: number; alertAt: number } | null> = {};
     for (const [role, value] of Object.entries(body.agents as Record<string, unknown>)) {
       if (!ENTITY_ID_REGEX.test(role)) {
         return { error: `Invalid agent role: ${role}` };
@@ -171,20 +171,21 @@ function validateBudgetPatch(
         return { error: `agents.${role} must be an object or null` };
       }
       const v = value as Record<string, unknown>;
-      const entry: { limit?: number; alertAt?: number } = {};
+      let limit = 0;
+      let alertAt = 0.8;
       if (v.limit !== undefined) {
         if (typeof v.limit !== 'number' || !Number.isFinite(v.limit) || v.limit < 0) {
           return { error: `agents.${role}.limit must be a non-negative number` };
         }
-        entry.limit = v.limit;
+        limit = v.limit;
       }
       if (v.alertAt !== undefined) {
         if (typeof v.alertAt !== 'number' || !Number.isFinite(v.alertAt) || v.alertAt < 0 || v.alertAt > 1) {
           return { error: `agents.${role}.alertAt must be a number in [0, 1]` };
         }
-        entry.alertAt = v.alertAt;
+        alertAt = v.alertAt;
       }
-      agents[role] = entry;
+      agents[role] = { limit, alertAt };
     }
     out.agents = agents;
   }

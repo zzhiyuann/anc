@@ -1,7 +1,7 @@
 import { api } from "@/lib/api";
 import { mockProjectsWithStats } from "@/lib/mock-data";
 import type { ProjectWithStats } from "@/lib/types";
-import { ProjectsGrid } from "./projects-grid";
+import { ProjectsTable } from "@/components/projects/projects-table";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +19,5 @@ async function loadProjects(): Promise<{
 
 export default async function ProjectsPage() {
   const { projects, live } = await loadProjects();
-  return <ProjectsGrid initialProjects={projects} live={live} />;
+  return <ProjectsTable initialProjects={projects} live={live} />;
 }
