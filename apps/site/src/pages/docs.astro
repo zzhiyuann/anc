@@ -798,8 +798,8 @@ overrides:               <span class="t-dim"># per-task, set from UI or SDK</spa
   .docs-content {
     margin-left: 240px;
     flex: 1;
-    max-width: 800px;
-    padding: 48px 56px 120px;
+    padding: 48px 80px 120px;
+    max-width: 1160px;
   }
 
   .docs-content section {
@@ -835,6 +835,7 @@ overrides:               <span class="t-dim"># per-task, set from UI or SDK</spa
     color: var(--gray-9);
     line-height: 1.7;
     margin-bottom: 32px;
+    max-width: 720px;
   }
 
   .docs-content p {
@@ -842,6 +843,7 @@ overrides:               <span class="t-dim"># per-task, set from UI or SDK</spa
     color: var(--gray-10);
     line-height: 1.7;
     margin-bottom: 16px;
+    max-width: 720px;
   }
 
   .docs-content ul {
@@ -946,6 +948,11 @@ overrides:               <span class="t-dim"># per-task, set from UI or SDK</spa
   .ref-table td code {
     font-size: 12px;
     white-space: nowrap;
+  }
+
+  .ref-table th:first-child,
+  .ref-table td:first-child {
+    width: 30%;
   }
 
   /* Callout */

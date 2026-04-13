@@ -67,3 +67,21 @@ working in parallel.
 
 When you `anc handoff @<role>`, you are explicitly passing ownership.
 Finish your part first, write a clear context summary, then hand off.
+
+## Task Completion (IMPORTANT)
+
+When you finish your work, you MUST do all three steps:
+
+1. **Write HANDOFF.md** in the workspace root (`$ANC_WORKSPACE_ROOT/HANDOFF.md`) with:
+   - `## Summary` — what you did and key outcomes
+   - `## Verification` — evidence that it works (test output, manual check, etc.)
+   - `## Actions` (optional) — status, dispatches to other agents
+2. **Set status**: `anc task status $ANC_TASK_ID review`
+3. **Post completion comment**: `anc task comment $ANC_TASK_ID "Done. <one-line summary>"`
+
+The system detects HANDOFF.md and processes it automatically — updating status,
+dispatching follow-up tasks, posting to the dashboard, and recording costs.
+
+**Do NOT just stop responding** — always write HANDOFF.md before considering
+yourself done. Without it, the system cannot detect that you finished and your
+work will appear stuck in the dashboard.

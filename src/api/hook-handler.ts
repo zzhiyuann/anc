@@ -40,6 +40,11 @@ import { createLogger } from '../core/logger.js';
 import { recordSpend } from '../core/budget.js';
 import { computeCost, totalTokens, type TokenUsage } from '../core/pricing.js';
 import { addTaskComment } from '../core/tasks.js';
+import { processHandoff as processHandoffShared } from '../hooks/handoff-processor.js';
+import { getTrackedSessions, getSessionForIssue } from '../runtime/health.js';
+import { getWorkspacePath } from '../runtime/workspace.js';
+import { sendToAgent, sessionExists } from '../runtime/runner.js';
+import { getTask, resolveTaskIdFromIssueKey } from '../core/tasks.js';
 
 const log = createLogger('hook');
 
@@ -145,6 +150,16 @@ export function processHookEvent(
       maybePostAgentReply(taskId, role, event);
     } catch (err) {
       log.warn(`agent reply comment failed: ${(err as Error).message}`);
+    }
+
+    // Interactive-mode completion detection: check if the agent just finished
+    // its work (wrote HANDOFF.md or said something that sounds like completion).
+    // This is THE fix for interactive mode where tmux stays alive and the
+    // legacy on-complete.ts "tmux died" path never fires.
+    try {
+      void checkActiveCompletion(taskId, role, event);
+    } catch (err) {
+      log.warn(`active completion check failed: ${(err as Error).message}`);
     }
   }
 
@@ -363,6 +378,103 @@ function truncate(s: string, max = 100): string {
   return s.slice(0, max - 1) + '…';
 }
 
+// --- Interactive-mode completion detection ---
+
+/**
+ * Check if an agent in interactive mode has just completed its work.
+ *
+ * Problem: In interactive mode, tmux stays alive after the agent finishes.
+ * The legacy on-complete.ts only fires when tmux dies. This function
+ * bridges the gap by detecting completion on every Stop hook event.
+ *
+ * Detection signals:
+ *   1. HANDOFF.md exists in workspace → trigger processHandoff immediately
+ *   2. Agent's last_assistant_message contains completion phrases → nudge
+ *      the agent to formalize by writing HANDOFF.md
+ *
+ * Only fires on real pauses (stop_hook_active=false), not mid-tool-call.
+ */
+export async function checkActiveCompletion(
+  taskId: string,
+  role: string,
+  event: ClaudeHookEvent,
+): Promise<void> {
+  // Only on Stop events (agent finished a turn)
+  if (event.hook_event_name !== 'Stop') return;
+
+  // stop_hook_active=true means mid-tool-call, not a real stop
+  const stopHookActive = (event as { stop_hook_active?: boolean }).stop_hook_active;
+  if (stopHookActive === true) return;
+
+  // Resolve the workspace and session for this task
+  // taskId from hooks may be a task UUID or issueKey — resolve both ways
+  const session = getSessionForIssue(taskId);
+  const issueKey = session?.issueKey ?? taskId;
+  let workspace: string;
+  try {
+    workspace = getWorkspacePath(issueKey);
+  } catch {
+    return; // no workspace → nothing to check
+  }
+
+  const handoffPath = join(workspace, 'HANDOFF.md');
+
+  // Check 1: HANDOFF.md was just written
+  if (existsSync(handoffPath)) {
+    // Resolve the task to see if it's already been processed
+    const resolvedTaskId = resolveTaskIdFromIssueKey(issueKey);
+    const task = resolvedTaskId ? getTask(resolvedTaskId) : null;
+
+    // Only process if task is not already in review/done (prevent double-processing)
+    if (task && task.state !== 'review' && task.state !== 'done') {
+      log.info(`interactive completion: HANDOFF.md detected for ${issueKey}, processing`, { role, issueKey });
+      await processHandoffShared({
+        issueKey,
+        role,
+        handoffPath,
+        workspace,
+        spawnedAt: session?.spawnedAt ?? Date.now() - 60_000,
+        // Don't mark idle — tmux is still alive in interactive mode.
+        // The session stays active so the CEO can still send follow-ups.
+        markSessionIdle: false,
+      });
+      return;
+    }
+  }
+
+  // Check 2: Agent said something that sounds like completion — nudge to formalize
+  const lastMsg = (event as { last_assistant_message?: unknown }).last_assistant_message;
+  if (!lastMsg || typeof lastMsg !== 'string') return;
+
+  const msg = lastMsg.toLowerCase();
+  const completionPhrases = [
+    'task is complete',
+    'i\'ve finished',
+    'i have finished',
+    'completed the task',
+    'all done',
+    'work is done',
+    'i\'ve completed',
+    'i have completed',
+    'task is done',
+    'everything is done',
+    'all tasks are complete',
+  ];
+
+  if (completionPhrases.some(p => msg.includes(p))) {
+    // Only nudge if HANDOFF.md doesn't exist (agent forgot to write it)
+    if (!existsSync(handoffPath)) {
+      if (session && sessionExists(session.tmuxSession)) {
+        log.info(`interactive completion: nudging ${role}/${issueKey} to write HANDOFF.md`, { role, issueKey });
+        sendToAgent(
+          session.tmuxSession,
+          'Great work! Please finalize by writing HANDOFF.md in the workspace root with a summary of what you did (include a ## Summary and ## Verification section), then run: anc task status $ANC_TASK_ID review',
+        );
+      }
+    }
+  }
+}
+
 // --- Agent reply auto-comment ---
 
 /**
@@ -433,4 +545,4 @@ export function ensureHookToken(): string {
 }
 
 /** @internal exported for testing */
-export const _internals = { SPILL_DIR, INLINE_MAX_BYTES, maybePostAgentReply };
+export const _internals = { SPILL_DIR, INLINE_MAX_BYTES, maybePostAgentReply, checkActiveCompletion };
