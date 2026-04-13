@@ -7,6 +7,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// --- Motion timing constants (mirror CSS tokens in globals.css) ---
+// Use these when you need the duration in JS (framer-motion etc.) so the
+// JS-driven and CSS-driven animations stay synchronized.
+export const motionEase = {
+  out: [0.25, 0.8, 0.5, 1] as const,
+  spring: [0.34, 1.56, 0.64, 1] as const,
+};
+
+export const motionDuration = {
+  fast: 0.12,
+  base: 0.18,
+  slow: 0.26,
+} as const;
+
 // --- Agent state derivation ---
 
 /**

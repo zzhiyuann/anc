@@ -26,6 +26,9 @@ interface TaskDetailCenterProps {
   data: TaskFull;
   live: boolean;
   onRefresh: () => void | Promise<void>;
+  // Notify parent of an optimistic field change so the list rail
+  // (groupings, glyphs, row label) stays in sync with inline edits.
+  onTaskPatch?: (patch: Partial<Task>) => void;
 }
 
 // =============== inline title editor ===============
@@ -401,6 +404,7 @@ export function TaskDetailCenter({
   data,
   live,
   onRefresh,
+  onTaskPatch,
 }: TaskDetailCenterProps) {
   const [localData, setLocalData] = useState<TaskFull>(data);
   const [processEvents, setProcessEvents] = useState<ProcessEvent[]>([]);
@@ -499,6 +503,7 @@ export function TaskDetailCenter({
 
   const handleTitleSave = async (next: string) => {
     setLocalData((prev) => ({ ...prev, task: { ...prev.task, title: next } }));
+    onTaskPatch?.({ title: next });
     try {
       await api.tasks.update(taskId, { title: next });
     } catch {
@@ -511,6 +516,7 @@ export function TaskDetailCenter({
       ...prev,
       task: { ...prev.task, description: next },
     }));
+    onTaskPatch?.({ description: next });
     try {
       await api.tasks.update(taskId, { description: next });
     } catch {

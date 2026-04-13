@@ -209,9 +209,8 @@ function TasksPageInner() {
       setPriority(3);
       setDialogOpen(false);
       await refreshList();
-      const newId =
-        (res as Record<string, unknown>).taskId ??
-        (res as Record<string, unknown>).issueKey;
+      const r = res as { task?: { id?: string }; taskId?: string; issueKey?: string };
+      const newId = r.task?.id ?? r.taskId ?? r.issueKey;
       if (typeof newId === "string" && newId) handleSelect(newId);
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : "Failed to create task");
@@ -230,7 +229,40 @@ function TasksPageInner() {
     }
   }, [selectedId]);
 
-  const live = useMemo(() => !backendError, [backendError]);
+  // Optimistic patch — splice into list and detail so the rail's groupings
+  // (status, priority, project, assignee, labels) and row glyphs stay in sync
+  // with whatever the user just changed in the properties panel or via inline
+  // edits in the center pane. We intentionally do NOT call refreshList() here:
+  // the parent panel fires this callback BEFORE its own backend PATCH resolves,
+  // so an immediate refresh would race the write and clobber the optimistic
+  // state with stale server data. The next manual or websocket-driven refresh
+  // will reconcile any server-derived fields.
+  const handleTaskPatch = useCallback(
+    (id: string, patch: Partial<Task>) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+      );
+      setDetail((prev) =>
+        prev && prev.task.id === id
+          ? { ...prev, task: { ...prev.task, ...patch } }
+          : prev,
+      );
+    },
+    [],
+  );
+
+  const handleSelectedPatch = useCallback(
+    (patch: Partial<Task>) => {
+      if (!selectedId) return;
+      handleTaskPatch(selectedId, patch);
+    },
+    [selectedId, handleTaskPatch],
+  );
+
+  const live = useMemo(
+    () => !backendError && !detailError,
+    [backendError, detailError],
+  );
 
   return (
     <>
@@ -247,6 +279,7 @@ function TasksPageInner() {
           onSelect={handleSelect}
           loading={loading}
           onNewTask={() => setDialogOpen(true)}
+          onTasksMutated={refreshList}
         />
       </Panel>
 
@@ -260,8 +293,28 @@ function TasksPageInner() {
           </div>
         )}
         {detailError && !detail && (
-          <div className="flex h-full items-center justify-center text-sm text-status-failed">
-            {detailError}
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-status-failed">
+            <span>Failed to load task · {detailError}</span>
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedId) return;
+                setDetailError(null);
+                setDetailLoading(true);
+                void api.tasks
+                  .getFull(selectedId)
+                  .then((d) => setDetail(d))
+                  .catch((err) =>
+                    setDetailError(
+                      err instanceof ApiError ? err.message : "Failed to load",
+                    ),
+                  )
+                  .finally(() => setDetailLoading(false));
+              }}
+              className="rounded border border-status-failed/30 px-2 py-0.5 text-[11px] text-status-failed hover:bg-status-failed/10"
+            >
+              Retry
+            </button>
           </div>
         )}
         {!detailLoading && !detail && !detailError && !selectedId && (
@@ -275,6 +328,7 @@ function TasksPageInner() {
             data={detail}
             live={live}
             onRefresh={refreshDetail}
+            onTaskPatch={handleSelectedPatch}
           />
         )}
         </div>
@@ -284,7 +338,11 @@ function TasksPageInner() {
 
       <Panel id="properties" defaultSize="20%" minSize="14%" maxSize="35%">
         {detail ? (
-          <TaskPropertiesPanel data={detail} projects={projects} />
+          <TaskPropertiesPanel
+            data={detail}
+            projects={projects}
+            onUpdated={handleSelectedPatch}
+          />
         ) : (
           <div className="h-full border-l border-border bg-background" />
         )}

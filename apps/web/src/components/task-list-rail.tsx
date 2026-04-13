@@ -7,10 +7,12 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { agentInitial } from "@/lib/utils";
 import { roleAvatarClass } from "@/components/task-detail/role-colors";
 import { api } from "@/lib/api";
+import type { LabelEntity } from "@/lib/api";
 import type {
   AgentStatus,
   ProjectWithStats,
@@ -106,6 +108,9 @@ interface TaskListRailProps {
   onSelect: (id: string) => void;
   loading: boolean;
   onNewTask: () => void;
+  // Called after bulk PATCH/DELETE so the parent can refresh its task list
+  // and the rail's groupings stay consistent with backend state.
+  onTasksMutated?: () => void | Promise<void>;
 }
 
 // =================== component ===================
@@ -117,6 +122,7 @@ export function TaskListRail({
   onSelect,
   loading,
   onNewTask,
+  onTasksMutated,
 }: TaskListRailProps) {
   const [query, setQuery] = useState("");
   const [groupBy, setGroupBy] = useState<GroupKey>("status");
@@ -137,6 +143,13 @@ export function TaskListRail({
   >(null);
 
   const [agents, setAgents] = useState<AgentStatus[]>([]);
+  const [labelCatalog, setLabelCatalog] = useState<LabelEntity[]>([]);
+  const [bulkMenu, setBulkMenu] = useState<
+    "status" | "priority" | "label" | "assign" | null
+  >(null);
+  const [rowMenuId, setRowMenuId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -151,8 +164,13 @@ export function TaskListRail({
     let cancelled = false;
     void (async () => {
       try {
-        const list = await api.agents.list();
-        if (!cancelled) setAgents(list);
+        const [a, l] = await Promise.all([
+          api.agents.list(),
+          api.labels.list(),
+        ]);
+        if (cancelled) return;
+        setAgents(a);
+        setLabelCatalog(l);
       } catch {
         /* ignore */
       }
@@ -161,6 +179,79 @@ export function TaskListRail({
       cancelled = true;
     };
   }, []);
+
+  // ---- bulk actions ----
+  const runBulk = useCallback(
+    async (
+      verb: string,
+      ids: string[],
+      mutate: (id: string) => Promise<unknown>,
+    ) => {
+      if (ids.length === 0) return;
+      let ok = 0;
+      for (const id of ids) {
+        try {
+          await mutate(id);
+          ok++;
+        } catch {
+          /* swallow per-item */
+        }
+      }
+      toast.success(`${ok} task${ok === 1 ? "" : "s"} ${verb}`);
+      setBulkMenu(null);
+      void onTasksMutated?.();
+    },
+    [onTasksMutated],
+  );
+
+  const bulkSetStatus = (state: TaskEntityState) =>
+    void runBulk("updated", [...selected], (id) =>
+      api.tasks.update(id, { state }),
+    );
+  const bulkSetPriority = (priority: number) =>
+    void runBulk("updated", [...selected], (id) =>
+      api.tasks.update(id, { priority }),
+    );
+  const bulkAddLabel = (name: string) =>
+    void runBulk("labeled", [...selected], async (id) => {
+      const t = tasks.find((x) => x.id === id);
+      const next = Array.from(new Set([...(t?.labels ?? []), name]));
+      return api.tasks.update(id, { labels: next });
+    });
+  const bulkAssign = (role: string | null) =>
+    void runBulk("assigned", [...selected], (id) =>
+      api.tasks.update(id, { assignee: role }),
+    );
+  const bulkDelete = async () => {
+    const ids = [...selected];
+    let ok = 0;
+    for (const id of ids) {
+      try {
+        await api.tasks.remove(id);
+        ok++;
+      } catch {
+        /* skip */
+      }
+    }
+    toast.success(`${ok} task${ok === 1 ? "" : "s"} deleted`);
+    setSelected(new Set());
+    setConfirmBulkDelete(false);
+    void onTasksMutated?.();
+  };
+
+  const deleteOne = async (id: string) => {
+    try {
+      await api.tasks.remove(id);
+      toast.success("Task deleted");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete task",
+      );
+    }
+    setConfirmDeleteId(null);
+    setRowMenuId(null);
+    void onTasksMutated?.();
+  };
 
   // ---- filter + sort pipeline ----
   const filtered = useMemo(() => {
@@ -317,10 +408,32 @@ export function TaskListRail({
         return;
       }
       if (e.key === "Escape") {
+        // Esc in search clears the query and unfocuses.
+        if (
+          inField &&
+          (e.target as HTMLElement | null) === searchRef.current
+        ) {
+          e.preventDefault();
+          setQuery("");
+          searchRef.current?.blur();
+          return;
+        }
         if (selected.size > 0) {
           setSelected(new Set());
           return;
         }
+        if (rowMenuId) {
+          setRowMenuId(null);
+          return;
+        }
+        if (bulkMenu) {
+          setBulkMenu(null);
+          return;
+        }
+      }
+      if (e.key === "?" && !inField) {
+        // Legend owned by another agent — swallow so it never crashes here.
+        return;
       }
       if (inField) return;
       if (flatOrder.length === 0) return;
@@ -355,7 +468,7 @@ export function TaskListRail({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flatOrder, selectedId, selected, onSelect]);
+  }, [flatOrder, selectedId, selected, onSelect, rowMenuId, bulkMenu]);
 
   // ---- filter chip helpers ----
   const toggleStatusFilter = (s: TaskEntityState) => {
@@ -725,16 +838,43 @@ export function TaskListRail({
             Loading…
           </div>
         )}
-        {!loading && grouped.length === 0 && (
+        {!loading && grouped.length === 0 && tasks.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center">
             <p className="text-[12px] font-medium text-foreground">
-              No tasks match your filters.
+              No tasks yet.
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Try clearing filters or pressing <kbd className="rounded bg-secondary px-1">N</kbd> to create one.
+              Spawn an agent or queue a manual task to get started.
             </p>
+            <button
+              type="button"
+              onClick={onNewTask}
+              className="mt-3 rounded-md bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90"
+            >
+              + Create your first task
+            </button>
           </div>
         )}
+        {!loading &&
+          grouped.length === 0 &&
+          tasks.length > 0 &&
+          (activeChips.length > 0 || query.trim().length > 0) && (
+            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+              <p className="text-[12px] font-medium text-foreground">
+                No tasks match your filters.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilter(emptyFilter());
+                  setQuery("");
+                }}
+                className="mt-2 rounded-md border border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
         {grouped.map((g) => {
           const collapsed = collapsedGroups.has(g.key);
           return (
@@ -877,6 +1017,71 @@ export function TaskListRail({
                       <span className="w-7 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
                         {relativeShort(t.createdAt)}
                       </span>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRowMenuId((cur) => (cur === t.id ? null : t.id));
+                          }}
+                          aria-label="Row menu"
+                          className={cn(
+                            "flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground",
+                            rowMenuId === t.id
+                              ? "opacity-100"
+                              : "opacity-0 group-hover:opacity-100",
+                          )}
+                        >
+                          ⋯
+                        </button>
+                        {rowMenuId === t.id && (
+                          <div
+                            className="absolute right-0 top-6 z-30 w-32 overflow-hidden rounded-md border border-border bg-popover py-1 text-[12px] shadow-lg"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onSelect(t.id);
+                                setRowMenuId(null);
+                              }}
+                              className="block w-full px-2 py-1 text-left hover:bg-accent"
+                            >
+                              Open
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await api.tasks.create({
+                                    title: `${t.title || "Untitled"} (copy)`,
+                                    description: t.description ?? undefined,
+                                    priority: t.priority,
+                                    projectId: t.projectId ?? null,
+                                  });
+                                  toast.success("Task duplicated");
+                                } catch {
+                                  toast.error("Duplicate failed");
+                                }
+                                setRowMenuId(null);
+                              }}
+                              className="block w-full px-2 py-1 text-left hover:bg-accent"
+                            >
+                              Duplicate
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmDeleteId(t.id);
+                                setRowMenuId(null);
+                              }}
+                              className="block w-full px-2 py-1 text-left text-status-failed hover:bg-accent"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -887,28 +1092,245 @@ export function TaskListRail({
 
       {/* Multi-select action bar */}
       {selected.size > 0 && (
-        <div className="absolute inset-x-2 bottom-2 z-30 flex items-center gap-2 rounded-md border border-border bg-popover px-2 py-1.5 text-[11px] shadow-lg">
-          <span className="font-medium text-foreground">{selected.size} selected</span>
-          <span className="text-muted-foreground/40">·</span>
-          <button className="rounded px-1.5 py-0.5 text-muted-foreground hover:bg-accent hover:text-foreground">
-            Status
-          </button>
-          <button className="rounded px-1.5 py-0.5 text-muted-foreground hover:bg-accent hover:text-foreground">
-            Priority
-          </button>
-          <button className="rounded px-1.5 py-0.5 text-muted-foreground hover:bg-accent hover:text-foreground">
-            Label
-          </button>
-          <button className="rounded px-1.5 py-0.5 text-muted-foreground hover:bg-accent hover:text-foreground">
-            Assign
-          </button>
-          <button
-            onClick={() => setSelected(new Set())}
-            className="ml-auto rounded px-1.5 py-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-            title="Clear selection (Esc)"
+        <div className="absolute inset-x-2 bottom-2 z-30 rounded-md border border-border bg-popover px-2 py-1.5 text-[11px] shadow-lg">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-foreground">
+              {selected.size} selected
+            </span>
+            <span className="text-muted-foreground/40">·</span>
+
+            <BulkMenuButton
+              label="Status"
+              open={bulkMenu === "status"}
+              onToggle={() =>
+                setBulkMenu((m) => (m === "status" ? null : "status"))
+              }
+            >
+              {(["todo", "running", "review", "done", "canceled"] as TaskEntityState[]).map(
+                (s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => bulkSetStatus(s)}
+                    className="flex w-full items-center gap-2 px-2 py-1 text-left text-[12px] hover:bg-accent"
+                  >
+                    <span
+                      className={cn(
+                        "size-2.5 rounded-full border-2",
+                        STATE_META[s].ringClass,
+                        STATE_META[s].fillClass,
+                      )}
+                    />
+                    {STATE_META[s].label}
+                  </button>
+                ),
+              )}
+            </BulkMenuButton>
+
+            <BulkMenuButton
+              label="Priority"
+              open={bulkMenu === "priority"}
+              onToggle={() =>
+                setBulkMenu((m) => (m === "priority" ? null : "priority"))
+              }
+            >
+              {[1, 2, 3, 4, 5].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => bulkSetPriority(p)}
+                  className={cn(
+                    "block w-full px-2 py-1 text-left text-[12px] hover:bg-accent",
+                    PRIORITY_META[p]?.tone,
+                  )}
+                >
+                  {PRIORITY_META[p]?.label ?? `P${p}`}
+                </button>
+              ))}
+            </BulkMenuButton>
+
+            <BulkMenuButton
+              label="Label"
+              open={bulkMenu === "label"}
+              onToggle={() =>
+                setBulkMenu((m) => (m === "label" ? null : "label"))
+              }
+            >
+              {labelCatalog.length === 0 && (
+                <p className="px-2 py-1 text-[11px] text-muted-foreground">
+                  No labels — create one in the properties panel.
+                </p>
+              )}
+              {labelCatalog.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => bulkAddLabel(l.name)}
+                  className="block w-full px-2 py-1 text-left text-[12px] hover:bg-accent"
+                >
+                  {l.name}
+                </button>
+              ))}
+            </BulkMenuButton>
+
+            <BulkMenuButton
+              label="Assign"
+              open={bulkMenu === "assign"}
+              onToggle={() =>
+                setBulkMenu((m) => (m === "assign" ? null : "assign"))
+              }
+            >
+              <button
+                type="button"
+                onClick={() => bulkAssign(null)}
+                className="block w-full px-2 py-1 text-left text-[12px] text-muted-foreground hover:bg-accent"
+              >
+                Unassigned
+              </button>
+              {(agents.length > 0
+                ? agents.map((a) => a.role)
+                : ["engineer", "strategist", "ops"]
+              ).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => bulkAssign(r)}
+                  className="flex w-full items-center gap-2 px-2 py-1 text-left text-[12px] capitalize hover:bg-accent"
+                >
+                  <span
+                    className={cn(
+                      "flex size-4 items-center justify-center rounded-full text-[9px] font-semibold",
+                      roleAvatarClass(r),
+                    )}
+                  >
+                    {agentInitial(r)}
+                  </span>
+                  {r}
+                </button>
+              ))}
+            </BulkMenuButton>
+
+            <button
+              type="button"
+              onClick={() => setConfirmBulkDelete(true)}
+              className="rounded px-1.5 py-0.5 text-status-failed hover:bg-status-failed/10"
+              title="Delete selected"
+            >
+              ⌫ Delete
+            </button>
+
+            <button
+              onClick={() => setSelected(new Set())}
+              className="ml-auto rounded px-1.5 py-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="Clear selection (Esc)"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Single-task delete confirmation */}
+      {confirmDeleteId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 p-4"
+          onClick={() => setConfirmDeleteId(null)}
+        >
+          <div
+            className="w-72 rounded-lg border border-border bg-popover p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
           >
-            Clear
-          </button>
+            <p className="text-[13px] font-medium text-foreground">
+              Delete this task?
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              This will kill any running sessions and remove it from the queue.
+            </p>
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(null)}
+                className="rounded border border-border px-2 py-1 text-[11px] hover:bg-accent"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteOne(confirmDeleteId)}
+                className="rounded bg-status-failed px-2 py-1 text-[11px] font-medium text-white hover:opacity-90"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk delete confirmation */}
+      {confirmBulkDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 p-4"
+          onClick={() => setConfirmBulkDelete(false)}
+        >
+          <div
+            className="w-72 rounded-lg border border-border bg-popover p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[13px] font-medium text-foreground">
+              Delete {selected.size} task{selected.size === 1 ? "" : "s"}?
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              This cannot be undone.
+            </p>
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmBulkDelete(false)}
+                className="rounded border border-border px-2 py-1 text-[11px] hover:bg-accent"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void bulkDelete()}
+                className="rounded bg-status-failed px-2 py-1 text-[11px] font-medium text-white hover:opacity-90"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BulkMenuButton({
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          "rounded px-1.5 py-0.5 text-muted-foreground hover:bg-accent hover:text-foreground",
+          open && "bg-accent text-foreground",
+        )}
+      >
+        {label} ▾
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-1 max-h-64 w-44 overflow-y-auto rounded-md border border-border bg-popover py-1 shadow-lg">
+          {children}
         </div>
       )}
     </div>
