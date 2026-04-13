@@ -1,0 +1,11 @@
+{
+  "django/django": 231,
+  "sympy/sympy": 75,
+  "sphinx-doc/sphinx": 44,
+  "matplotlib/matplotlib": 34,
+  "scikit-learn/scikit-learn": 32,
+  "astropy/astropy": 22,
+  "pydata/xarray": 22,
+  "pytest-dev/pytest": 19,
+  "pylint-dev/pylint": 10
+}
