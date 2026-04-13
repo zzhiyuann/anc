@@ -325,6 +325,16 @@ memory
     await memoryWriteCommand(args);
   });
 
+memory
+  .command('consolidate')
+  .description('Run memory consolidation: dedup, contradiction detection, staleness, importance decay')
+  .option('--role <role>', 'Process only a specific agent role')
+  .option('--dry-run', 'Show what would change without writing')
+  .action(async (opts: { role?: string; dryRun?: boolean }) => {
+    const { memoryConsolidateCommand } = await import('./commands/memory.js');
+    await memoryConsolidateCommand(opts);
+  });
+
 // --- Agent SDK: ask ---
 program
   .command('ask <target> <question>')

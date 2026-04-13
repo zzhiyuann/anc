@@ -1,0 +1,148 @@
+---
+const rows = [
+  { label: 'What it is', anc: 'Company OS', multica: 'Task board', devin: 'Managed agent', codex: 'Cloud agent' },
+  { label: 'Agent memory', anc: 'Persistent + retros', multica: '—', devin: '—', codex: '—' },
+  { label: 'Self-healing', anc: 'CEO Office agent', multica: '—', devin: '—', codex: '—' },
+  { label: 'Review policy', anc: '5 levels', multica: 'Manual', devin: 'Manual', codex: 'Manual' },
+  { label: 'Project mgmt', anc: 'Built-in', multica: 'External', devin: 'External', codex: 'External' },
+  { label: 'Native app', anc: 'macOS + iOS', multica: 'Web', devin: 'Web', codex: 'Web' },
+  { label: 'Self-hosted', anc: true, multica: true, devin: false, codex: false },
+  { label: 'Open source', anc: 'MIT', multica: 'Modified Apache', devin: '—', codex: '—' },
+];
+---
+
+<section class="comparison">
+  <div class="container">
+    <div class="features-header">
+      <p class="section-label">Comparison</p>
+      <h2 class="section-heading">
+        Devin is a contractor.<br/>
+        Codex is a tool.<br/>
+        <span class="gradient-text">ANC is the company they work for.</span>
+      </h2>
+    </div>
+
+    <div class="table-wrap">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-anc">ANC</th>
+            <th>Multica</th>
+            <th>Devin</th>
+            <th>Codex</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr>
+              <td class="row-label">{row.label}</td>
+              <td class="col-anc">{typeof row.anc === 'boolean' ? (row.anc ? '✓' : '—') : row.anc}</td>
+              <td>{typeof row.multica === 'boolean' ? (row.multica ? '✓' : '—') : row.multica}</td>
+              <td>{typeof row.devin === 'boolean' ? (row.devin ? '✓' : '—') : row.devin}</td>
+              <td>{typeof row.codex === 'boolean' ? (row.codex ? '✓' : '—') : row.codex}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<style>
+  .comparison {
+    padding: var(--section-gap) 0;
+    border-top: 1px solid var(--gray-3);
+  }
+
+  .features-header {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 56px;
+  }
+
+  .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  .section-heading {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .table-wrap {
+    max-width: 800px;
+    margin: 0 auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .comp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+  }
+
+  .comp-table th {
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-8);
+    text-align: center;
+    border-bottom: 1px solid var(--gray-4);
+  }
+
+  .comp-table td {
+    padding: 14px 20px;
+    text-align: center;
+    color: var(--gray-9);
+    border-bottom: 1px solid var(--gray-3);
+  }
+
+  .row-label {
+    text-align: left !important;
+    font-weight: 550;
+    color: var(--gray-11) !important;
+    white-space: nowrap;
+  }
+
+  .col-anc {
+    color: var(--gray-12) !important;
+    font-weight: 600;
+    background: rgba(59, 130, 246, 0.08);
+    border-left: 1px solid rgba(59, 130, 246, 0.2);
+    border-right: 1px solid rgba(59, 130, 246, 0.2);
+  }
+
+  th.col-anc {
+    color: var(--accent) !important;
+    background: rgba(59, 130, 246, 0.12);
+    border-left: 1px solid rgba(59, 130, 246, 0.25);
+    border-right: 1px solid rgba(59, 130, 246, 0.25);
+  }
+
+  .comp-table tbody tr:hover {
+    background: var(--gray-2);
+  }
+
+  @media (max-width: 640px) {
+    .comp-table {
+      font-size: 13px;
+    }
+
+    .comp-table th,
+    .comp-table td {
+      padding: 10px 12px;
+    }
+  }
+</style>

@@ -1,0 +1,263 @@
+---
+const agents = [
+  { role: 'Engineer', emoji: '⚙️', desc: 'Code, architecture, testing, code review' },
+  { role: 'Strategist', emoji: '📐', desc: 'Product strategy, research, roadmaps' },
+  { role: 'Ops', emoji: '🔧', desc: 'Health monitoring, triage, deploys' },
+  { role: 'CEO Office', emoji: '🏛️', desc: 'Agent oversight, briefings, recovery' },
+];
+---
+
+<section class="arch">
+  <div class="container">
+    <div class="features-header">
+      <p class="section-label">Architecture</p>
+      <h2 class="section-heading">
+        Event-driven. Self-healing.<br/>
+        Built to run without you.
+      </h2>
+      <p class="section-sub">
+        A typed event bus at the core. Declarative routing. Isolated workspaces. Circuit breakers.
+        Every component is decoupled — a failure in one agent never takes down your company.
+      </p>
+    </div>
+
+    <!-- Architecture diagram -->
+    <div class="arch-diagram">
+      <div class="arch-layer layer-top">
+        <div class="arch-box box-dashboard">
+          <span class="arch-label">Dashboard</span>
+          <span class="arch-detail">Web + macOS</span>
+        </div>
+      </div>
+
+      <div class="arch-connector">
+        <span class="connector-label">REST + WebSocket</span>
+      </div>
+
+      <div class="arch-layer layer-core">
+        <div class="arch-box box-core">
+          <span class="arch-label">ANC Server</span>
+          <div class="core-chips">
+            <span class="chip">Event Bus</span>
+            <span class="chip">Router</span>
+            <span class="chip">Resolve Gate</span>
+            <span class="chip">Queue</span>
+            <span class="chip">Budget</span>
+            <span class="chip">Circuit Breaker</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-connector">
+        <span class="connector-label">tmux + per-issue workspace</span>
+      </div>
+
+      <div class="arch-layer layer-agents">
+        {agents.map((a) => (
+          <div class="arch-box box-agent">
+            <span class="agent-emoji">{a.emoji}</span>
+            <span class="arch-label">{a.role}</span>
+            <span class="arch-detail">{a.desc}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- Integration strip -->
+    <div class="integrations">
+      <span class="int-label">Integrations</span>
+      <div class="int-chips">
+        <span class="int-chip">Linear</span>
+        <span class="int-chip">Discord</span>
+        <span class="int-chip">Telegram</span>
+        <span class="int-chip">GitHub</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .arch {
+    padding: var(--section-gap) 0;
+    border-top: 1px solid var(--gray-3);
+  }
+
+  .features-header {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 56px;
+  }
+
+  .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  .section-heading {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .section-sub {
+    font-size: 17px;
+    color: var(--gray-9);
+    line-height: 1.6;
+  }
+
+  .arch-diagram {
+    max-width: 800px;
+    margin: 0 auto 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .arch-layer {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .arch-box {
+    border: 1px solid var(--gray-4);
+    border-radius: 12px;
+    padding: 20px 24px;
+    background: var(--gray-2);
+    text-align: center;
+  }
+
+  .arch-label {
+    display: block;
+    font-weight: 650;
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .arch-detail {
+    display: block;
+    font-size: 13px;
+    color: var(--gray-8);
+  }
+
+  .box-dashboard {
+    width: 240px;
+  }
+
+  .box-core {
+    width: 100%;
+    max-width: 600px;
+    background: var(--gray-3);
+    border-color: var(--gray-5);
+  }
+
+  .core-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 12px;
+  }
+
+  .chip {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 100px;
+    background: var(--gray-4);
+    color: var(--gray-10);
+  }
+
+  .box-agent {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .agent-emoji {
+    display: block;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .arch-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  .arch-connector::before {
+    content: '';
+    width: 1px;
+    height: 20px;
+    background: var(--gray-5);
+  }
+
+  .connector-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--gray-7);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 12px;
+    background: var(--gray-3);
+    border-radius: 100px;
+    border: 1px solid var(--gray-4);
+  }
+
+  .arch-connector::after {
+    content: '';
+    width: 1px;
+    height: 20px;
+    background: var(--gray-5);
+  }
+
+  /* Integrations strip */
+  .integrations {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding-top: 32px;
+    border-top: 1px solid var(--gray-3);
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .int-label {
+    font-size: 13px;
+    color: var(--gray-7);
+    font-weight: 500;
+  }
+
+  .int-chips {
+    display: flex;
+    gap: 8px;
+  }
+
+  .int-chip {
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-4);
+    color: var(--gray-9);
+  }
+
+  @media (max-width: 768px) {
+    .layer-agents {
+      flex-wrap: wrap;
+    }
+
+    .box-agent {
+      min-width: calc(50% - 8px);
+    }
+  }
+</style>

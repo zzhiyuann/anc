@@ -1,0 +1,86 @@
+---
+---
+
+<section class="narrative">
+  <div class="container">
+    <div class="narrative-grid">
+      <div class="narrative-left">
+        <p class="narrative-label">The Problem</p>
+        <h2 class="narrative-heading">
+          AI agents are powerful.<br />
+          But they're still just tools.
+        </h2>
+      </div>
+      <div class="narrative-right">
+        <p>
+          Devin writes code. Codex runs tasks. Multica tracks them on a board.
+          But when the session ends, everything resets. No memory. No growth.
+          No one watching when things break.
+        </p>
+        <p>
+          You're still the glue. You assign. You review. You fix. You context-switch
+          between six tabs to figure out what happened while you slept.
+        </p>
+        <p class="narrative-highlight">
+          What if your agents weren't tools you used &mdash; but employees you managed?
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .narrative {
+    padding: var(--section-gap) 0;
+    border-top: 1px solid var(--gray-3);
+  }
+
+  .narrative-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+  }
+
+  .narrative-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  .narrative-heading {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .narrative-right p {
+    font-size: 17px;
+    color: var(--gray-9);
+    line-height: 1.7;
+    margin-bottom: 20px;
+  }
+
+  .narrative-right p:last-child {
+    margin-bottom: 0;
+  }
+
+  .narrative-highlight {
+    color: var(--gray-12) !important;
+    font-weight: 550;
+    font-size: 19px !important;
+    border-left: 2px solid var(--accent);
+    padding-left: 20px;
+  }
+
+  @media (max-width: 768px) {
+    .narrative-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+</style>

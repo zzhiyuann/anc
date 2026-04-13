@@ -1,0 +1,289 @@
+---
+---
+
+<section id="how-it-works" class="terminal-section">
+  <div class="container">
+    <div class="features-header">
+      <p class="section-label">Get Started</p>
+      <h2 class="section-heading">Running in 60 seconds</h2>
+      <p class="section-sub">
+        Four commands. No Docker. No cloud account. Your company starts on your machine.
+      </p>
+    </div>
+
+    <div id="install" class="terminal-window glow">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+        </div>
+        <span class="terminal-title">Terminal</span>
+        <span></span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line">
+          <span class="prompt">$</span>
+          <span class="cmd">git clone https://github.com/zzhiyuann/anc.git && cd anc</span>
+        </div>
+        <div class="terminal-line">
+          <span class="prompt">$</span>
+          <span class="cmd">npm install && npm run build && npm link</span>
+        </div>
+        <div class="terminal-line">
+          <span class="prompt">$</span>
+          <span class="cmd">anc setup</span>
+          <span class="comment"># configure credentials</span>
+        </div>
+        <div class="terminal-line">
+          <span class="prompt">$</span>
+          <span class="cmd">anc serve</span>
+          <span class="comment"># your company is now running</span>
+        </div>
+        <div class="terminal-line terminal-output">
+          <span class="output-success">&#10003;</span>
+          <span class="output-text">ANC Server running on :3849</span>
+        </div>
+        <div class="terminal-line terminal-output">
+          <span class="output-success">&#10003;</span>
+          <span class="output-text">Event bus ready (20 event types)</span>
+        </div>
+        <div class="terminal-line terminal-output">
+          <span class="output-success">&#10003;</span>
+          <span class="output-text">4 agents registered: engineer, strategist, ops, ceo-office</span>
+        </div>
+        <div class="terminal-line terminal-output">
+          <span class="output-success">&#10003;</span>
+          <span class="output-text">Dashboard → http://localhost:3848</span>
+        </div>
+        <div class="terminal-line terminal-output">
+          <span class="output-dim">Waiting for tasks...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workflow steps below terminal -->
+    <div class="workflow">
+      <div class="workflow-step">
+        <div class="step-number">1</div>
+        <h3>Create a task</h3>
+        <p>From the dashboard, CLI, or your Linear board. Describe what you want done.</p>
+      </div>
+      <div class="workflow-arrow">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      </div>
+      <div class="workflow-step">
+        <div class="step-number">2</div>
+        <h3>ANC routes it</h3>
+        <p>YAML rules match the task to the right agent. Priority queue handles ordering.</p>
+      </div>
+      <div class="workflow-arrow">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      </div>
+      <div class="workflow-step">
+        <div class="step-number">3</div>
+        <h3>Agent works</h3>
+        <p>Isolated workspace. Persistent memory. Writes code, runs tests, commits, pushes.</p>
+      </div>
+      <div class="workflow-arrow">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      </div>
+      <div class="workflow-step">
+        <div class="step-number">4</div>
+        <h3>You review (or don&rsquo;t)</h3>
+        <p>Review policy decides. Strict? You approve. Autonomous? Already done.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .terminal-section {
+    padding: var(--section-gap) 0;
+    border-top: 1px solid var(--gray-3);
+  }
+
+  .features-header {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 48px;
+  }
+
+  .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  .section-heading {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .section-sub {
+    font-size: 17px;
+    color: var(--gray-9);
+    line-height: 1.6;
+  }
+
+  .terminal-window {
+    max-width: 720px;
+    margin: 0 auto 64px;
+    border-radius: 12px;
+    border: 1px solid var(--gray-4);
+    background: var(--gray-2);
+    overflow: hidden;
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--gray-3);
+    border-bottom: 1px solid var(--gray-4);
+  }
+
+  .terminal-dots {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .dot-red { background: #ff5f57; }
+  .dot-yellow { background: #febc2e; }
+  .dot-green { background: #28c840; }
+
+  .terminal-title {
+    font-size: 13px;
+    color: var(--gray-8);
+  }
+
+  .terminal-body {
+    padding: 20px 24px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 2;
+  }
+
+  .terminal-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .prompt {
+    color: var(--green);
+    user-select: none;
+  }
+
+  .cmd {
+    color: var(--gray-12);
+  }
+
+  .comment {
+    color: var(--gray-7);
+  }
+
+  .terminal-output {
+    gap: 8px;
+  }
+
+  .output-success {
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  .output-text {
+    color: var(--gray-10);
+  }
+
+  .output-dim {
+    color: var(--gray-7);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Workflow steps */
+  .workflow {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .workflow-step {
+    flex: 1;
+    text-align: center;
+    padding: 0 8px;
+  }
+
+  .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--gray-5);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-10);
+    margin-bottom: 12px;
+  }
+
+  .workflow-step h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .workflow-step p {
+    font-size: 14px;
+    color: var(--gray-8);
+    line-height: 1.5;
+  }
+
+  .workflow-arrow {
+    display: flex;
+    align-items: center;
+    padding-top: 4px;
+    color: var(--gray-6);
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    .workflow {
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .workflow-arrow {
+      transform: rotate(90deg);
+    }
+  }
+</style>

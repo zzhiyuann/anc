@@ -41,6 +41,14 @@ export interface ParsedFrontmatter {
   project?: string;
   tags?: string[];
   updated?: string;
+  stale?: boolean;
+  superseded_by?: string;
+  confidence?: string;
+  conflicts_with?: string;
+  valid_from?: string;
+  valid_until?: string;
+  entities?: string[];
+  last_referenced?: string;
   content: string;
 }
 
@@ -51,9 +59,40 @@ export interface MemoryFile {
   layer: MemoryLayer;
   project?: string;
   tags?: string[];
+  stale?: boolean;
+  superseded_by?: string;
+  confidence?: string;
 }
 
 const IMPORTANCE_ORDER: Record<string, number> = { critical: 0, high: 1, normal: 2, low: 3 };
+
+/**
+ * Filter out superseded and stale memory files before injection.
+ * - Skip files with `superseded_by` set (the superseding file should be loaded instead)
+ * - Skip stale files unless they are in the strategic layer
+ * - Deprioritize low-confidence files (sort them to the end)
+ */
+function filterMemoryFiles(files: MemoryFile[], isStrategicLayer = false): MemoryFile[] {
+  return files.filter(f => {
+    // Always skip superseded files
+    if (f.superseded_by) return false;
+    // Skip stale files unless strategic layer
+    if (f.stale && !isStrategicLayer) return false;
+    return true;
+  });
+}
+
+/**
+ * Build a display header for a memory file, including quality prefixes.
+ */
+function memoryHeader(mem: MemoryFile): string {
+  const prefixes: string[] = [];
+  if (mem.stale) prefixes.push('[STALE]');
+  if (mem.confidence === 'low') prefixes.push('[LOW CONFIDENCE]');
+  const importanceTag = mem.importance !== 'normal' ? ` [${mem.importance}]` : '';
+  const prefix = prefixes.length > 0 ? prefixes.join(' ') + ' ' : '';
+  return `### ${prefix}${mem.name}${importanceTag}`;
+}
 
 export function parseFrontmatter(raw: string): ParsedFrontmatter {
   const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
@@ -77,7 +116,36 @@ export function parseFrontmatter(raw: string): ParsedFrontmatter {
   const updatedMatch = frontmatter.match(/updated:\s*(\S+)/);
   const updated = updatedMatch?.[1];
 
-  return { importance, layer, project, tags, updated, content };
+  const staleMatch = frontmatter.match(/stale:\s*(true|false)/);
+  const stale = staleMatch?.[1] === 'true';
+
+  const supersededMatch = frontmatter.match(/superseded_by:\s*(.+)/);
+  const superseded_by = supersededMatch?.[1]?.trim() || undefined;
+
+  const confidenceMatch = frontmatter.match(/confidence:\s*(\S+)/);
+  const confidence = confidenceMatch?.[1];
+
+  const conflictsMatch = frontmatter.match(/conflicts_with:\s*(.+)/);
+  const conflicts_with = conflictsMatch?.[1]?.trim() || undefined;
+
+  const validFromMatch = frontmatter.match(/valid_from:\s*(\S+)/);
+  const valid_from = validFromMatch?.[1];
+
+  const validUntilMatch = frontmatter.match(/valid_until:\s*(\S+)/);
+  const valid_until = validUntilMatch?.[1];
+
+  const entitiesMatch = frontmatter.match(/entities:\s*\[([^\]]*)\]/);
+  const entities = entitiesMatch?.[1]?.split(',').map(t => t.trim()).filter(Boolean);
+
+  const lastRefMatch = frontmatter.match(/last_referenced:\s*(\S+)/);
+  const last_referenced = lastRefMatch?.[1];
+
+  return {
+    importance, layer, project, tags, updated,
+    stale, superseded_by, confidence, conflicts_with,
+    valid_from, valid_until, entities, last_referenced,
+    content,
+  };
 }
 
 /** Build the full system prompt for an agent */
@@ -196,6 +264,9 @@ function scanMemoryDir(
       layer: parsed.layer ?? defaultLayer,
       project: parsed.project ?? defaultProject,
       tags: parsed.tags,
+      stale: parsed.stale,
+      superseded_by: parsed.superseded_by,
+      confidence: parsed.confidence,
     });
   }
   return results;
@@ -235,15 +306,14 @@ function buildLayeredMemorySection(role: AgentRole, projectSlug?: string): strin
     strategicFiles = flatFiles.filter(f => f.layer === 'strategic');
   }
 
-  strategicFiles = strategicFiles
+  strategicFiles = filterMemoryFiles(strategicFiles, true)
     .sort((a, b) => (IMPORTANCE_ORDER[a.importance] ?? 2) - (IMPORTANCE_ORDER[b.importance] ?? 2))
     .slice(0, STRATEGIC_MAX_FILES);
 
   if (strategicFiles.length > 0) {
     parts.push('## Strategic Knowledge (always loaded)\n');
     for (const mem of strategicFiles) {
-      const tag = mem.importance !== 'normal' ? ` [${mem.importance}]` : '';
-      parts.push(`### ${mem.name}${tag}\n\n${mem.content}`);
+      parts.push(`${memoryHeader(mem)}\n\n${mem.content}`);
       totalChars += mem.content.length;
     }
   }
@@ -258,7 +328,12 @@ function buildLayeredMemorySection(role: AgentRole, projectSlug?: string): strin
     domainFiles = flatFiles.filter(f => f.layer === 'domain');
   }
 
-  domainFiles.sort((a, b) => (IMPORTANCE_ORDER[a.importance] ?? 2) - (IMPORTANCE_ORDER[b.importance] ?? 2));
+  domainFiles = filterMemoryFiles(domainFiles);
+  // Sort low-confidence files to the end so they're trimmed first
+  domainFiles.sort((a, b) => {
+    const confOrder = (f: MemoryFile) => f.confidence === 'low' ? 1 : 0;
+    return confOrder(a) - confOrder(b) || (IMPORTANCE_ORDER[a.importance] ?? 2) - (IMPORTANCE_ORDER[b.importance] ?? 2);
+  });
 
   const domainLoaded: MemoryFile[] = [];
   for (const mem of domainFiles) {
@@ -271,8 +346,7 @@ function buildLayeredMemorySection(role: AgentRole, projectSlug?: string): strin
   if (domainLoaded.length > 0) {
     parts.push('## Domain Expertise\n');
     for (const mem of domainLoaded) {
-      const tag = mem.importance !== 'normal' ? ` [${mem.importance}]` : '';
-      parts.push(`### ${mem.name}${tag}\n\n${mem.content}`);
+      parts.push(`${memoryHeader(mem)}\n\n${mem.content}`);
     }
   }
 
@@ -281,6 +355,7 @@ function buildLayeredMemorySection(role: AgentRole, projectSlug?: string): strin
     const projectDir = join(memDir, 'project', projectSlug);
     let projectFiles = scanMemoryDir(projectDir, 'project', PROJECT_MAX_CHARS_PER_FILE, undefined, projectSlug);
 
+    projectFiles = filterMemoryFiles(projectFiles);
     projectFiles.sort((a, b) => (IMPORTANCE_ORDER[a.importance] ?? 2) - (IMPORTANCE_ORDER[b.importance] ?? 2));
 
     const projectLoaded: MemoryFile[] = [];
@@ -294,8 +369,7 @@ function buildLayeredMemorySection(role: AgentRole, projectSlug?: string): strin
     if (projectLoaded.length > 0) {
       parts.push(`## Project Context: ${projectSlug}\n`);
       for (const mem of projectLoaded) {
-        const tag = mem.importance !== 'normal' ? ` [${mem.importance}]` : '';
-        parts.push(`### ${mem.name}${tag}\n\n${mem.content}`);
+        parts.push(`${memoryHeader(mem)}\n\n${mem.content}`);
       }
     }
   }

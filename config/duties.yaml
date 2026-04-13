@@ -96,6 +96,28 @@ duties:
       Write findings to `.agent-memory/recovery-{issueKey}-{timestamp}.md`.
       No HANDOFF needed — this is a standing duty.
 
+  # --- CEO Office: Memory Consolidation ---
+  - id: memory-consolidation
+    role: ceo-office
+    trigger:
+      cron: "24h"
+    issuePrefix: "memconsolidate"
+    prompt: |
+      [Memory Consolidation] Run the memory consolidation engine.
+
+      Execute: `anc memory consolidate`
+
+      This scans all agent memory files for:
+      1. Near-duplicate files → merges them (superseded_by link)
+      2. Contradicting numeric facts → flags with low confidence
+      3. Stale files (no update in 30 days) → marks stale
+      4. Importance decay (high → normal → low over time)
+
+      Review the output. If contradictions are found, check if they need
+      CEO resolution and post to Discord via `anc group` if so.
+
+      No HANDOFF needed — this is a standing duty.
+
   # --- Strategist: Weekly Strategy Review ---
   # Uncomment when ready:
   # - id: strategy-review

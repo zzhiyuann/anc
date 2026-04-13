@@ -1,0 +1,244 @@
+---
+---
+
+<section class="hero">
+  <!-- Background gradient orbs -->
+  <div class="hero-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+  </div>
+
+  <div class="container hero-content">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      Open Source &middot; MIT License
+    </div>
+
+    <h1 class="hero-title">
+      Stop using agents.<br />
+      <span class="gradient-text">Start running a company.</span>
+    </h1>
+
+    <p class="hero-sub">
+      One founder. Full org chart. Every seat filled by AI that
+      remembers, grows, and self-heals. ANC is the operating system
+      for one-person companies.
+    </p>
+
+    <div class="hero-actions">
+      <a href="#install" class="btn btn-primary">
+        Get Started
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 8h10M9 4l4 4-4 4" />
+        </svg>
+      </a>
+      <a href="https://github.com/zzhiyuann/anc" target="_blank" rel="noopener" class="btn btn-ghost">
+        View on GitHub
+      </a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat">
+        <span class="stat-value">13K+</span>
+        <span class="stat-label">Lines of Code</span>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat">
+        <span class="stat-value">425+</span>
+        <span class="stat-label">Tests Passing</span>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat">
+        <span class="stat-value">60+</span>
+        <span class="stat-label">API Endpoints</span>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat">
+        <span class="stat-value">4</span>
+        <span class="stat-label">AI Agents</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 120px 0 80px;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.4;
+  }
+
+  .orb-1 {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.15), transparent 70%);
+    top: -200px;
+    right: -100px;
+  }
+
+  .orb-2 {
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.1), transparent 70%);
+    bottom: -100px;
+    left: -100px;
+  }
+
+  .hero-content {
+    position: relative;
+    text-align: center;
+    max-width: 800px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border-radius: 100px;
+    border: 1px solid var(--gray-5);
+    background: var(--gray-2);
+    font-size: 13px;
+    color: var(--gray-10);
+    margin-bottom: 32px;
+  }
+
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .hero-title {
+    font-size: clamp(40px, 7vw, 72px);
+    font-weight: 750;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+  }
+
+  .hero-sub {
+    font-size: clamp(17px, 2vw, 20px);
+    color: var(--gray-9);
+    line-height: 1.6;
+    max-width: 600px;
+    margin: 0 auto 40px;
+  }
+
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 64px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 550;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    background: var(--gray-12);
+    color: var(--gray-1);
+  }
+
+  .btn-primary:hover {
+    background: white;
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+  }
+
+  .btn-ghost {
+    border: 1px solid var(--gray-5);
+    color: var(--gray-11);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--gray-7);
+    color: var(--gray-12);
+    background: var(--gray-3);
+  }
+
+  .hero-stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--gray-12);
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: var(--gray-8);
+  }
+
+  .stat-sep {
+    width: 1px;
+    height: 32px;
+    background: var(--gray-5);
+  }
+
+  @media (max-width: 640px) {
+    .hero-stats {
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+
+    .stat-sep {
+      display: none;
+    }
+
+    .hero-actions {
+      flex-direction: column;
+    }
+
+    .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>

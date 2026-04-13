@@ -270,8 +270,16 @@ async function processHandoff(
   }
   await addComment(session.issueKey, commentBody, session.role);
 
-  // Agent is responsible for posting completion comments before writing HANDOFF.md.
-  // System only handles status transitions, dispatches, and notifications.
+  // System posts the HANDOFF summary to the ANC task comments so the CEO
+  // sees delivery in the dashboard. This is the safety net — agent SHOULD
+  // also comment via `anc task comment` but may not have learned yet.
+  const completionTaskId = resolveTaskIdFromIssueKey(session.issueKey);
+  if (completionTaskId) {
+    const deliveryMsg = summary
+      ? `Completed. ${summary.substring(0, 500)}`
+      : 'Completed. See HANDOFF.md for details.';
+    addTaskComment(completionTaskId, `agent:${session.role}`, deliveryMsg);
+  }
 
   // Determine status: agent-decided (from Actions) or system-decided (fallback)
   const newStatus = actions?.status ?? decideStatus(taskType, handoff);

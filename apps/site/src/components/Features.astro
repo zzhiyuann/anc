@@ -1,0 +1,165 @@
+---
+const features = [
+  {
+    icon: '🧠',
+    title: 'Agents That Remember',
+    description: 'Every agent accumulates knowledge across tasks. The Engineer learns your codebase conventions. The Strategist remembers your positioning. Retrospectives after every task. Your company gets smarter every day.',
+    tag: 'Memory',
+  },
+  {
+    icon: '🏥',
+    title: 'Self-Healing Company',
+    description: 'The CEO Office agent monitors all others in real-time. Stuck process? Auto-restart. Rate limited? Backoff. Three failures? Circuit breaker. You only hear about things that need your decision.',
+    tag: 'CEO Office',
+  },
+  {
+    icon: '🎚️',
+    title: 'Configurable Trust',
+    description: 'Not every task needs sign-off. Set review policy to Strict, Normal, Lax, Autonomous, or Peer Review — per role, per project, or per task. Delegate as much or as little as you want.',
+    tag: 'Review Policy',
+  },
+  {
+    icon: '📋',
+    title: 'Built-in Project Management',
+    description: 'Tasks, projects, priorities, OKRs, decisions log, daily briefings — all built in. No Linear. No Jira. No context-switching. One cockpit for your entire company.',
+    tag: 'PM',
+  },
+  {
+    icon: '🔀',
+    title: 'YAML-Driven Everything',
+    description: 'Agents, routing rules, review policies, standing duties, budgets — all defined in YAML. Add a new agent role in 30 seconds. Change routing without code. Your company structure is a config file.',
+    tag: 'Config',
+  },
+  {
+    icon: '🖥️',
+    title: 'Native macOS Experience',
+    description: 'Not a web app in a wrapper. A real SwiftUI application with native menus, keyboard shortcuts, system notifications, and dock badge. Because the CEO deserves better than Electron.',
+    tag: 'macOS',
+  },
+];
+---
+
+<section id="features" class="features">
+  <div class="container">
+    <div class="features-header">
+      <p class="section-label">Capabilities</p>
+      <h2 class="section-heading">
+        Not a task board.<br/>
+        A company operating system.
+      </h2>
+      <p class="section-sub">
+        Everything your AI team needs to operate autonomously — and everything you
+        need to stay in control without micromanaging.
+      </p>
+    </div>
+
+    <div class="features-grid">
+      {features.map((f) => (
+        <div class="feature-card">
+          <div class="feature-icon">{f.icon}</div>
+          <div class="feature-tag">{f.tag}</div>
+          <h3 class="feature-title">{f.title}</h3>
+          <p class="feature-desc">{f.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .features {
+    padding: var(--section-gap) 0;
+  }
+
+  .features-header {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 64px;
+  }
+
+  .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  .section-heading {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .section-sub {
+    font-size: 17px;
+    color: var(--gray-9);
+    line-height: 1.6;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--gray-4);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--gray-4);
+  }
+
+  .feature-card {
+    background: var(--gray-2);
+    padding: 40px 32px;
+    transition: background 0.2s;
+  }
+
+  .feature-card:hover {
+    background: var(--gray-3);
+  }
+
+  .feature-icon {
+    font-size: 28px;
+    margin-bottom: 16px;
+  }
+
+  .feature-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    background: var(--accent-glow);
+    padding: 4px 10px;
+    border-radius: 100px;
+    margin-bottom: 16px;
+  }
+
+  .feature-title {
+    font-size: 20px;
+    font-weight: 650;
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+  }
+
+  .feature-desc {
+    font-size: 15px;
+    color: var(--gray-9);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 900px) {
+    .features-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

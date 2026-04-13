@@ -8,6 +8,7 @@
  * anc memory write domain <filename>                    — write to domain layer (default)
  * anc memory write project <project-slug> <filename>    — write to project layer
  * anc memory write <filename>                           — write to domain layer (shorthand)
+ * anc memory consolidate [--role <role>] [--dry-run]    — run consolidation engine
  */
 
 import {
@@ -189,4 +190,45 @@ export async function memoryWriteCommand(args: string[]): Promise<void> {
   writeMemory(role, filename, content, layer, projectSlug);
   const layerLabel = layer === 'project' ? `project/${projectSlug}` : layer;
   console.log(`Memory written: ${layerLabel}/${filename} (${content.length} chars)`);
+}
+
+/**
+ * Run the memory consolidation engine.
+ * anc memory consolidate [--role <role>] [--dry-run]
+ */
+export async function memoryConsolidateCommand(opts: { role?: string; dryRun?: boolean }): Promise<void> {
+  const { consolidateAll } = await import('../core/memory-consolidation.js');
+  const { join } = await import('path');
+  const { homedir } = await import('os');
+
+  const stateDir = process.env.ANC_STATE_DIR || join(homedir(), '.anc');
+  const dryRun = opts.dryRun ?? false;
+
+  if (dryRun) {
+    console.log('DRY RUN — no files will be modified.\n');
+  }
+
+  const results = consolidateAll(stateDir, { role: opts.role, dryRun });
+
+  if (results.length === 0) {
+    console.log('No agent memory directories found.');
+    return;
+  }
+
+  let totalScanned = 0;
+  let totalDuplicates = 0;
+  let totalConflicts = 0;
+  let totalStale = 0;
+  let totalDecayed = 0;
+
+  for (const r of results) {
+    console.log(`@${r.role}: ${r.scanned} files scanned, ${r.duplicatesMerged} duplicates merged, ${r.contradictionsFlagged} contradictions flagged, ${r.staleMarked} stale-marked, ${r.importanceDecayed} importance-decayed`);
+    totalScanned += r.scanned;
+    totalDuplicates += r.duplicatesMerged;
+    totalConflicts += r.contradictionsFlagged;
+    totalStale += r.staleMarked;
+    totalDecayed += r.importanceDecayed;
+  }
+
+  console.log(`\nTotal: ${totalScanned} files scanned, ${totalDuplicates} duplicates merged, ${totalConflicts} contradictions flagged, ${totalStale} stale-marked, ${totalDecayed} importance-decayed`);
 }

@@ -166,6 +166,9 @@ export function recordSpend(agentRole: string, issueKey: string, tokens: number,
     'INSERT INTO budget_log (agent_role, issue_key, tokens, cost_usd) VALUES (?, ?, ?, ?)'
   ).run(agentRole, issueKey, tokens, costUsd);
 
+  // Skip alert emissions when budget is disabled — CEO said stop the noise
+  if (isDisabled()) return;
+
   // Check thresholds and emit alerts
   const config = loadConfig();
   const todaySpend = getTodaySpend();

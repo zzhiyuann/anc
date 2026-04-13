@@ -1655,6 +1655,15 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
+    if (method === 'GET' && path === '/memory/health') {
+      const { getMemoryHealth } = await import('../core/memory-consolidation.js');
+      const { getConfig: getLinearConfig } = await import('../linear/types.js');
+      const config = getLinearConfig();
+      const report = getMemoryHealth(config.stateDir);
+      json(res, report);
+      return true;
+    }
+
     // No match
     return false;
   } catch (err) {
