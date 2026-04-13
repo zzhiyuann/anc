@@ -19,6 +19,7 @@ type StreamItem =
 const ACTIVITY_TYPES = [
   "task:created",
   "task:state-changed",
+  "task:updated",
   "task:renamed",
   "task:assigned",
   "task:dispatched",
@@ -39,6 +40,26 @@ function isActivity(type: string): boolean {
   return ACTIVITY_TYPES.some((t) => type === t || type.startsWith(`${t}.`));
 }
 
+/** Map task state names to Tailwind color classes for inline labels. */
+function stateColorClass(state: string): string {
+  switch (state) {
+    case "running":
+      return "text-status-active";
+    case "done":
+      return "text-status-completed";
+    case "failed":
+      return "text-status-failed";
+    case "review":
+      return "text-blue-400";
+    default:
+      return "text-muted-foreground";
+  }
+}
+
+function capitalizeState(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function describeEvent(e: TaskEvent): string {
   const p = (e.payload as Record<string, unknown> | null) ?? {};
   if (typeof p.preview === "string") return p.preview;
@@ -46,7 +67,20 @@ function describeEvent(e: TaskEvent): string {
   if (typeof p.detail === "string") return p.detail as string;
 
   if (e.type === "task:state-changed" && typeof p.to === "string") {
-    return `changed status to ${p.to}`;
+    // Plain-text fallback; rich rendering handled by describeEventNode
+    const from = typeof p.from === "string" ? p.from : "?";
+    return `changed status from ${capitalizeState(from)} → ${capitalizeState(p.to)}`;
+  }
+  if (e.type === "task:updated") {
+    const patch = (p.patch as Record<string, unknown> | undefined) ?? {};
+    const keys = Object.keys(patch);
+    if (keys.length === 1 && typeof patch[keys[0]] !== "undefined") {
+      const val = patch[keys[0]];
+      return typeof val === "string"
+        ? `changed ${keys[0]} to ${val}`
+        : `updated ${keys[0]}`;
+    }
+    return keys.length > 0 ? `updated ${keys.join(", ")}` : "updated task";
   }
   if (e.type === "task:renamed" && typeof p.to === "string") {
     return `renamed to "${p.to}"`;
@@ -61,6 +95,27 @@ function describeEvent(e: TaskEvent): string {
     return `dispatched ${p.role}`;
   }
   return e.type.replace(/^task:|^agent:/, "").replace(/-/g, " ");
+}
+
+/** Rich React node for state-changed events (colored from/to labels). */
+function describeEventNode(e: TaskEvent): React.ReactNode {
+  const p = (e.payload as Record<string, unknown> | null) ?? {};
+  if (e.type === "task:state-changed" && typeof p.to === "string") {
+    const from = typeof p.from === "string" ? p.from : "?";
+    return (
+      <>
+        changed status from{" "}
+        <span className={cn("font-medium", stateColorClass(from))}>
+          {capitalizeState(from)}
+        </span>
+        {" → "}
+        <span className={cn("font-medium", stateColorClass(p.to))}>
+          {capitalizeState(p.to)}
+        </span>
+      </>
+    );
+  }
+  return describeEvent(e);
 }
 
 function authorRole(author: string): string {
@@ -160,7 +215,11 @@ export function ActivityStream({ events, comments }: ActivityStreamProps) {
           );
         }
         const e = it.event;
-        const role = e.role ?? "system";
+        const p = (e.payload as Record<string, unknown> | null) ?? {};
+        // Prefer the `by` field in payload (state-changed / updated events),
+        // then fall back to event-level role.
+        const rawBy = typeof p.by === "string" ? p.by : null;
+        const role = rawBy ? authorRole(rawBy) : (e.role ?? "system");
         return (
           <li
             key={`e-${e.id}`}
@@ -181,7 +240,7 @@ export function ActivityStream({ events, comments }: ActivityStreamProps) {
             <span className={cn("font-medium", roleTextClass(role))}>
               {role}
             </span>
-            <span className="min-w-0 flex-1 truncate">{describeEvent(e)}</span>
+            <span className="min-w-0 flex-1 truncate">{describeEventNode(e)}</span>
             <span className="shrink-0 text-muted-foreground/70">
               {formatRelativeTime(e.createdAt)}
             </span>

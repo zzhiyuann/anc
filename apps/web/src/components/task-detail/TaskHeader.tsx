@@ -99,6 +99,22 @@ export function TaskHeader({
         </span>
         <span className="mx-1 text-muted-foreground/40">·</span>
         <span>{formatRelativeTime(task.createdAt)}</span>
+        {sessions.filter((s) => s.alive).length > 0 && (
+          <>
+            <span className="mx-1 text-muted-foreground/40">|</span>
+            {sessions
+              .filter((s) => s.alive)
+              .map((s, i) => (
+                <span key={s.tmuxSession ?? s.role} className="inline-flex items-center gap-1">
+                  {i > 0 && <span className="mx-0.5 text-muted-foreground/40">·</span>}
+                  <span className="size-1.5 rounded-full bg-status-active animate-pulse" />
+                  <span className="text-status-active">
+                    {s.role.charAt(0).toUpperCase() + s.role.slice(1)} working...
+                  </span>
+                </span>
+              ))}
+          </>
+        )}
         {task.linearIssueKey && (
           <>
             <span className="mx-1 text-muted-foreground/40">·</span>
