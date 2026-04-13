@@ -154,6 +154,34 @@ export const agents = {
     return request<MemoryList>(`/agents/${encodeURIComponent(role)}/memory`, { signal });
   },
 
+  async memoryRead(
+    role: string,
+    filename: string,
+    signal?: AbortSignal,
+  ): Promise<{ filename: string; body: string; mtime: number }> {
+    return request(`/agents/${encodeURIComponent(role)}/memory/${encodeURIComponent(filename)}`, { signal });
+  },
+
+  async memoryWrite(
+    role: string,
+    filename: string,
+    body: string,
+  ): Promise<{ ok: boolean }> {
+    return request(`/agents/${encodeURIComponent(role)}/memory/${encodeURIComponent(filename)}`, {
+      method: "PUT",
+      body: { body },
+    });
+  },
+
+  async memoryDelete(
+    role: string,
+    filename: string,
+  ): Promise<{ ok: boolean }> {
+    return request(`/agents/${encodeURIComponent(role)}/memory/${encodeURIComponent(filename)}`, {
+      method: "DELETE",
+    });
+  },
+
   // --- Custom roles (Wave C). Owned by Agent E; until shipped, calls 404. ---
   async createRole(input: {
     role: string;
@@ -645,8 +673,23 @@ export const queue = {
 // --- Events ---
 
 export const events = {
-  async list(limit = 50, signal?: AbortSignal): Promise<EventRow[]> {
-    const { events } = await request<{ events: EventRow[] }>(`/events?limit=${limit}`, {
+  async list(
+    limitOrFilters?: number | { role?: string; projectId?: string; since?: string; limit?: number },
+    signal?: AbortSignal,
+  ): Promise<EventRow[]> {
+    const params = new URLSearchParams();
+    if (typeof limitOrFilters === "number") {
+      params.set("limit", String(limitOrFilters));
+    } else if (limitOrFilters) {
+      if (limitOrFilters.limit) params.set("limit", String(limitOrFilters.limit));
+      if (limitOrFilters.role) params.set("role", limitOrFilters.role);
+      if (limitOrFilters.projectId) params.set("projectId", limitOrFilters.projectId);
+      if (limitOrFilters.since) params.set("since", limitOrFilters.since);
+    } else {
+      params.set("limit", "50");
+    }
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const { events } = await request<{ events: EventRow[] }>(`/events${qs}`, {
       signal,
     });
     return events;
@@ -770,9 +813,14 @@ const MOCK_DECISIONS: Decision[] = [
 ];
 
 export const pulse = {
-  async briefing(signal?: AbortSignal): Promise<DailyBriefing> {
+  async briefing(
+    opts?: { force?: boolean; signal?: AbortSignal } | AbortSignal,
+  ): Promise<DailyBriefing> {
+    const signal = opts instanceof AbortSignal ? opts : opts?.signal;
+    const force = opts instanceof AbortSignal ? false : opts?.force;
+    const qs = force ? "?force=1" : "";
     return withMockFallback(
-      () => request<DailyBriefing>("/pulse/briefing", { signal }),
+      () => request<DailyBriefing>(`/pulse/briefing${qs}`, { signal }),
       { ...MOCK_BRIEFING, generatedAt: Date.now() },
       "pulse.briefing()",
     );
@@ -817,6 +865,12 @@ export const pulse = {
       },
       "pulse.createObjective()",
     );
+  },
+
+  async deleteObjective(id: string): Promise<{ ok: boolean }> {
+    return request(`/pulse/objectives/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
   },
 
   async listDecisions(
@@ -909,6 +963,16 @@ export const config = {
   },
   async resetTodayBudget(): Promise<{ ok: true }> {
     return request<{ ok: true }>("/config/budget/reset", { method: "POST" });
+  },
+  async budgetSeries(
+    role: string,
+    days = 14,
+    signal?: AbortSignal,
+  ): Promise<{ role: string; days: Array<{ date: string; usd: number; tokens: number }> }> {
+    return request(
+      `/config/budget/series?role=${encodeURIComponent(role)}&days=${days}`,
+      { signal },
+    );
   },
 };
 

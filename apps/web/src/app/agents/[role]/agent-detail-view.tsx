@@ -137,15 +137,12 @@ export function AgentDetailView({
     let cancelled = false;
     (async () => {
       try {
-        const events = await api.events.list(500);
+        const since = new Date(Date.now() - ONE_WEEK_MS).toISOString();
+        const events = await api.events.list({ role, since, limit: 500 });
         if (cancelled) return;
-        const cutoff = Date.now() - ONE_WEEK_MS;
-        const count = events.filter((e: EventRow) => {
-          if (e.eventType !== "agent:completed") return false;
-          if (e.role !== role) return false;
-          const tsMs = new Date(e.createdAt.replace(" ", "T") + "Z").getTime();
-          return tsMs >= cutoff;
-        }).length;
+        const count = events.filter(
+          (e: EventRow) => e.eventType === "agent:completed",
+        ).length;
         setDoneThisWeek(count);
       } catch {
         /* ignore */

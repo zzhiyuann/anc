@@ -20,11 +20,13 @@ export function DailyBriefing({ refreshTick = 0 }: DailyBriefingProps) {
   // Map of task title -> task id, so wins/completions can deep-link.
   const [titleIndex, setTitleIndex] = useState<Map<string, string>>(new Map());
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchBriefing();
+      const res = force
+        ? await api.pulse.briefing({ force: true })
+        : await fetchBriefing();
       setData(res);
     } catch (err) {
       setData(null);
@@ -39,7 +41,7 @@ export function DailyBriefing({ refreshTick = 0 }: DailyBriefingProps) {
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(false);
   }, [load, refreshTick]);
 
   // Build a title -> taskId index from the recent task list so the
@@ -90,7 +92,7 @@ export function DailyBriefing({ refreshTick = 0 }: DailyBriefingProps) {
           </p>
         </div>
         <button
-          onClick={load}
+          onClick={() => load(true)}
           disabled={loading}
           className="rounded-md border border-border bg-secondary/50 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
         >
@@ -102,7 +104,7 @@ export function DailyBriefing({ refreshTick = 0 }: DailyBriefingProps) {
         <div className="flex items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/5 px-4 py-2 text-[12px] text-amber-300">
           <span>{error}</span>
           <button
-            onClick={load}
+            onClick={() => load(false)}
             className="rounded-md border border-amber-500/40 px-2 py-0.5 text-[11px] hover:bg-amber-500/10"
           >
             Retry

@@ -25,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { api, ApiError } from "@/lib/api";
 import type { KeyResult, Objective } from "@/lib/types";
 import {
   addKeyResultRaw,
@@ -200,12 +201,25 @@ export function OkrsCard() {
     }
   };
 
-  const archiveLocal = (id: string) => {
-    // Backend has no archive/delete endpoint yet — hide locally and warn.
-    setObjectives((prev) => prev.filter((o) => o.id !== id));
-    toast.message("Hidden locally", {
-      description: "Backend lacks DELETE /pulse/objectives/:id — local hide only.",
-    });
+  const archiveObjective = async (id: string) => {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm("Archive this objective? It will be soft-deleted.")
+    )
+      return;
+    // Optimistic remove from UI.
+    const prev = objectives;
+    setObjectives((cur) => cur.filter((o) => o.id !== id));
+    try {
+      await api.pulse.deleteObjective(id);
+      toast.success("Objective archived");
+    } catch (err) {
+      // Rollback on failure.
+      setObjectives(prev);
+      toast.error(
+        err instanceof ApiError ? err.message : "Failed to archive objective",
+      );
+    }
   };
 
   const totalKrs = useMemo(
@@ -307,7 +321,7 @@ export function OkrsCard() {
                     Add key result
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => archiveLocal(o.id)}
+                    onClick={() => archiveObjective(o.id)}
                     className="text-red-400 focus:text-red-300"
                   >
                     Archive

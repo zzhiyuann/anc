@@ -98,7 +98,7 @@ export function ProjectDetailView({
         const [list, agentList, evs] = await Promise.all([
           api.tasks.listByProject(project.id).catch(() => initialTasks),
           api.agents.list().catch(() => [] as AgentStatus[]),
-          api.events.list(200).catch(() => [] as EventRow[]),
+          api.events.list({ projectId: project.id, limit: 200 }).catch(() => [] as EventRow[]),
         ]);
         if (cancelled) return;
         setTasks(list);
@@ -127,7 +127,7 @@ export function ProjectDetailView({
       const [data, list, evs] = await Promise.all([
         api.projects.get(project.id),
         api.tasks.listByProject(project.id),
-        api.events.list(200),
+        api.events.list({ projectId: project.id, limit: 200 }),
       ]);
       setProject(data.project);
       setStats(data.stats);
@@ -148,8 +148,15 @@ export function ProjectDetailView({
     return set;
   }, [tasks]);
 
+  // Events are now server-filtered by projectId; use directly.
+  // Keep client-side fallback filter in case server returns unfiltered results.
   const projectEvents = useMemo(
-    () => events.filter((e) => e.issueKey && projectIssueKeys.has(e.issueKey)),
+    () =>
+      events.length > 0 && projectIssueKeys.size > 0
+        ? events.filter(
+            (e) => !e.issueKey || projectIssueKeys.has(e.issueKey),
+          )
+        : events,
     [events, projectIssueKeys],
   );
 

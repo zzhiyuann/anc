@@ -1,16 +1,11 @@
 "use client";
 
 /**
- * CostTab — current spend snapshot for a single agent role.
+ * CostTab — current spend snapshot + 14-day sparkline for a single agent role.
  *
- * Backend reality:
- *   - `GET /api/v1/config/budget` exposes `summary.perAgent[role].spent`
- *     (today's USD spend) + `.limit`. That's the only per-role cost surface
- *     today.
- *   - There is NO endpoint for daily breakdown / 14-day series / monthly
- *     totals. budget_log is only surfaced through the per-task aggregate
- *     in /tasks/:id, never by role + day. Documented as a backend gap; the
- *     14-day sparkline stays hidden until a /budget/series endpoint lands.
+ * Endpoints:
+ *   - GET /api/v1/config/budget        → today's spend + limit
+ *   - GET /api/v1/config/budget/series  → daily cost array
  */
 
 import { useEffect, useState } from "react";
@@ -26,12 +21,19 @@ interface RoleCostSummary {
   limit: number;
 }
 
+interface DayEntry {
+  date: string;
+  usd: number;
+  tokens: number;
+}
+
 export function CostTab({ role }: CostTabProps) {
   const [summary, setSummary] = useState<RoleCostSummary | null>(null);
   const [dailyTotal, setDailyTotal] = useState<{
     spent: number;
     limit: number;
   } | null>(null);
+  const [series, setSeries] = useState<DayEntry[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +43,10 @@ export function CostTab({ role }: CostTabProps) {
       setLoading(true);
       setError(null);
       try {
-        const cfg = await api.config.getBudget();
+        const [cfg, seriesRes] = await Promise.all([
+          api.config.getBudget(),
+          api.config.budgetSeries(role, 14).catch(() => null),
+        ]);
         if (cancelled) return;
         const per = cfg.summary.perAgent?.[role];
         setSummary(per ? { spent: per.spent, limit: per.limit } : null);
@@ -49,6 +54,9 @@ export function CostTab({ role }: CostTabProps) {
           spent: cfg.summary.today.spent,
           limit: cfg.summary.today.limit,
         });
+        if (seriesRes) {
+          setSeries(seriesRes.days);
+        }
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
       } finally {
@@ -64,7 +72,7 @@ export function CostTab({ role }: CostTabProps) {
     return (
       <div className="flex h-32 items-center justify-center text-[13px] text-muted-foreground">
         <Loader2 className="mr-2 size-4 animate-spin" />
-        Loading cost…
+        Loading cost...
       </div>
     );
   }
@@ -123,15 +131,93 @@ export function CostTab({ role }: CostTabProps) {
         </div>
       )}
 
-      {/* Backend gap notice */}
-      <div className="rounded-lg border border-dashed border-border p-4 text-[12px] text-muted-foreground">
-        <div className="mb-1 font-medium text-foreground/80">
-          14-day sparkline & daily breakdown
+      {/* 14-day sparkline */}
+      {series && series.length > 0 && (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            14-day cost trend
+          </div>
+          <div className="mt-3">
+            <Sparkline data={series.map((d) => d.usd)} />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>{series[0]?.date}</span>
+            <span>Total: ${series.reduce((s, d) => s + d.usd, 0).toFixed(2)}</span>
+            <span>{series[series.length - 1]?.date}</span>
+          </div>
+
+          {/* Daily breakdown table */}
+          <div className="mt-4">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <th className="pb-1.5 font-medium">Date</th>
+                  <th className="pb-1.5 text-right font-medium">USD</th>
+                  <th className="pb-1.5 text-right font-medium">Tokens</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {series.map((day) => (
+                  <tr key={day.date} className="text-foreground/90">
+                    <td className="py-1.5 font-mono">{day.date}</td>
+                    <td className="py-1.5 text-right font-mono">
+                      ${day.usd.toFixed(2)}
+                    </td>
+                    <td className="py-1.5 text-right font-mono text-muted-foreground">
+                      {day.tokens.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-        Not wired yet — backend has no per-role / per-day budget series
-        endpoint. Today&apos;s totals come from{" "}
-        <span className="font-mono">/api/v1/config/budget</span>.
-      </div>
+      )}
     </div>
+  );
+}
+
+/**
+ * Inline SVG sparkline — simple polyline.
+ */
+function Sparkline({ data }: { data: number[] }) {
+  const width = 400;
+  const height = 48;
+  const padding = 2;
+
+  const max = Math.max(...data, 0.001);
+  const points = data
+    .map((v, i) => {
+      const x = padding + (i / Math.max(data.length - 1, 1)) * (width - 2 * padding);
+      const y = height - padding - (v / max) * (height - 2 * padding);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  // Build the fill area (area under the line).
+  const firstX = padding;
+  const lastX = padding + ((data.length - 1) / Math.max(data.length - 1, 1)) * (width - 2 * padding);
+  const fillPoints = `${firstX},${height - padding} ${points} ${lastX},${height - padding}`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full"
+      preserveAspectRatio="none"
+      style={{ height: 48 }}
+    >
+      <polygon
+        points={fillPoints}
+        className="fill-primary/10"
+      />
+      <polyline
+        points={points}
+        fill="none"
+        className="stroke-primary"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

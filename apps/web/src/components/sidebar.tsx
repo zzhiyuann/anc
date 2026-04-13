@@ -189,6 +189,12 @@ export function Sidebar({ collapsed = false, onToggle, onOpenLegend }: SidebarPr
           binding="g i"
         />
         <Row
+          href="/tasks?assignee=ceo"
+          icon={<UserIcon />}
+          label="My issues"
+          collapsed={collapsed}
+        />
+        <Row
           href="/pulse"
           icon={<PulseIcon />}
           label="Dashboard"

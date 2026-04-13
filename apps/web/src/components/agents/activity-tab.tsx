@@ -3,9 +3,7 @@
 /**
  * ActivityTab — last 50 events attributed to this role.
  *
- * Backend reality: `GET /api/v1/events?limit=N` does not accept a `role`
- * filter, so we fetch a larger window and filter client-side. Documented as
- * a backend gap.
+ * Uses server-side `?role=<role>` filter on the events endpoint.
  */
 
 import { useEffect, useState } from "react";
@@ -19,7 +17,6 @@ interface ActivityTabProps {
 }
 
 const SHOW_LIMIT = 50;
-const FETCH_WINDOW = 500;
 
 export function ActivityTab({ role }: ActivityTabProps) {
   const [events, setEvents] = useState<EventRow[] | null>(null);
@@ -29,11 +26,8 @@ export function ActivityTab({ role }: ActivityTabProps) {
     let cancelled = false;
     (async () => {
       try {
-        const all = await api.events.list(FETCH_WINDOW);
+        const filtered = await api.events.list({ role, limit: SHOW_LIMIT });
         if (cancelled) return;
-        const filtered = all
-          .filter((e) => e.role === role)
-          .slice(0, SHOW_LIMIT);
         setEvents(filtered);
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
