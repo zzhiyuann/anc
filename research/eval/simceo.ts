@@ -77,7 +77,8 @@ export function claudePrint(prompt: string, maxTokens = 4096): string {
       `claude -p '${escapedPrompt}'`,
       {
         encoding: 'utf-8',
-        timeout: 120_000, // 2 min
+        timeout: 300_000, // 5 min for complex tasks
+        maxBuffer: 10 * 1024 * 1024,
         cwd: ANC_ROOT,
       }
     );
