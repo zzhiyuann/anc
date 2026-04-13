@@ -1,18 +1,18 @@
 {
   "repos": 5,
-  "streams": 0,
-  "total_tasks": 0,
+  "streams": 12,
+  "total_tasks": 198,
   "tasks_by_complexity": {
-    "low": 0,
-    "medium": 0,
-    "high": 0
+    "low": 29,
+    "medium": 64,
+    "high": 105
   },
   "tasks_by_repo": {
-    "astral-sh/ruff": 0,
-    "pydantic/pydantic": 0,
-    "fastapi/fastapi": 0,
-    "langchain-ai/langchain": 0,
-    "vercel/next.js": 0
+    "astral-sh/ruff": 43,
+    "pydantic/pydantic": 53,
+    "fastapi/fastapi": 64,
+    "langchain-ai/langchain": 23,
+    "vercel/next.js": 15
   },
-  "generated_at": "2026-04-13T14:26:16.584Z"
+  "generated_at": "2026-04-13T14:31:09.788Z"
 }
