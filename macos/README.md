@@ -1,14 +1,27 @@
 # ANC macOS Native App
 
-Native SwiftUI client for the ANC backend. Phase 1 scaffold — three-pane window, sidebar, tasks list, basic inspector, REST + WebSocket clients.
+Native SwiftUI client for the ANC backend. Full-featured three-pane window with Tasks, Projects, Members, Agents, Inbox, Pulse, and Settings views. REST + WebSocket real-time updates. No external Swift dependencies.
 
-## Build
+## Install
+
+1. Download `ANC.dmg`
+2. Open the DMG
+3. Drag ANC.app to Applications
+4. Launch ANC from Applications
+5. Make sure the ANC backend is running: `cd /path/to/anc && anc serve`
+6. The app connects to localhost:3849 automatically
+
+## Build from Source
 
 ```bash
 brew install xcodegen
 cd macos
 xcodegen generate
-xcodebuild -project ANC.xcodeproj -scheme ANC -configuration Debug -derivedDataPath build build
+xcodebuild -project ANC.xcodeproj -scheme ANC -configuration Release \
+  -derivedDataPath build \
+  CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+  build
+open build/Build/Products/Release/ANC.app
 ```
 
 If `xcodebuild` complains about a missing `CoreSimulator` plugin, run once:
@@ -17,13 +30,15 @@ If `xcodebuild` complains about a missing `CoreSimulator` plugin, run once:
 xcodebuild -runFirstLaunch
 ```
 
-## Run
+## Create DMG
 
 ```bash
-open macos/build/Build/Products/Debug/ANC.app
+mkdir -p build/dmg
+cp -R build/Build/Products/Release/ANC.app build/dmg/
+ln -s /Applications build/dmg/Applications
+hdiutil create -volname "ANC" -srcfolder build/dmg -ov -format UDZO build/ANC.dmg
+rm -rf build/dmg
 ```
-
-The app expects the ANC backend on `http://localhost:3849`. If the backend is down, the sidebar shows a red "Disconnected" indicator and the tasks pane shows a Retry button. The app still launches cleanly.
 
 ## Architecture
 
@@ -40,11 +55,4 @@ The app expects the ANC backend on `http://localhost:3849`. If the backend is do
 
 No external Swift dependencies — Foundation + SwiftUI + AppKit only.
 
-## Phase Roadmap
-
-1. **Phase 1 (this)** — Scaffold: window, sidebar, tasks list, API + WS clients.
-2. **Phase 2** — Tasks view: filtering, grouping, status changes, optimistic updates.
-3. **Phase 3** — Task detail: inspector with comments, events, sessions, attachments.
-4. **Phase 4** — Properties: assignee, labels, due date, project picker.
-5. **Phase 5** — Motion + polish: transitions, hover states, keyboard nav, command palette.
-6. **Phase 6** — Sign / notarize / DMG distribution.
+The app expects the ANC backend on `http://localhost:3849`. If the backend is down, the sidebar shows a red "Disconnected" indicator and the tasks pane shows a Retry button.
