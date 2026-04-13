@@ -23,6 +23,8 @@ struct SettingsView: View {
 
                     HStack {
                         Button {
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
                             saveURL()
                             testConnection()
                         } label: {
@@ -62,6 +64,72 @@ struct SettingsView: View {
                     Text("Status")
                 }
 
+                // Budget section
+                Section {
+                    if let budget = store.budgetConfig {
+                        if let summary = budget.summary, let today = summary.today {
+                            HStack {
+                                Text("Daily Limit")
+                                Spacer()
+                                Text(String(format: "$%.2f", today.limit))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            HStack {
+                                Text("Today's Spend")
+                                Spacer()
+                                Text(String(format: "$%.2f", today.spent))
+                                    .foregroundStyle(today.spent / max(today.limit, 0.01) > 0.9 ? .red : .secondary)
+                            }
+
+                            ProgressView(value: today.limit > 0 ? min(today.spent / today.limit, 1.0) : 0)
+                                .tint(today.spent / max(today.limit, 0.01) > 0.9 ? .red : Color.ancAccent)
+                        }
+
+                        if let summary = budget.summary, let perAgent = summary.perAgent, !perAgent.isEmpty {
+                            ForEach(Array(perAgent.keys.sorted()), id: \.self) { agentRole in
+                                if let agentBudget = perAgent[agentRole] {
+                                    HStack {
+                                        Text(agentRole)
+                                            .font(.subheadline)
+                                        Spacer()
+                                        Text(String(format: "$%.2f / $%.2f", agentBudget.spent, agentBudget.limit))
+                                            .font(.subheadline.monospacedDigit())
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { budget.disabled == true },
+                            set: { _ in
+                                let generator = UIImpactFeedbackGenerator(style: .medium)
+                                generator.impactOccurred()
+                                Task { await store.toggleUnlimitedMode() }
+                            }
+                        )) {
+                            HStack {
+                                Image(systemName: "infinity")
+                                    .foregroundStyle(.orange)
+                                Text("Unlimited Mode")
+                            }
+                        }
+                    } else {
+                        HStack {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Loading budget...")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Budget")
+                } footer: {
+                    Text("Unlimited mode disables all daily and per-agent spend limits.")
+                }
+
                 Section {
                     LabeledContent("App Version", value: "0.1.0")
                     LabeledContent("Platform", value: "iOS")
@@ -72,6 +140,9 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .onAppear {
                 serverURL = store.serverURL
+            }
+            .task {
+                await store.refreshBudgetConfig()
             }
         }
     }

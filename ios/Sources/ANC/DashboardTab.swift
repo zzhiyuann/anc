@@ -69,6 +69,44 @@ struct BriefingCard: View {
         DashboardCard(title: "Daily Briefing", icon: "sun.max.fill") {
             if let briefing = store.briefing {
                 VStack(alignment: .leading, spacing: 10) {
+                    // Yesterday shipped
+                    if !briefing.yesterdayCompletions.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Yesterday Shipped", systemImage: "checkmark.circle.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.blue)
+                            ForEach(briefing.yesterdayCompletions, id: \.self) { item in
+                                Text("- \(item)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    if !briefing.todayQueue.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Today's Queue", systemImage: "list.bullet")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.ancAccent)
+                            ForEach(briefing.todayQueue.prefix(5), id: \.self) { item in
+                                Text("- \(item)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    if let cost = briefing.costBurn {
+                        HStack {
+                            Label("Cost Burn", systemImage: "dollarsign.circle")
+                                .font(.caption.weight(.semibold))
+                            Spacer()
+                            Text(String(format: "$%.2f / $%.2f", cost.spentUsd, cost.budgetUsd))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
                     if !briefing.wins.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
                             Label("Wins", systemImage: "trophy.fill")
@@ -94,35 +132,16 @@ struct BriefingCard: View {
                             }
                         }
                     }
-
-                    if !briefing.todayQueue.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Label("Today's Queue", systemImage: "list.bullet")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Color.ancAccent)
-                            ForEach(briefing.todayQueue.prefix(5), id: \.self) { item in
-                                Text("- \(item)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
-                    if let cost = briefing.costBurn {
-                        HStack {
-                            Label("Cost", systemImage: "dollarsign.circle")
-                                .font(.caption.weight(.semibold))
-                            Spacer()
-                            Text(String(format: "$%.2f / $%.2f", cost.spentUsd, cost.budgetUsd))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
                 }
             } else {
-                Text("Loading briefing...")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(spacing: 8) {
+                    ProgressView()
+                    Text("Loading briefing...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
             }
         }
     }
@@ -182,21 +201,63 @@ struct OKRsCard: View {
             DashboardCard(title: "OKRs", icon: "target") {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(store.objectives) { obj in
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 6) {
                             Text(obj.title)
                                 .font(.subheadline.weight(.medium))
                             ForEach(obj.keyResults) { kr in
-                                HStack {
-                                    Text(kr.title)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                    Spacer()
-                                    ProgressView(value: kr.target > 0 ? min(kr.current / kr.target, 1.0) : 0)
-                                        .frame(width: 60)
-                                    Text(String(format: "%.0f%%", kr.target > 0 ? (kr.current / kr.target * 100) : 0))
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                                VStack(spacing: 4) {
+                                    HStack {
+                                        Text(kr.title)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                        Spacer()
+                                    }
+                                    HStack(spacing: 8) {
+                                        Button {
+                                            let generator = UIImpactFeedbackGenerator(style: .light)
+                                            generator.impactOccurred()
+                                            let newVal = max(0, kr.current - 1)
+                                            Task {
+                                                await store.updateKeyResult(
+                                                    objectiveId: obj.id,
+                                                    krId: kr.id,
+                                                    current: newVal
+                                                )
+                                            }
+                                        } label: {
+                                            Image(systemName: "minus.circle.fill")
+                                                .font(.body)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .buttonStyle(.plain)
+
+                                        ProgressView(value: kr.target > 0 ? min(kr.current / kr.target, 1.0) : 0)
+                                            .frame(maxWidth: .infinity)
+
+                                        Button {
+                                            let generator = UIImpactFeedbackGenerator(style: .light)
+                                            generator.impactOccurred()
+                                            let newVal = min(kr.target, kr.current + 1)
+                                            Task {
+                                                await store.updateKeyResult(
+                                                    objectiveId: obj.id,
+                                                    krId: kr.id,
+                                                    current: newVal
+                                                )
+                                            }
+                                        } label: {
+                                            Image(systemName: "plus.circle.fill")
+                                                .font(.body)
+                                                .foregroundStyle(Color.ancAccent)
+                                        }
+                                        .buttonStyle(.plain)
+
+                                        Text(String(format: "%.0f%%", kr.target > 0 ? (kr.current / kr.target * 100) : 0))
+                                            .font(.caption2.monospacedDigit())
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 36, alignment: .trailing)
+                                    }
                                 }
                             }
                         }
@@ -244,6 +305,7 @@ struct BudgetCard: View {
 
 struct QuickActionsCard: View {
     @EnvironmentObject var store: AppStore
+    @State private var showKillSwitchAlert = false
 
     var body: some View {
         DashboardCard(title: "Quick Actions", icon: "bolt.fill") {
@@ -251,11 +313,17 @@ struct QuickActionsCard: View {
                 Button {
                     let generator = UIImpactFeedbackGenerator(style: .heavy)
                     generator.impactOccurred()
-                    Task { await store.toggleKillSwitch() }
+                    if store.killSwitchPaused {
+                        // Resume without confirmation
+                        Task { await store.toggleKillSwitch() }
+                    } else {
+                        // Pause requires confirmation
+                        showKillSwitchAlert = true
+                    }
                 } label: {
                     HStack {
                         Image(systemName: store.killSwitchPaused ? "play.circle.fill" : "stop.circle.fill")
-                        Text(store.killSwitchPaused ? "Resume All Agents" : "Kill Switch — Pause All")
+                        Text(store.killSwitchPaused ? "Resume All Agents" : "Kill Switch -- Pause All")
                     }
                     .font(.subheadline.weight(.medium))
                     .frame(maxWidth: .infinity)
@@ -264,8 +332,18 @@ struct QuickActionsCard: View {
                     .foregroundStyle(store.killSwitchPaused ? .green : .red)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
+                .alert("Pause All Agents?", isPresented: $showKillSwitchAlert) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Pause All", role: .destructive) {
+                        Task { await store.toggleKillSwitch() }
+                    }
+                } message: {
+                    Text("This will immediately pause all running agent sessions. You can resume them later.")
+                }
 
                 Button {
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
                     store.showCreateTask = true
                 } label: {
                     HStack {

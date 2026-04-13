@@ -346,6 +346,42 @@ final class AppStore: ObservableObject {
         }
     }
 
+    // MARK: - Dispatch
+
+    func dispatchToAgent(role: String, taskId: String?, message: String?) async {
+        let payload = DispatchPayload(role: role, taskId: taskId, message: message)
+        do {
+            let _: OkResponse = try await api.post("dispatch", body: payload)
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    // MARK: - Key Results
+
+    func updateKeyResult(objectiveId: String, krId: String, current: Double) async {
+        let payload = PatchKeyResultPayload(current: current)
+        do {
+            let _: OkResponse = try await api.patch("pulse/objectives/\(objectiveId)/key-results/\(krId)", body: payload)
+            await refreshObjectives()
+        } catch {
+            // non-fatal
+        }
+    }
+
+    // MARK: - Budget
+
+    func toggleUnlimitedMode() async {
+        let isCurrentlyDisabled = budgetConfig?.disabled == true
+        let payload = ToggleBudgetPayload(disabled: !isCurrentlyDisabled)
+        do {
+            let _: OkResponse = try await api.patch("config/budget", body: payload)
+            await refreshBudgetConfig()
+        } catch {
+            self.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
     func testConnection() async -> Bool {
         return await api.testConnection()
     }

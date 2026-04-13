@@ -265,9 +265,25 @@ struct TaskDetailView: View {
     @EnvironmentObject var store: AppStore
     let taskId: String
     @State private var commentText = ""
+    @State private var isEditingTitle = false
+    @State private var editedTitle = ""
+    @State private var isLoading = false
 
     private var detail: TaskDetailResponse? { store.selectedTaskDetail }
     private var task: ANCTask? { detail?.task ?? store.tasks.first { $0.id == taskId } }
+
+    // Interleaved activity: comments + events sorted by time
+    private var activityItems: [ActivityItem] {
+        guard let detail else { return [] }
+        var items: [ActivityItem] = []
+        for comment in detail.comments {
+            items.append(.comment(comment))
+        }
+        for event in detail.events {
+            items.append(.event(event))
+        }
+        return items.sorted { $0.timestamp < $1.timestamp }
+    }
 
     var body: some View {
         Group {
@@ -276,8 +292,39 @@ struct TaskDetailView: View {
                     // Header
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(task.title)
-                                .font(.title2.weight(.semibold))
+                            if isEditingTitle {
+                                HStack {
+                                    TextField("Title", text: $editedTitle)
+                                        .font(.title2.weight(.semibold))
+                                        .textFieldStyle(.roundedBorder)
+                                    Button {
+                                        let generator = UIImpactFeedbackGenerator(style: .light)
+                                        generator.impactOccurred()
+                                        let trimmed = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                                        guard !trimmed.isEmpty else { return }
+                                        isEditingTitle = false
+                                        Task {
+                                            await store.updateTask(id: taskId, patch: PatchTaskPayload(title: trimmed))
+                                        }
+                                    } label: {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(Color.ancAccent)
+                                    }
+                                    Button {
+                                        isEditingTitle = false
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            } else {
+                                Text(task.title)
+                                    .font(.title2.weight(.semibold))
+                                    .onTapGesture {
+                                        editedTitle = task.title
+                                        isEditingTitle = true
+                                    }
+                            }
 
                             HStack(spacing: 12) {
                                 StatusBadge(state: task.state)
@@ -320,9 +367,9 @@ struct TaskDetailView: View {
                         }
                     }
 
-                    // Children
+                    // Children (sub-issues)
                     if let detail, !detail.children.isEmpty {
-                        Section("Sub-tasks") {
+                        Section("Sub-issues") {
                             ForEach(detail.children) { child in
                                 NavigationLink(value: child.id) {
                                     HStack {
@@ -331,81 +378,17 @@ struct TaskDetailView: View {
                                             .frame(width: 8, height: 8)
                                         Text(child.title)
                                             .lineLimit(1)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Activity
-                    if let detail, !detail.events.isEmpty {
-                        Section("Activity") {
-                            ForEach(detail.events.prefix(10)) { event in
-                                HStack {
-                                    Image(systemName: "bolt.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(Color.ancMuted)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(event.type)
-                                            .font(.subheadline)
-                                        if let role = event.role {
-                                            Text(role)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    Spacer()
-                                    Text(formatTimestamp(event.createdAt))
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-
-                    // Comments
-                    if let detail {
-                        Section("Comments") {
-                            ForEach(detail.comments) { comment in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Text(comment.author)
-                                            .font(.subheadline.weight(.medium))
                                         Spacer()
-                                        Text(formatTimestamp(comment.createdAt))
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
+                                        StatusBadge(state: child.state)
                                     }
-                                    Text(comment.body)
-                                        .font(.body)
                                 }
-                                .padding(.vertical, 2)
-                            }
-
-                            // Comment input
-                            HStack {
-                                TextField("Add comment...", text: $commentText, axis: .vertical)
-                                    .textFieldStyle(.roundedBorder)
-                                Button {
-                                    let text = commentText.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    guard !text.isEmpty else { return }
-                                    let generator = UIImpactFeedbackGenerator(style: .light)
-                                    generator.impactOccurred()
-                                    Task {
-                                        await store.postComment(taskId: taskId, body: text)
-                                        commentText = ""
-                                    }
-                                } label: {
-                                    Image(systemName: "paperplane.fill")
-                                }
-                                .disabled(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             }
                         }
                     }
 
-                    // Attachments
+                    // Resources / Attachments
                     if let detail, !detail.attachments.isEmpty {
-                        Section("Attachments") {
+                        Section("Resources") {
                             ForEach(detail.attachments) { att in
                                 HStack {
                                     Image(systemName: iconForAttachment(att.kind))
@@ -421,9 +404,100 @@ struct TaskDetailView: View {
                             }
                         }
                     }
+
+                    // Activity stream (comments + events interleaved)
+                    if let detail {
+                        Section("Activity") {
+                            if activityItems.isEmpty && detail.comments.isEmpty && detail.events.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "bubble.left.and.bubble.right")
+                                            .font(.title3)
+                                            .foregroundStyle(.secondary)
+                                        Text("No activity yet")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.vertical, 8)
+                            } else {
+                                ForEach(Array(activityItems.enumerated()), id: \.offset) { _, item in
+                                    switch item {
+                                    case .comment(let comment):
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            HStack {
+                                                Image(systemName: "bubble.left.fill")
+                                                    .font(.caption)
+                                                    .foregroundStyle(Color.ancAccent)
+                                                Text(comment.author)
+                                                    .font(.subheadline.weight(.medium))
+                                                Spacer()
+                                                Text(formatTimestamp(comment.createdAt))
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                            Text(comment.body)
+                                                .font(.body)
+                                        }
+                                        .padding(.vertical, 2)
+
+                                    case .event(let event):
+                                        HStack {
+                                            Image(systemName: "bolt.fill")
+                                                .font(.caption)
+                                                .foregroundStyle(Color.ancMuted)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(event.type)
+                                                    .font(.subheadline)
+                                                if let role = event.role {
+                                                    Text(role)
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            }
+                                            Spacer()
+                                            Text(formatTimestamp(event.createdAt))
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Comment composer
+                            HStack {
+                                TextField("Add comment...", text: $commentText, axis: .vertical)
+                                    .textFieldStyle(.roundedBorder)
+                                Button {
+                                    let text = commentText.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    guard !text.isEmpty else { return }
+                                    let generator = UIImpactFeedbackGenerator(style: .light)
+                                    generator.impactOccurred()
+                                    Task {
+                                        await store.postComment(taskId: taskId, body: text)
+                                        commentText = ""
+                                    }
+                                } label: {
+                                    Image(systemName: "paperplane.fill")
+                                        .foregroundStyle(
+                                            commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                            ? .secondary : Color.ancAccent
+                                        )
+                                }
+                                .disabled(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                        }
+                    }
                 }
             } else {
-                ProgressView("Loading...")
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("Loading task...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .navigationTitle(task?.title ?? "Task")
@@ -461,6 +535,20 @@ struct TaskDetailView: View {
     }
 }
 
+// MARK: - Activity Item (interleaved comments + events)
+
+enum ActivityItem {
+    case comment(TaskComment)
+    case event(TaskEvent)
+
+    var timestamp: Double {
+        switch self {
+        case .comment(let c): return c.createdAt
+        case .event(let e): return e.createdAt
+        }
+    }
+}
+
 // MARK: - Status Badge
 
 struct StatusBadge: View {
@@ -486,6 +574,7 @@ struct CreateTaskSheet: View {
     @State private var description = ""
     @State private var assignee = ""
     @State private var priority = 3
+    @State private var projectId = ""
 
     var body: some View {
         NavigationStack {
@@ -511,6 +600,15 @@ struct CreateTaskSheet: View {
                             }
                         }
                     }
+
+                    if !store.projects.isEmpty {
+                        Picker("Project", selection: $projectId) {
+                            Text("None").tag("")
+                            ForEach(store.projects) { project in
+                                Text(project.name).tag(project.id)
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("New Task")
@@ -529,7 +627,7 @@ struct CreateTaskSheet: View {
                                 description: description.isEmpty ? nil : description,
                                 assignee: assignee.isEmpty ? nil : assignee,
                                 priority: priority,
-                                projectId: nil
+                                projectId: projectId.isEmpty ? nil : projectId
                             )
                             dismiss()
                         }

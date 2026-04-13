@@ -1004,6 +1004,14 @@ struct PatchReviewPayload: Encodable {
     let roles: [String: String]?
 }
 
+struct PatchKeyResultPayload: Encodable {
+    let current: Double
+}
+
+struct ToggleBudgetPayload: Encodable {
+    let disabled: Bool
+}
+
 // MARK: - Dispatch Payload
 
 struct DispatchPayload: Encodable {

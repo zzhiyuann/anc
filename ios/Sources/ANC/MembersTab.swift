@@ -85,40 +85,56 @@ struct AgentDetailView: View {
     @EnvironmentObject var store: AppStore
     let role: String
     @State private var selectedTab = 0
+    @State private var showDispatchSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
             // Tab picker
             Picker("Section", selection: $selectedTab) {
-                Text("Info").tag(0)
-                Text("Sessions").tag(1)
-                Text("Persona").tag(2)
-                Text("Memory").tag(3)
+                Text("Persona").tag(0)
+                Text("Terminal").tag(1)
+                Text("Memory").tag(2)
+                Text("Sessions").tag(3)
             }
             .pickerStyle(.segmented)
             .padding()
 
             switch selectedTab {
             case 0:
-                AgentInfoSection(role: role)
-            case 1:
-                AgentSessionsSection(role: role)
-            case 2:
                 AgentPersonaSection(role: role)
-            case 3:
+            case 1:
+                AgentTerminalSection(role: role)
+            case 2:
                 AgentMemorySection(role: role)
+            case 3:
+                AgentSessionsSection(role: role)
             default:
                 EmptyView()
             }
         }
         .navigationTitle(store.agentDetail?.name ?? role)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+                    showDispatchSheet = true
+                } label: {
+                    Label("Dispatch", systemImage: "paperplane.fill")
+                }
+            }
+        }
+        .sheet(isPresented: $showDispatchSheet) {
+            DispatchTaskSheet(role: role)
+        }
         .task {
             store.selectedAgentRole = role
             async let d: () = store.fetchAgentDetail(role)
             async let p: () = store.fetchAgentPersona(role)
+            async let o: () = store.fetchAgentOutputs(role)
             async let m: () = store.fetchAgentMemoryList(role)
-            _ = await (d, p, m)
+            _ = await (d, p, o, m)
         }
     }
 }
@@ -264,6 +280,131 @@ struct AgentMemorySection: View {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { selectedFile = nil }
                     }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Agent Terminal Section
+
+struct AgentTerminalSection: View {
+    @EnvironmentObject var store: AppStore
+    let role: String
+
+    var body: some View {
+        ScrollView {
+            if store.agentOutputs.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "terminal")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                    Text("No Output")
+                        .font(.headline)
+                    Text("This agent has no terminal output.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    ForEach(store.agentOutputs) { output in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(output.issueKey)
+                                    .font(.caption.monospaced().weight(.semibold))
+                                    .foregroundStyle(Color.ancAccent)
+                                Spacer()
+                                if let tmux = output.tmuxSession {
+                                    Text(tmux)
+                                        .font(.caption2.monospaced())
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Text(output.output)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                                .background(Color.black.opacity(0.05))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                    }
+                }
+                .padding()
+            }
+        }
+        .refreshable {
+            await store.fetchAgentOutputs(role)
+        }
+    }
+}
+
+// MARK: - Dispatch Task Sheet
+
+struct DispatchTaskSheet: View {
+    @EnvironmentObject var store: AppStore
+    @Environment(\.dismiss) private var dismiss
+    let role: String
+    @State private var selectedTaskId: String = ""
+    @State private var message: String = ""
+    @State private var isDispatching = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    LabeledContent("Agent", value: role)
+                }
+
+                Section {
+                    if !store.tasks.isEmpty {
+                        Picker("Task", selection: $selectedTaskId) {
+                            Text("None (new session)").tag("")
+                            ForEach(store.tasks.filter { $0.state == .todo || $0.state == .running }) { task in
+                                Text(task.title).tag(task.id)
+                            }
+                        }
+                    }
+
+                    TextField("Message (optional)", text: $message, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+
+                Section {
+                    Button {
+                        let generator = UIImpactFeedbackGenerator(style: .heavy)
+                        generator.impactOccurred()
+                        isDispatching = true
+                        Task {
+                            await store.dispatchToAgent(
+                                role: role,
+                                taskId: selectedTaskId.isEmpty ? nil : selectedTaskId,
+                                message: message.isEmpty ? nil : message
+                            )
+                            isDispatching = false
+                            dismiss()
+                        }
+                    } label: {
+                        HStack {
+                            if isDispatching {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                            Text("Dispatch")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .disabled(isDispatching)
+                }
+            }
+            .navigationTitle("Dispatch Task")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
                 }
             }
         }

@@ -130,6 +130,7 @@ struct NotificationRowView: View {
 // MARK: - Notification Detail Sheet
 
 struct NotificationDetailSheet: View {
+    @EnvironmentObject var store: AppStore
     let notification: ANCNotification
     @Environment(\.dismiss) private var dismiss
 
@@ -153,15 +154,52 @@ struct NotificationDetailSheet: View {
                     LabeledContent("Kind", value: notification.kind)
                     LabeledContent("Severity", value: notification.severity)
                     if let taskId = notification.taskId {
-                        LabeledContent("Task", value: taskId)
+                        NavigationLink(value: taskId) {
+                            HStack {
+                                Text("Linked Task")
+                                Spacer()
+                                Text(taskId)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                     LabeledContent("Created") {
                         Text(Date(timeIntervalSince1970: notification.createdAt), style: .relative)
                     }
                 }
+
+                Section {
+                    HStack(spacing: 16) {
+                        if notification.readAt == nil {
+                            Button {
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.impactOccurred()
+                                Task { await store.markNotificationRead(notification.id) }
+                            } label: {
+                                Label("Mark Read", systemImage: "envelope.open")
+                            }
+                        }
+
+                        Button {
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
+                            Task {
+                                await store.archiveNotification(notification.id)
+                                dismiss()
+                            }
+                        } label: {
+                            Label("Archive", systemImage: "archivebox")
+                        }
+                        .foregroundStyle(.orange)
+                    }
+                }
             }
             .navigationTitle("Notification")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: String.self) { taskId in
+                TaskDetailView(taskId: taskId)
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
