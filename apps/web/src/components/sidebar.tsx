@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 interface SidebarProps {
   collapsed?: boolean;
   onToggle?: () => void;
+  onOpenLegend?: () => void;
 }
 
 interface RowProps {
@@ -84,7 +85,7 @@ function SectionHeader({
   );
 }
 
-export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed = false, onToggle, onOpenLegend }: SidebarProps) {
   const pathname = usePathname();
   const [unread, setUnread] = useState(0);
 
@@ -156,12 +157,11 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         collapsed ? "w-14" : "w-60",
       )}
     >
-      {/* Workspace switcher */}
+      {/* Workspace label (single workspace, non-interactive) */}
       <div className="flex h-12 shrink-0 items-center gap-2 px-2 pt-2">
-        <button
-          type="button"
+        <div
           className={cn(
-            "flex h-9 w-full items-center gap-2 rounded-lg px-1.5 text-left transition-colors hover:bg-sidebar-accent/70",
+            "flex h-9 w-full items-center gap-2 rounded-lg px-1.5",
             collapsed && "justify-center px-0",
           )}
         >
@@ -169,14 +169,11 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             A
           </span>
           {!collapsed && (
-            <>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-sidebar-foreground">
-                ANC
-              </span>
-              <ChevronIcon className="size-3 text-sidebar-foreground/50" />
-            </>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-sidebar-foreground">
+              ANC
+            </span>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Scrollable nav */}
@@ -190,18 +187,6 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           collapsed={collapsed}
           badge={unread}
           binding="g i"
-        />
-        <Row
-          href="/inbox?filter=reviews"
-          icon={<ReviewIcon />}
-          label="Reviews"
-          collapsed={collapsed}
-        />
-        <Row
-          href="/tasks?assignee=ceo"
-          icon={<UserIcon />}
-          label="My issues"
-          collapsed={collapsed}
         />
         <Row
           href="/pulse"
@@ -235,13 +220,6 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           binding="g m"
         />
         <Row
-          href="/views"
-          icon={<ViewsIcon />}
-          label="Views"
-          active={isActive("/views")}
-          collapsed={collapsed}
-        />
-        <Row
           href="/settings"
           icon={<SettingsIcon />}
           label="Settings"
@@ -268,10 +246,12 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             <path d="M10 4l-4 4 4 4" />
           </svg>
         </button>
-        {!collapsed && (
+        {!collapsed && onOpenLegend && (
           <button
             type="button"
-            aria-label="Help"
+            onClick={onOpenLegend}
+            aria-label="Keyboard shortcuts"
+            title="Keyboard shortcuts (?)"
             className="flex size-6 items-center justify-center rounded text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
           >
             <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">

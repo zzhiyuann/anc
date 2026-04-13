@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./inbox/notification-bell";
 import { ThemeToggle } from "./theme-toggle";
+import { tasks as tasksApi } from "@/lib/api";
 import type { WsMessage } from "@/lib/types";
 
 interface HeaderProps {
@@ -20,7 +21,12 @@ interface Crumb {
   href?: string;
 }
 
-function buildCrumbs(pathname: string): Crumb[] {
+/** UUIDv4 / cuid-ish — anything longer than 16 chars with dashes. */
+function looksLikeId(seg: string): boolean {
+  return seg.length > 16 || /^[0-9a-f-]{8,}$/i.test(seg);
+}
+
+function buildCrumbs(pathname: string, taskTitleOverride: string | null): Crumb[] {
   if (!pathname || pathname === "/") return [{ label: "Dashboard" }];
   const parts = pathname.split("/").filter(Boolean);
   const crumbs: Crumb[] = [];
@@ -29,13 +35,16 @@ function buildCrumbs(pathname: string): Crumb[] {
     const seg = parts[i];
     acc += "/" + seg;
     const isLast = i === parts.length - 1;
-    // Capitalize known sections
-    const label =
-      i === 0
-        ? seg.charAt(0).toUpperCase() + seg.slice(1)
-        : seg.length > 16
-          ? seg.slice(0, 14) + "…"
-          : seg;
+    let label: string;
+    if (i === 0) {
+      label = seg.charAt(0).toUpperCase() + seg.slice(1);
+    } else if (looksLikeId(seg) && taskTitleOverride) {
+      label = taskTitleOverride;
+    } else if (seg.length > 28) {
+      label = seg.slice(0, 26) + "…";
+    } else {
+      label = seg;
+    }
     crumbs.push({ label, href: isLast ? undefined : acc });
   }
   return crumbs;
@@ -48,8 +57,46 @@ export function Header({
   lastMessage,
 }: HeaderProps) {
   const pathname = usePathname() || "/";
-  const crumbs = useMemo(() => buildCrumbs(pathname), [pathname]);
+  const searchParams = useSearchParams();
   const searchRef = useRef<HTMLInputElement>(null);
+  const [taskTitle, setTaskTitle] = useState<string | null>(null);
+
+  // Resolve a task title for the breadcrumb when we're on /tasks/[id] or
+  // /tasks?task=<id>. Falls back silently if the lookup fails.
+  const taskIdForCrumb = useMemo(() => {
+    if (pathname.startsWith("/tasks/")) {
+      const rest = pathname.slice("/tasks/".length).split("/")[0];
+      return rest || null;
+    }
+    if (pathname === "/tasks") {
+      return searchParams?.get("task") ?? null;
+    }
+    return null;
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (!taskIdForCrumb) {
+      setTaskTitle(null);
+      return;
+    }
+    let aborted = false;
+    tasksApi
+      .getFull(taskIdForCrumb)
+      .then((full) => {
+        if (!aborted) setTaskTitle(full.task?.title ?? null);
+      })
+      .catch(() => {
+        if (!aborted) setTaskTitle(null);
+      });
+    return () => {
+      aborted = true;
+    };
+  }, [taskIdForCrumb]);
+
+  const crumbs = useMemo(
+    () => buildCrumbs(pathname, taskTitle),
+    [pathname, taskTitle],
+  );
 
   // `/` focuses search box
   useEffect(() => {

@@ -268,13 +268,14 @@ export function MentionComposer({
                   >
                     <span
                       className={cn(
-                        "flex size-5 items-center justify-center rounded-full text-[10px] font-semibold",
+                        "flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
                         roleAvatarClass(p),
                       )}
+                      aria-hidden
                     >
                       {p.charAt(0).toUpperCase()}
                     </span>
-                    <span className="capitalize">{p}</span>
+                    <span className="truncate capitalize">{p}</span>
                   </button>
                 </li>
               ))}
