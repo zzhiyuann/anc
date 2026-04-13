@@ -4,6 +4,9 @@ import Combine
 
 @MainActor
 final class AppStore: ObservableObject {
+    @Published var uiScale: Double = UserDefaults.standard.double(forKey: "uiScale") == 0 ? 1.0 : UserDefaults.standard.double(forKey: "uiScale") {
+        didSet { UserDefaults.standard.set(uiScale, forKey: "uiScale") }
+    }
     @Published var connected: Bool = false
     @Published var lastError: String? = nil
     @Published var isLoading: Bool = false

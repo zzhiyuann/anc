@@ -37,6 +37,11 @@ struct MainView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .scaleEffect(store.uiScale)
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: .infinity
+        )
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 // Leading: sidebar toggle is automatic via SidebarCommands

@@ -67,6 +67,24 @@ struct ANCApp: App {
                 .keyboardShortcut(",", modifiers: .command)
             }
 
+            // Zoom controls
+            CommandGroup(after: .toolbar) {
+                Button("Zoom In") {
+                    store.uiScale = min(store.uiScale + 0.1, 2.0)
+                }
+                .keyboardShortcut("+", modifiers: .command)
+
+                Button("Zoom Out") {
+                    store.uiScale = max(store.uiScale - 0.1, 0.5)
+                }
+                .keyboardShortcut("-", modifiers: .command)
+
+                Button("Reset Zoom") {
+                    store.uiScale = 1.0
+                }
+                .keyboardShortcut("0", modifiers: .command)
+            }
+
             // Go menu
             CommandMenu("Go") {
                 Button("Search...") {
