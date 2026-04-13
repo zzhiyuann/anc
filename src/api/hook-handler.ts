@@ -39,6 +39,7 @@ import { bus } from '../bus.js';
 import { createLogger } from '../core/logger.js';
 import { recordSpend } from '../core/budget.js';
 import { computeCost, totalTokens, type TokenUsage } from '../core/pricing.js';
+import { addTaskComment } from '../core/tasks.js';
 
 const log = createLogger('hook');
 
@@ -132,6 +133,22 @@ export function processHookEvent(
       ingestSessionCost(taskId, role, event);
     } catch (err) {
       log.warn(`cost ingestion failed for ${taskId}: ${(err as Error).message}`);
+    }
+  }
+
+  // Agent reply auto-comment: when a Stop event carries a meaningful
+  // last_assistant_message (the text the agent just said), post it as a
+  // task comment so the CEO sees the response in the Activity stream.
+  //
+  // Filters:
+  //   - Only on Stop events (SessionEnd is handled by the lifecycle auto-comment agent)
+  //   - stop_hook_active must be false (true = mid-tool-call, agent hasn't paused yet)
+  //   - last_assistant_message must be a non-empty string
+  if (event.hook_event_name === 'Stop') {
+    try {
+      maybePostAgentReply(taskId, role, event);
+    } catch (err) {
+      log.warn(`agent reply comment failed for ${taskId}: ${(err as Error).message}`);
     }
   }
 
@@ -350,6 +367,42 @@ function truncate(s: string, max = 100): string {
   return s.slice(0, max - 1) + '…';
 }
 
+// --- Agent reply auto-comment ---
+
+/**
+ * Post the agent's last assistant message as a task comment when the agent
+ * pauses (Stop with stop_hook_active=false). This makes the agent's response
+ * visible in the dashboard Activity stream.
+ *
+ * Skips when:
+ *   - stop_hook_active is true (mid-tool-call, not a real pause)
+ *   - last_assistant_message is missing/empty
+ */
+export function maybePostAgentReply(
+  taskId: string,
+  role: string,
+  event: ClaudeHookEvent,
+): boolean {
+  // stop_hook_active=true means the agent is still mid-turn (tool call pending).
+  // We only want to post when the agent has actually paused.
+  const stopHookActive = (event as { stop_hook_active?: boolean }).stop_hook_active;
+  if (stopHookActive === true) return false;
+
+  const lastMsg = (event as { last_assistant_message?: unknown }).last_assistant_message;
+  if (!lastMsg || typeof lastMsg !== 'string') return false;
+
+  const trimmed = lastMsg.trim();
+  if (trimmed.length === 0) return false;
+
+  const author = `agent:${role}`;
+  const commentId = addTaskComment(taskId, author, trimmed);
+  if (commentId != null) {
+    log.info(`posted agent reply comment (${author}) on task ${taskId}, ${trimmed.length} chars`);
+    return true;
+  }
+  return false;
+}
+
 // --- Auth token management ---
 
 /**
@@ -384,4 +437,4 @@ export function ensureHookToken(): string {
 }
 
 /** @internal exported for testing */
-export const _internals = { SPILL_DIR, INLINE_MAX_BYTES };
+export const _internals = { SPILL_DIR, INLINE_MAX_BYTES, maybePostAgentReply };
