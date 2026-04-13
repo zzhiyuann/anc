@@ -175,6 +175,14 @@ struct TaskListView: View {
         .onDeleteCommand {
             deleteSelected()
         }
+        .onKeyPress(.upArrow) {
+            navigateTask(direction: -1)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            navigateTask(direction: 1)
+            return .handled
+        }
     }
 
     // MARK: - Filter Menu
@@ -559,6 +567,18 @@ struct TaskListView: View {
         if set.contains(value) { set.remove(value) } else { set.insert(value) }
     }
 
+    private func navigateTask(direction: Int) {
+        let allTasks = sortedTasks
+        guard !allTasks.isEmpty else { return }
+        if let current = store.selectedTaskId,
+           let idx = allTasks.firstIndex(where: { $0.id == current }) {
+            let newIdx = min(max(idx + direction, 0), allTasks.count - 1)
+            store.selectTask(allTasks[newIdx].id)
+        } else {
+            store.selectTask(allTasks[direction > 0 ? 0 : allTasks.count - 1].id)
+        }
+    }
+
     private func deleteSelected() {
         guard let id = store.selectedTaskId else { return }
         Task { await store.deleteTask(id: id) }
@@ -574,11 +594,6 @@ struct TaskRowView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // State circle
-            Circle()
-                .fill(task.state.color)
-                .frame(width: 8, height: 8)
-
             // Priority glyph
             Text(priorityGlyph(task.priority))
                 .font(.system(size: 12))
@@ -588,6 +603,15 @@ struct TaskRowView: View {
             Text(task.title)
                 .font(.system(size: 13, weight: .medium))
                 .lineLimit(1)
+
+            // State pill
+            Text(task.state.displayName)
+                .font(.system(size: 10, weight: .medium))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(task.state.color.opacity(0.15))
+                .foregroundColor(task.state.color)
+                .clipShape(Capsule())
 
             Spacer(minLength: 4)
 

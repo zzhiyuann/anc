@@ -29,6 +29,7 @@ struct KeyboardShortcutsSheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     shortcutSection("Global", shortcuts: [
                         ("Search", "K"),
+                        ("Refresh", "R"),
                         ("Settings", ","),
                         ("Toggle Sidebar", "S"),
                         ("Show Inspector", "I"),
@@ -47,7 +48,16 @@ struct KeyboardShortcutsSheet: View {
                     shortcutSection("Tasks", shortcuts: [
                         ("New Task", "N"),
                         ("Delete Task", "Backspace"),
-                    ], modifier: "Cmd")
+                        ("Navigate Up", "\u{2191}"),
+                        ("Navigate Down", "\u{2193}"),
+                    ], modifier: "")
+
+                    shortcutSection("Search (Cmd+K)", shortcuts: [
+                        ("Navigate Up", "\u{2191}"),
+                        ("Navigate Down", "\u{2193}"),
+                        ("Select Result", "Return"),
+                        ("Close", "Esc"),
+                    ], modifier: "")
 
                     shortcutSection("Inbox", shortcuts: [
                         ("Mark Read", "M"),

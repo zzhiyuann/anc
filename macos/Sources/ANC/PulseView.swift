@@ -17,7 +17,7 @@ struct PulseView: View {
             // Top bar
             HStack {
                 Text("Dashboard")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                 Spacer()
 
                 Button {
@@ -570,7 +570,7 @@ struct DashboardCard<Content: View>: View {
                     .font(.system(size: 12))
                     .foregroundColor(.ancAccent)
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
             }
 
             content()

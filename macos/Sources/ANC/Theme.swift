@@ -57,7 +57,7 @@ struct LoadingStateView: View {
             ProgressView()
                 .controlSize(.regular)
             Text(message)
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundColor(.ancMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

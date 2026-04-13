@@ -120,7 +120,8 @@ struct ProjectDetailView: View {
     private var tasksSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Tasks")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.ancMuted)
 
             if groupedTasks.isEmpty {
                 Text("No tasks in this project")
@@ -174,7 +175,8 @@ struct ProjectDetailView: View {
     private var activeAgentsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Active Agents")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.ancMuted)
 
             let taskAssignees = Set(projectTasks.compactMap { $0.assignee })
             let activeAgents = store.agents.filter { taskAssignees.contains($0.role) }

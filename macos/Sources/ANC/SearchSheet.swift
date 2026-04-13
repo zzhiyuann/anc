@@ -4,6 +4,7 @@ struct SearchSheet: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
+    @State private var selectedIndex: Int = 0
     @FocusState private var focused: Bool
 
     private var results: [SearchResult] {
@@ -121,7 +122,7 @@ struct SearchSheet: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    ForEach(results) { result in
+                    ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
                         Button {
                             select(result)
                         } label: {
@@ -149,6 +150,9 @@ struct SearchSheet: View {
                                     .clipShape(Capsule())
                             }
                             .padding(.vertical, 4)
+                            .padding(.horizontal, 4)
+                            .background(index == selectedIndex ? Color.ancAccent.opacity(0.12) : Color.clear)
+                            .cornerRadius(6)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -160,12 +164,25 @@ struct SearchSheet: View {
         .frame(width: 540, height: 400)
         .background(Color.ancBackground)
         .onAppear { focused = true }
+        .onChange(of: query) { _, _ in selectedIndex = 0 }
+        .onKeyPress(.upArrow) {
+            if !results.isEmpty {
+                selectedIndex = max(selectedIndex - 1, 0)
+            }
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            if !results.isEmpty {
+                selectedIndex = min(selectedIndex + 1, results.count - 1)
+            }
+            return .handled
+        }
     }
 
     private func selectFirst() {
-        if let first = results.first {
-            select(first)
-        }
+        guard !results.isEmpty else { return }
+        let idx = min(selectedIndex, results.count - 1)
+        select(results[idx])
     }
 
     private func select(_ result: SearchResult) {
