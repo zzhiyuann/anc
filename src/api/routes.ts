@@ -51,6 +51,12 @@ import {
   type BudgetConfig,
   type BudgetConfigPatch,
 } from '../core/budget.js';
+import { computeSystemMetrics } from '../core/metrics.js';
+import {
+  ensureExperimentsTable,
+  listExperiments, getExperiment, acceptExperiment,
+  rollbackExperiment, runOptimizationCycle,
+} from '../core/optimizer.js';
 
 const log = createLogger('api');
 
@@ -1740,6 +1746,55 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       } catch (e) {
         error(res, (e as Error).message, 500);
       }
+      return true;
+    }
+
+    // === Optimization ===
+
+    if (method === 'GET' && path === '/optimization/metrics') {
+      const days = Number(url.searchParams.get('days') ?? '7');
+      const metrics = computeSystemMetrics(days);
+      json(res, metrics);
+      return true;
+    }
+
+    if (method === 'GET' && path === '/optimization/experiments') {
+      ensureExperimentsTable();
+      const status = url.searchParams.get('status') ?? undefined;
+      const experiments = listExperiments(status as never);
+      json(res, { experiments });
+      return true;
+    }
+
+    if (method === 'POST' && path === '/optimization/run') {
+      ensureExperimentsTable();
+      const result = runOptimizationCycle();
+      json(res, result);
+      return true;
+    }
+
+    m = matchRoute('/optimization/experiments/:id/accept', path);
+    if (method === 'POST' && m) {
+      ensureExperimentsTable();
+      const exp = getExperiment(m.params.id);
+      if (!exp) { error(res, 'Experiment not found', 404); return true; }
+      if (exp.status !== 'measured') { error(res, `Cannot accept experiment in status ${exp.status}`); return true; }
+      acceptExperiment(exp);
+      json(res, { ok: true, experiment: exp });
+      return true;
+    }
+
+    m = matchRoute('/optimization/experiments/:id/reject', path);
+    if (method === 'POST' && m) {
+      ensureExperimentsTable();
+      const exp = getExperiment(m.params.id);
+      if (!exp) { error(res, 'Experiment not found', 404); return true; }
+      if (exp.status !== 'measured' && exp.status !== 'running') {
+        error(res, `Cannot reject experiment in status ${exp.status}`);
+        return true;
+      }
+      rollbackExperiment(exp);
+      json(res, { ok: true, experiment: exp });
       return true;
     }
 

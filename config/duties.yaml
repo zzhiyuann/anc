@@ -118,6 +118,27 @@ duties:
 
       No HANDOFF needed — this is a standing duty.
 
+  # --- CEO Office: Optimization Cycle ---
+  - id: optimization-cycle
+    role: ceo-office
+    trigger:
+      cron: "24h"
+    issuePrefix: "optimize"
+    prompt: |
+      [Optimization Cycle] Run the self-optimization engine.
+
+      Execute: `anc optimize`
+
+      This computes system metrics (quality, success rate, cost, completion time),
+      checks running experiments for measurement, and proposes new experiments
+      based on rule-based analysis.
+
+      Review the output. If an experiment is proposed, verify the hypothesis
+      makes sense. If an experiment was measured and rejected, check if the
+      rollback was clean.
+
+      No HANDOFF needed — this is a standing duty.
+
   # --- Strategist: Weekly Strategy Review ---
   # Uncomment when ready:
   # - id: strategy-review

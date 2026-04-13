@@ -434,6 +434,16 @@ program
     await batchCommand(issueKeys, role);
   });
 
+// --- Optimize ---
+program
+  .command('optimize')
+  .description('Run one self-optimization cycle — compute metrics, propose/measure experiments')
+  .option('--dry-run', 'Show proposed experiment without applying')
+  .action(async (opts: { dryRun?: boolean }) => {
+    const { optimizeCommand } = await import('./commands/optimize.js');
+    optimizeCommand(opts);
+  });
+
 // --- Doctor ---
 program
   .command('doctor')

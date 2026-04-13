@@ -233,6 +233,20 @@ export function getDb(): Database.Database {
       created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
     CREATE INDEX IF NOT EXISTS idx_task_feedback_parent ON task_feedback(parent_task_id, delivered);
+
+    CREATE TABLE IF NOT EXISTS optimization_experiments (
+      id TEXT PRIMARY KEY,
+      target TEXT NOT NULL,
+      hypothesis TEXT NOT NULL,
+      change_json TEXT NOT NULL,
+      metric TEXT NOT NULL,
+      baseline_value REAL NOT NULL,
+      experiment_value REAL,
+      status TEXT NOT NULL DEFAULT 'proposed',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      measured_at INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_opt_exp_status ON optimization_experiments(status);
   `);
 
   // Migrate existing tables from TEXT → INTEGER timestamps (idempotent)
