@@ -64,9 +64,9 @@ struct CreateTaskSheet: View {
                         .foregroundColor(.ancMuted)
                         .frame(width: 70, alignment: .leading)
                     Picker("", selection: $selectedAgent) {
-                        Text("Auto").tag(String?.none)
+                        Text("Auto").tag(nil as String?)
                         ForEach(store.agents) { agent in
-                            Text(agent.name).tag(Optional(agent.role))
+                            Text(agent.name).tag(agent.role as String?)
                         }
                     }
                     .pickerStyle(.menu)
@@ -99,9 +99,9 @@ struct CreateTaskSheet: View {
                         .foregroundColor(.ancMuted)
                         .frame(width: 70, alignment: .leading)
                     Picker("", selection: $selectedProject) {
-                        Text("None").tag(String?.none)
+                        Text("None").tag(nil as String?)
                         ForEach(store.projects) { proj in
-                            Text(proj.name).tag(Optional(proj.id))
+                            Text(proj.name).tag(proj.id as String?)
                         }
                     }
                     .pickerStyle(.menu)

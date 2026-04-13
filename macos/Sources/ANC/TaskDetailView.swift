@@ -49,22 +49,16 @@ struct TaskDetailView: View {
                 descriptionSection(detail)
 
                 // Runtime strip (shows active sessions)
-                if !detail.sessions.isEmpty {
-                    runtimeStrip(detail)
-                }
+                runtimeStrip(detail)
 
-                if !detail.children.isEmpty {
-                    childrenSection(detail)
-                }
+                childrenSection(detail)
 
                 // Handoff section
                 if let handoff = detail.handoff {
                     handoffDetailSection(handoff)
                 }
 
-                if !detail.attachments.isEmpty {
-                    attachmentsSection(detail)
-                }
+                attachmentsSection(detail)
 
                 activitySection(detail)
                 commentComposer(detail)
@@ -211,11 +205,11 @@ struct TaskDetailView: View {
                     Image(systemName: showRuntime ? "chevron.down" : "chevron.right")
                         .font(.system(size: 10))
                     Circle()
-                        .fill(Color.ancRunning)
+                        .fill(detail.sessions.isEmpty ? Color.gray : Color.ancRunning)
                         .frame(width: 6, height: 6)
-                    Text("\(detail.sessions.count) active session\(detail.sessions.count == 1 ? "" : "s")")
+                    Text(detail.sessions.isEmpty ? "No active sessions" : "\(detail.sessions.count) active session\(detail.sessions.count == 1 ? "" : "s")")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.ancForeground)
+                        .foregroundColor(detail.sessions.isEmpty ? .ancMuted : .ancForeground)
                     Spacer()
                     // Show first session state as one-liner
                     if !showRuntime, let first = detail.sessions.first {
@@ -324,28 +318,41 @@ struct TaskDetailView: View {
                     Text("Sub-issues")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.ancMuted)
-                    let done = detail.children.filter { $0.state == .done }.count
-                    Text("\(done)/\(detail.children.count)")
-                        .font(.system(size: 11))
-                        .foregroundColor(.ancMuted)
+                    if detail.children.isEmpty {
+                        Text("None")
+                            .font(.system(size: 11))
+                            .foregroundColor(.ancMuted)
+                    } else {
+                        let done = detail.children.filter { $0.state == .done }.count
+                        Text("\(done)/\(detail.children.count)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.ancMuted)
+                    }
                 }
             }
             .buttonStyle(.borderless)
 
             if showChildren {
-                ForEach(detail.children) { child in
-                    HStack(spacing: 8) {
-                        Circle().fill(child.state.color).frame(width: 6, height: 6)
-                        Text(child.title)
-                            .font(.system(size: 12))
-                            .lineLimit(1)
-                        Spacer()
-                        Text(child.state.displayName)
-                            .font(.system(size: 11))
-                            .foregroundColor(.ancMuted)
+                if detail.children.isEmpty {
+                    Text("No sub-issues")
+                        .font(.system(size: 11))
+                        .foregroundColor(.ancMuted)
+                        .padding(.leading, 16)
+                } else {
+                    ForEach(detail.children) { child in
+                        HStack(spacing: 8) {
+                            Circle().fill(child.state.color).frame(width: 6, height: 6)
+                            Text(child.title)
+                                .font(.system(size: 12))
+                                .lineLimit(1)
+                            Spacer()
+                            Text(child.state.displayName)
+                                .font(.system(size: 11))
+                                .foregroundColor(.ancMuted)
+                        }
+                        .padding(.leading, 16)
+                        .padding(.vertical, 2)
                     }
-                    .padding(.leading, 16)
-                    .padding(.vertical, 2)
                 }
             }
         }
@@ -355,22 +362,39 @@ struct TaskDetailView: View {
 
     private func attachmentsSection(_ detail: TaskDetailResponse) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Attachments")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.ancMuted)
-            ForEach(detail.attachments) { att in
-                HStack(spacing: 6) {
-                    Image(systemName: "doc")
-                        .font(.system(size: 11))
+            HStack {
+                Text("Attachments")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.ancMuted)
+                if !detail.attachments.isEmpty {
+                    Text("\(detail.attachments.count)")
+                        .font(.system(size: 10))
                         .foregroundColor(.ancMuted)
-                    Text(att.name)
-                        .font(.system(size: 12))
-                    Spacer()
-                    Text(formatBytes(att.size))
-                        .font(.system(size: 11))
-                        .foregroundColor(.ancMuted)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Color.ancMuted.opacity(0.15))
+                        .clipShape(Capsule())
                 }
-                .padding(.vertical, 2)
+            }
+            if detail.attachments.isEmpty {
+                Text("No attachments")
+                    .font(.system(size: 11))
+                    .foregroundColor(.ancMuted)
+            } else {
+                ForEach(detail.attachments) { att in
+                    HStack(spacing: 6) {
+                        Image(systemName: "doc")
+                            .font(.system(size: 11))
+                            .foregroundColor(.ancMuted)
+                        Text(att.name)
+                            .font(.system(size: 12))
+                        Spacer()
+                        Text(formatBytes(att.size))
+                            .font(.system(size: 11))
+                            .foregroundColor(.ancMuted)
+                    }
+                    .padding(.vertical, 2)
+                }
             }
         }
     }

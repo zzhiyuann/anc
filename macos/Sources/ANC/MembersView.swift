@@ -78,7 +78,7 @@ struct MembersView: View {
                 Text("Sessions")
                     .frame(width: 50)
                 Text("Done 7d")
-                    .frame(width: 50, alignment: .trailing)
+                    .frame(width: 40, alignment: .trailing)
             }
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.ancMuted)
@@ -156,13 +156,19 @@ struct AgentRowView: View {
             statusPill
 
             // Active task
-            if let activeTask = tasks.first(where: { $0.state == .running && $0.assignee == agent.role }) {
-                Text(activeTask.title)
-                    .font(.system(size: 11))
-                    .foregroundColor(.ancMuted)
-                    .lineLimit(1)
-                    .frame(maxWidth: 120)
+            Group {
+                if let activeTask = tasks.first(where: { $0.state == .running && $0.assignee == agent.role }) {
+                    Text(activeTask.title)
+                        .font(.system(size: 11))
+                        .foregroundColor(.ancMuted)
+                        .lineLimit(1)
+                } else {
+                    Text("--")
+                        .font(.system(size: 11))
+                        .foregroundColor(.ancMuted.opacity(0.5))
+                }
             }
+            .frame(maxWidth: 120)
 
             // Sessions
             HStack(spacing: 2) {

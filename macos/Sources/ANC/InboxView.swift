@@ -28,7 +28,8 @@ struct InboxView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        HSplitView {
+            // Left: notification list
             VStack(spacing: 0) {
                 // Header
                 HStack(spacing: 8) {
@@ -109,27 +110,32 @@ struct InboxView: View {
                     .listStyle(.sidebar)
                 }
             }
-            .navigationSplitViewColumnWidth(min: 280, ideal: 340, max: 500)
-        } detail: {
-            if let notif = selectedNotification {
-                notificationDetail(notif)
-            } else {
-                VStack(spacing: 8) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 28))
-                        .foregroundColor(.ancMuted)
-                    Text("Select a notification")
-                        .font(.system(size: 14))
-                        .foregroundColor(.ancMuted)
+            .frame(minWidth: 280, idealWidth: 340, maxWidth: 500)
+
+            // Right: notification detail
+            Group {
+                if let notif = selectedNotification {
+                    notificationDetail(notif)
+                } else {
+                    VStack(spacing: 8) {
+                        Image(systemName: "tray")
+                            .font(.system(size: 28))
+                            .foregroundColor(.ancMuted)
+                        Text("Select a notification")
+                            .font(.system(size: 14))
+                            .foregroundColor(.ancMuted)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(minWidth: 300)
         }
         .task {
             await store.refreshNotifications()
         }
         .onChange(of: selectedId) { _, newId in
             guard let newId else { return }
+            store.selectedNotificationId = newId
             // Auto-mark as read when selected
             if let notif = store.notifications.first(where: { $0.id == newId }), notif.readAt == nil {
                 Task { await store.markNotificationRead(newId) }
