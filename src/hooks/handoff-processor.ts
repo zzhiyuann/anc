@@ -388,10 +388,23 @@ export async function processHandoff(params: ProcessHandoffParams): Promise<bool
   // This MUST happen regardless of Linear status — ANC is the primary system.
   if (parentTaskId) {
     try {
-      const taskState =
-        newStatus === 'Done' ? 'done'
-        : newStatus === 'In Review' ? 'review'
-        : 'failed';
+      const statusMap: Record<string, string> = {
+        'Done': 'done',
+        'In Review': 'review',
+        'In Progress': 'running',
+        'Todo': 'todo',
+        'Canceled': 'canceled',
+        'Cancelled': 'canceled',
+        // Direct ANC state values (agent may use these instead of Linear names)
+        'done': 'done',
+        'review': 'review',
+        'running': 'running',
+        'todo': 'todo',
+        'failed': 'failed',
+        'canceled': 'canceled',
+        'suspended': 'suspended',
+      };
+      const taskState = (statusMap[newStatus] ?? 'review') as import('../core/tasks.js').TaskState;
       setTaskState(parentTaskId, taskState, Date.now());
 
       // Fix 5: write handoffSummary to the task record so GET /tasks/:id returns it

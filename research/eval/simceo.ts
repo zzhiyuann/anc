@@ -306,19 +306,103 @@ async function executeTask(
 ): Promise<TaskExecution> {
   const interactionLog: string[] = [];
 
-  // All conditions use claude -p with varying organizational context.
-  // ANC's organizational patterns are encoded as system prompt variations:
-  // - vanilla_baseline: raw engineer, no organizational context
-  // - anc_no_memory: ANC persona but no accumulated knowledge
-  // - anc_memory_no_retros: ANC persona + memory, no retrospectives
-  // - anc_full: ANC persona + memory + retrospectives
-  // - anc_no_oversight: no CEO Office monitoring instructions
-  // - anc_strict_review: strict review gate in persona
-  // - anc_autonomous_review: autonomous, no review gate
+  if (condition.name === 'vanilla_baseline') {
+    // Vanilla: just run claude -p on the task directly, no ANC
+    const output = claudePrint(
+      `You are a software engineer. Complete this task:\n\nTitle: ${task.title}\nDescription: ${task.description}\n\nProvide the solution (code changes, explanation, and any tests). Write a HANDOFF.md summarizing your work.`,
+      8192
+    );
+    return { output, interactionLog: [], tokens: 0, cost: 0 };
+  }
 
-  const prompt = buildConditionPrompt(task, condition);
-  const output = claudePrint(prompt, 8192);
-  return { output, interactionLog: [], tokens: 0, cost: 0 };
+  // ANC-managed execution via real ANC server API
+  // Requires: anc serve running on :3849
+  // Flow: create task → auto-dispatch → agent works in tmux → poll for completion
+  try {
+    const createBody = JSON.stringify({
+      title: task.title,
+      description: task.description,
+      labels: task.expected_labels,
+      priority: task.complexity === 'high' ? 1 : task.complexity === 'medium' ? 2 : 3,
+    });
+
+    const createResp = execSync(
+      `curl -s -X POST http://localhost:3849/api/v1/tasks -H 'Content-Type: application/json' -d '${createBody.replace(/'/g, "'\\''")}'`,
+      { encoding: 'utf-8', timeout: 10_000 }
+    );
+    const created = JSON.parse(createResp);
+    const taskId = created.id;
+    console.log(`    [ANC] Created task ${taskId}`);
+
+    // Poll for completion — task auto-dispatches now (lifecycle fix)
+    let output = '';
+    const maxWait = 600_000; // 10 min
+    const pollInterval = 15_000; // 15s
+    let elapsed = 0;
+
+    while (elapsed < maxWait) {
+      await sleep(pollInterval);
+      elapsed += pollInterval;
+
+      try {
+        const resp = execSync(
+          `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
+          { encoding: 'utf-8', timeout: 5_000 }
+        );
+        const t = JSON.parse(resp);
+        const state = t.state;
+
+        if (state === 'done' || state === 'review') {
+          output = t.handoffSummary || '';
+          // If no summary yet, try to get attachments
+          if (!output) {
+            try {
+              const attResp = execSync(
+                `curl -s http://localhost:3849/api/v1/tasks/${taskId}/attachments`,
+                { encoding: 'utf-8', timeout: 5_000 }
+              );
+              const atts = JSON.parse(attResp);
+              const handoff = (atts.attachments || atts || []).find((a: any) => a.name?.includes('HANDOFF'));
+              if (handoff?.content) output = handoff.content;
+            } catch { /* ignore */ }
+          }
+          if (!output) output = `Task completed with state=${state}`;
+          console.log(`    [ANC] Completed: state=${state} (${elapsed/1000}s)`);
+          break;
+        }
+
+        if (state === 'failed') {
+          output = `TASK_FAILED: ${t.handoffSummary || 'no details'}`;
+          break;
+        }
+      } catch { /* continue polling */ }
+
+      if (elapsed % 60_000 === 0) {
+        console.log(`    [ANC] ... waiting ${elapsed / 1000}s`);
+      }
+    }
+
+    if (!output) {
+      output = 'TIMEOUT: agent did not complete within 10 minutes';
+    }
+
+    // Get cost
+    let cost = 0, tokens = 0;
+    try {
+      const budgetResp = execSync(
+        `curl -s http://localhost:3849/api/v1/budget`,
+        { encoding: 'utf-8', timeout: 5_000 }
+      );
+      const b = JSON.parse(budgetResp);
+      cost = b.today_cost || 0;
+      tokens = b.today_tokens || 0;
+    } catch { /* ignore */ }
+
+    return { output, interactionLog, tokens, cost };
+  } catch (e: any) {
+    console.error(`    [ANC Error] ${e.message}`);
+    return { output: 'EXECUTION_ERROR: ' + e.message, interactionLog, tokens: 0, cost: 0 };
+  }
 }
 
 // --- Memory/retro context for prompt injection ---

@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_fastapi_fastapi_10127",
+    "title": "Cannot use `Response` type hint as dependency annotation",
+    "description": "Repository: fastapi/fastapi\nIssue #10127\n\n### Privileged issue\r\n\r\n- [ ] I'm @tiangolo or he asked me directly to create an issue here.\r\n\r\n### Issue Content\r\n\r\nFastAPI `0.95.0` introduced `Annotated` as a way to create dependencies (https://fastapi.tiangolo.com/release-notes/#0950).\r\n\r\nBefore `0.95.0`, it was possible to use `Response` as a type hint for dependencies. After that, it was not possible anymore.\r\n\r\n- See #9897 for more details - Thanks @holyoaks for the report.\r\n\r\nExample that worked before:\r\n\r\n```py\r\nfrom typing import Annotated\r\nfrom fastapi import FastAPI, Response, Depends\r\n\r\napp = FastAPI()\r\n\r\ndef set_no_cache_headers(response: Response) -> Response:\r\n    response.headers[\"Potato\"] = \"potato\"\r\n    return response\r\n\r\n@app.get(\"/\")\r\ndef testing_response(response: Response = Depends(set_no_cache_headers)):\r\n    return {}\r\n```\r\n\r\nAs a workaround today, if you remove the `Response` type hint, it works as expected:\r\n\r\n```py\r\n@app.get(\"/\")\r\ndef testing_response(response = Depends(set_no_cache_headers)):\r\n    return {}\r\n```\r\n\r\nThe `Annotated` way also doesn't work:\r\n\r\n```py\r\n@app.get(\"/\")\r\ndef testing_response(response: Annotated[Response, Depends(set_no_cache_headers)]):\r\n    return {}\r\n```",
+    "repo": "fastapi/fastapi",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_fastapi_fastapi_10127",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent correctly identified the root cause in analyze_param() and proposed a minimal, surgical fix — changing an unconditional assert to a conditional check. The explanation of why the fix works (dependency resolution path already handles Depends correctly) shows solid understanding. Tests cover positive and negative cases. Docking one point on satisfaction/code_quality because the output is analysis-only with no evidence of actual code committed or PR submitted, but the diagnosis and proposed fix are sound and complete.",
+    "timestamp": "2026-04-13T22:44:52.442Z"
+  },
+  "duration_ms": 219222,
+  "cost_usd": 0,
+  "tokens_used": 0
+}
