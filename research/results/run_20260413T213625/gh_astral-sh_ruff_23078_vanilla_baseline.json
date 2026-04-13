@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_23078",
+    "title": "Support Python console (`pycon`) markdown code blocks",
+    "description": "Repository: astral-sh/ruff\nIssue #23078\n\n````markdown\n```pycon\n>>> print(\"hello\")\nhello\n>>> list(reversed(range(10)))\n[9, 8, 7, 6, 5, 4, 3, 2, 1, 0]\n```\n````",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [
+      "formatter"
+    ],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_23078",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent produced no output whatsoever — no code, no HANDOFF.md, no communication, nothing. The task was low complexity and clearly defined, yet there is zero evidence any work was attempted. This requires full recovery with a new agent assignment.",
+    "timestamp": "2026-04-13T22:29:34.840Z"
+  },
+  "duration_ms": 611703,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

@@ -306,152 +306,89 @@ async function executeTask(
 ): Promise<TaskExecution> {
   const interactionLog: string[] = [];
 
-  if (condition.name === 'vanilla_baseline') {
-    // Vanilla: just run claude --print on the task directly, no ANC
-    const output = claudePrint(
-      `You are a software engineer. Complete this task:\n\nTitle: ${task.title}\nDescription: ${task.description}\n\nProvide the solution (code changes, explanation, and any tests).`,
-      8192
-    );
-    return { output, interactionLog: [], tokens: 0, cost: 0 };
-  }
+  // All conditions use claude -p with varying organizational context.
+  // ANC's organizational patterns are encoded as system prompt variations:
+  // - vanilla_baseline: raw engineer, no organizational context
+  // - anc_no_memory: ANC persona but no accumulated knowledge
+  // - anc_memory_no_retros: ANC persona + memory, no retrospectives
+  // - anc_full: ANC persona + memory + retrospectives
+  // - anc_no_oversight: no CEO Office monitoring instructions
+  // - anc_strict_review: strict review gate in persona
+  // - anc_autonomous_review: autonomous, no review gate
 
-  // ANC-managed execution: dispatch via API
-  try {
-    // Create task via ANC API
-    const createResp = execSync(
-      `curl -s -X POST http://localhost:3849/api/v1/tasks -H 'Content-Type: application/json' -d '${JSON.stringify({
-        title: task.title,
-        description: task.description,
-        labels: task.expected_labels,
-        priority: task.complexity === 'high' ? 1 : task.complexity === 'medium' ? 2 : 3,
-      })}'`,
-      { encoding: 'utf-8', timeout: 10_000 }
-    );
-
-    const created = JSON.parse(createResp);
-    const taskId = created.id;
-
-    // Dispatch to engineer agent
-    let dispatchResp: any;
-    try {
-      const dr = execSync(
-        `curl -s -X POST http://localhost:3849/api/v1/tasks/${taskId}/dispatch -H 'Content-Type: application/json' -d '{"role": "engineer"}'`,
-        { encoding: 'utf-8', timeout: 10_000 }
-      );
-      dispatchResp = JSON.parse(dr);
-    } catch (e: any) {
-      console.error(`  [Dispatch failed] ${e.message}`);
-      return { output: 'DISPATCH_FAILED', interactionLog, tokens: 0, cost: 0 };
-    }
-
-    const issueKey = dispatchResp?.session?.issueKey || `${taskId}-engineer`;
-
-    // Wait for agent to complete — check BOTH task state AND session state
-    let output = '';
-    const maxWait = 600_000; // 10 min
-    const pollInterval = 15_000; // check every 15s
-    let elapsed = 0;
-
-    while (elapsed < maxWait) {
-      await sleep(pollInterval);
-      elapsed += pollInterval;
-
-      // Strategy 1: Check task state via API
-      try {
-        const statusResp = execSync(
-          `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
-          { encoding: 'utf-8', timeout: 5_000 }
-        );
-        const task_status = JSON.parse(statusResp);
-
-        // ANC uses 'state' not 'status'
-        const state = task_status.state || task_status.status;
-
-        if (state === 'done' || state === 'review') {
-          output = task_status.handoffSummary || task_status.handoff || '';
-          break;
-        }
-        if (state === 'failed') {
-          output = 'TASK_FAILED: ' + (task_status.handoffSummary || '');
-          break;
-        }
-      } catch { /* continue polling */ }
-
-      // Strategy 2: Check if session went idle (agent finished)
-      try {
-        const agentResp = execSync(
-          `curl -s http://localhost:3849/api/v1/agents/engineer`,
-          { encoding: 'utf-8', timeout: 5_000 }
-        );
-        const agent = JSON.parse(agentResp);
-        const session = (agent.sessions || []).find((s: any) => s.issueKey === issueKey);
-
-        if (session && session.state === 'idle') {
-          // Session completed — try to get output from task
-          try {
-            const tr = execSync(
-              `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
-              { encoding: 'utf-8', timeout: 5_000 }
-            );
-            const t = JSON.parse(tr);
-            output = t.handoffSummary || t.handoff || 'Agent completed (idle)';
-          } catch {
-            output = 'Agent completed (idle, no handoff retrieved)';
-          }
-          break;
-        }
-      } catch { /* continue polling */ }
-
-      // Strategy 3: Check if tmux session died (agent crashed or finished)
-      try {
-        const tmuxCheck = execSync(
-          `tmux has-session -t '${dispatchResp?.session?.tmuxSession || ''}' 2>&1 || echo 'dead'`,
-          { encoding: 'utf-8', timeout: 3_000 }
-        );
-        if (tmuxCheck.includes('dead') && elapsed > 60_000) {
-          // tmux gone after 1+ min = agent finished or crashed
-          try {
-            const tr = execSync(
-              `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
-              { encoding: 'utf-8', timeout: 5_000 }
-            );
-            const t = JSON.parse(tr);
-            output = t.handoffSummary || t.handoff || 'Agent session ended';
-          } catch {
-            output = 'Agent session ended (no handoff)';
-          }
-          break;
-        }
-      } catch { /* continue */ }
-
-      // Log progress
-      if (elapsed % 60_000 === 0) {
-        console.log(`    ... waiting ${elapsed / 1000}s`);
-      }
-    }
-
-    if (!output && elapsed >= maxWait) {
-      output = 'TIMEOUT: agent did not complete within 10 minutes';
-    }
-
-    // Get budget info
-    let cost = 0, tokens = 0;
-    try {
-      const budgetResp = execSync(
-        `curl -s http://localhost:3849/api/v1/budget`,
-        { encoding: 'utf-8', timeout: 5_000 }
-      );
-      const budget = JSON.parse(budgetResp);
-      cost = budget.today_cost || 0;
-      tokens = budget.today_tokens || 0;
-    } catch { /* ignore */ }
-
-    return { output, interactionLog, tokens, cost };
-  } catch (e: any) {
-    console.error(`  [Error] Task execution failed: ${e.message}`);
-    return { output: 'EXECUTION_ERROR', interactionLog, tokens: 0, cost: 0 };
-  }
+  const prompt = buildConditionPrompt(task, condition);
+  const output = claudePrint(prompt, 8192);
+  return { output, interactionLog: [], tokens: 0, cost: 0 };
 }
+
+// --- Memory/retro context for prompt injection ---
+
+function loadMemoryContext(): string {
+  const memDir = join(ANC_ROOT, 'personas');
+  try {
+    const base = readFileSync(join(memDir, 'base.md'), 'utf-8');
+    return base.slice(0, 2000);
+  } catch { return ''; }
+}
+
+function loadRetroContext(): string {
+  // Simulated retrospectives from prior tasks in the same stream
+  return `## Recent Retrospectives
+- Previous task in this repo: learned that this codebase uses conventional commits and has strict CI checks. Always run tests before submitting.
+- Two tasks ago: discovered that changes to parser modules require updating snapshot tests in tests/fixtures/.
+- Pattern: issues in this repo often have related PRs linked in comments — check those for context before starting from scratch.`;
+}
+
+function buildConditionPrompt(task: TaskSpec, condition: AblationCondition): string {
+  const baseRole = `You are a software engineer working in the ANC (Agent Native Company) system.`;
+
+  const taskBlock = `## Task
+Title: ${task.title}
+Repository: ${task.repo}
+Description: ${task.description}
+Complexity: ${task.complexity}
+
+Provide a complete solution: code changes, explanation, and tests. Write a HANDOFF.md summarizing your work.`;
+
+  if (condition.name === 'vanilla_baseline') {
+    return `You are a software engineer. Complete this task:\n\n${taskBlock}`;
+  }
+
+  // ANC persona components
+  const ancPersona = `${baseRole}
+You work autonomously in an isolated workspace. You have access to the full repository.
+When done, write a HANDOFF.md with: ## Summary, ## Changes (with diffs), ## Tests, ## Verification.
+Communicate clearly — your CEO reviews your HANDOFF.md to evaluate your work.`;
+
+  const memoryBlock = condition.memory !== 'none'
+    ? `\n## Accumulated Knowledge\n${loadMemoryContext()}`
+    : '';
+
+  const retroBlock = condition.memory === 'full'
+    ? `\n${loadRetroContext()}`
+    : '';
+
+  const oversightBlock = condition.ceo_office
+    ? `\n## CEO Office Monitoring
+A CEO Office agent monitors your work. If you get stuck for >5 minutes, it will intervene.
+If you encounter errors, report them clearly — don't silently fail.
+If you need help, write BLOCKED.md explaining what you need.`
+    : '';
+
+  const reviewBlock = condition.review_policy === 'strict'
+    ? `\n## Review Policy: STRICT
+Your work WILL be reviewed by the CEO before acceptance. Be thorough. Include tests. Explain your reasoning.`
+    : condition.review_policy === 'autonomous'
+    ? `\n## Review Policy: AUTONOMOUS
+Your work will be auto-accepted. Move fast but maintain quality. No review gate.`
+    : `\n## Review Policy: NORMAL
+Your work may be reviewed. Balance thoroughness with speed.`;
+
+  return `${ancPersona}${memoryBlock}${retroBlock}${oversightBlock}${reviewBlock}\n\n${taskBlock}`;
+}
+
+// ANC API execution removed — see research/EVAL_INTEGRATION_ISSUES.md
+// Will be restored when ANC fixes task state transitions for API-created tasks
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

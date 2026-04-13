@@ -184,11 +184,25 @@ export interface ProcessHandoffParams {
  *
  * Returns true if handoff was processed successfully (status changed).
  */
+// Prevent duplicate processing — HANDOFF.md can be detected by BOTH the
+// Stop hook (hook-handler.ts) and the tick-based on-complete.ts. Without
+// this guard, each tick creates duplicate child tasks + comments.
+const processedHandoffs = new Set<string>();
+
 export async function processHandoff(params: ProcessHandoffParams): Promise<boolean> {
   const { issueKey, role, handoffPath, workspace, spawnedAt, markSessionIdle = true } = params;
 
+  // Dedup: skip if we already processed this exact handoff file
+  const dedupKey = `${issueKey}:${handoffPath}`;
+  if (processedHandoffs.has(dedupKey)) {
+    return true; // already processed, report success
+  }
+
   const handoff = readFileSync(handoffPath, 'utf-8');
   if (!handoff || handoff.trim().length === 0) return false;
+
+  // Mark as processed BEFORE doing anything to prevent concurrent/tick races
+  processedHandoffs.add(dedupKey);
 
   log.info(`${role}/${issueKey}: HANDOFF.md → processing`, { role, issueKey });
 
