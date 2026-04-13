@@ -47,6 +47,16 @@
 
 **Expected**: Sessions should persist until explicitly cleaned up or until HANDOFF.md is detected.
 
+## Issue 6: Agent exits without HANDOFF → state stuck at `running`
+
+**Observed (2026-04-14 01:50)**: Agent tmux sessions for tasks `279fa100` and `ef9f29a8` exited after ~8 min of real work (confirmed via tmux capture-pane showing 19-20% context used). But task state stays `running` and `handoffSummary` is null. ANC never transitions the task to done/review/failed.
+
+**This worked for `django-7530` earlier** (got state=done in 165s), so the bug is intermittent — possibly related to whether the agent writes HANDOFF.md before the tmux session exits.
+
+**Hypothesis**: The agent hits its 5h budget limit or completes without writing HANDOFF.md. The session health monitor detects the tmux death but doesn't update the task state (only the session state goes to idle).
+
+**Fix needed**: When a tmux session exits (detected by health monitor), if the task is still `running`, transition it to either `review` (if HANDOFF.md exists in workspace) or `failed` (if not). Never leave a task in `running` with a dead session.
+
 ## Summary of What Eval Harness Needs
 
 The eval harness needs a simple contract:

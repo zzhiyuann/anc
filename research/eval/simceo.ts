@@ -336,7 +336,7 @@ async function executeTask(
 
     // Poll for completion — task auto-dispatches now (lifecycle fix)
     let output = '';
-    const maxWait = 600_000; // 10 min
+    const maxWait = 1_800_000; // 30 min — complex tasks need time
     const pollInterval = 15_000; // 15s
     let elapsed = 0;
 

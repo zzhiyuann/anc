@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "anc_autonomous_review",
+    "memory": "full",
+    "ceo_office": true,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "django__django-7530",
+    "title": "makemigrations router.allow_migrate() calls for consistency checks use incorrect (app_label, model) ",
+    "description": "makemigrations router.allow_migrate() calls for consistency checks use incorrect (app_label, model) pairs\nDescription\n\t\nAs reported in ticket:27200#comment:14, I makemigrations incorrectly calls allow_migrate() for each app with all the models in the project rather than for each app with the app's models. It broke the router I use because it was passing invalid combinations for shards since not all shards have the same models.\n[​​https://github.com/django/django/pull/7530 PR]\n",
+    "repo": "django/django",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "swebench",
+    "ground_truth": "diff --git a/django/core/management/commands/makemigrations.py b/django/core/management/commands/makemigrations.py\n--- a/django/core/management/commands/makemigrations.py\n+++ b/django/core/management/commands/makemigrations.py\n@@ -105,7 +105,7 @@ def handle(self, *app_labels, **options):\n                     # At least one model must be migrated to the database.\n                     router.allow_migrate(connection.alias, app_label, model_name=model._meta.object_name)\n                     for app",
+    "stream_index": 0
+  },
+  "rating": {
+    "task_id": "django__django-7530",
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
+    "communication_quality": 1,
+    "autonomy_score": 1,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "Agent produced no output — the session timed out with ETIMEDOUT before any work was done. No code changes, no communication, no HANDOFF.md, nothing. This task needs to be reassigned from scratch.",
+    "timestamp": "2026-04-13T23:14:44.386Z"
+  },
+  "duration_ms": 25611,
+  "cost_usd": 0,
+  "tokens_used": 0
+}
