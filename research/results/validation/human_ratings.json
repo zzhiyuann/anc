@@ -4,9 +4,9 @@
     "title": "Fix typo in README.md",
     "complexity": "low",
     "description": "The README has \"recieve\" instead of \"receive\" on line 42. Fix all typo instances.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -14,9 +14,9 @@
     "title": "Add .gitignore entry for .env.local",
     "complexity": "low",
     "description": "Environment files are being committed. Add .env.local and .env.*.local to .gitignore.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -24,9 +24,9 @@
     "title": "Update copyright year in LICENSE",
     "complexity": "low",
     "description": "License file says 2024, should be 2025.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -34,9 +34,9 @@
     "title": "Remove unused import in utils.ts",
     "complexity": "low",
     "description": "ESLint reports unused import of `lodash` in src/utils.ts. Remove it.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -44,9 +44,9 @@
     "title": "Add alt text to all images in docs",
     "complexity": "low",
     "description": "Accessibility audit found 3 images without alt text in docs/getting-started.md.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -54,9 +54,9 @@
     "title": "Add input validation to POST /tasks endpoint",
     "complexity": "medium",
     "description": "The POST /api/v1/tasks endpoint accepts any body without validation. Add zod schema validation for title (required, 1-200 chars), description (optional, max 5000 chars), priority (1-5).",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -64,9 +64,9 @@
     "title": "Implement rate limiting for API endpoints",
     "complexity": "medium",
     "description": "Add rate limiting to prevent abuse. Use a sliding window counter: 100 requests per minute per IP. Return 429 with Retry-After header when exceeded.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -74,9 +74,9 @@
     "title": "Add unit tests for priority queue",
     "complexity": "medium",
     "description": "The priority queue in src/routing/queue.ts has no tests. Write tests covering: enqueue, dequeue by priority, delay-until, retry count, max retries, stale item cleanup.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -84,9 +84,9 @@
     "title": "Implement graceful shutdown",
     "complexity": "medium",
     "description": "When receiving SIGTERM, the server should: 1) stop accepting new connections, 2) wait for active agent sessions to reach a checkpoint, 3) persist queue state, 4) exit cleanly.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -94,9 +94,9 @@
     "title": "Add structured logging with pino",
     "complexity": "medium",
     "description": "Replace console.log/error calls with structured logging using pino. Add request ID tracking, log levels (debug/info/warn/error), and JSON output format.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
     "notes": ""
   },
   {
@@ -104,9 +104,9 @@
     "title": "Create a health check dashboard widget",
     "complexity": "medium",
     "description": "Add a health check component to the dashboard that shows: server uptime, active agents, queue depth, budget remaining, last event time. Poll /health/detailed every 30s.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 1,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -114,9 +114,9 @@
     "title": "Implement task search with filters",
     "complexity": "medium",
     "description": "Add search to GET /tasks: text search on title/description, filter by status, agent, labels, date range. Use SQLite FTS5 for text search.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -124,9 +124,9 @@
     "title": "Add Discord slash commands",
     "complexity": "medium",
     "description": "Implement Discord slash commands: /status (system overview), /assign <issue> <agent> (dispatch), /budget (today spend). Register commands on bot startup.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -134,9 +134,9 @@
     "title": "Implement agent session resume",
     "complexity": "medium",
     "description": "When an agent session is interrupted (OOM, timeout), implement resume: save session state to disk, detect incomplete sessions on startup, resume with --continue flag.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -144,9 +144,9 @@
     "title": "Add cost attribution per task",
     "complexity": "medium",
     "description": "Track API costs per task (not just per agent). When a task completes, compute total cost from all sessions that worked on it. Show in task detail API response.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -154,9 +154,9 @@
     "title": "Implement multi-runtime adapter for Aider",
     "complexity": "high",
     "description": "Add Aider as a second runtime backend alongside Claude Code. Create an adapter that: spawns aider with --message flag, captures output, handles completion detection, maps to ANC session lifecycle. Must pass existing runtime tests.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -164,9 +164,9 @@
     "title": "Build agent-to-agent communication protocol",
     "complexity": "high",
     "description": "Implement @-mention dispatch: when Agent A mentions @engineer in a comment, ANC should dispatch Engineer on the same task as a contributor. Handle: mention parsing, dispatch creation, shared workspace, conflict prevention.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -174,9 +174,9 @@
     "title": "Implement knowledge graph for shared memory",
     "complexity": "high",
     "description": "Replace flat-file shared memory with a knowledge graph. Entities: concepts, decisions, patterns, people. Relationships: depends-on, supersedes, relates-to. Query API: find related knowledge given a task description. Use SQLite for storage.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -184,9 +184,9 @@
     "title": "Add comprehensive E2E test suite",
     "complexity": "high",
     "description": "Create an end-to-end test suite that: starts ANC server, creates a task via API, verifies routing, checks agent spawn, waits for completion, verifies HANDOFF.md, checks status transitions. Must clean up after each test. Target: 10 E2E scenarios.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 3,
+    "task_completion": 1,
+    "code_quality": 3,
     "notes": ""
   },
   {
@@ -194,9 +194,9 @@
     "title": "Implement real-time process capture for dashboard",
     "complexity": "high",
     "description": "Stream agent tool calls (file edits, terminal commands, search results) to the dashboard in real-time via WebSocket. Parse Claude Code output format, extract structured events, broadcast to connected clients. Show as a live activity feed.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 1,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -204,9 +204,9 @@
     "title": "Add pagination to all list endpoints",
     "complexity": "medium",
     "description": "Implement cursor-based pagination for GET /tasks, GET /agents, GET /events. Support limit (default 50, max 200) and cursor parameters. Return next_cursor in response.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
     "notes": ""
   },
   {
@@ -214,9 +214,9 @@
     "title": "Implement webhook retry with exponential backoff",
     "complexity": "medium",
     "description": "When outgoing webhooks (to Discord, Telegram) fail, retry with exponential backoff: 1s, 5s, 25s, max 3 retries. Log failures. Add circuit breaker after 5 consecutive failures.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
     "notes": ""
   },
   {
@@ -224,9 +224,9 @@
     "title": "Add OpenTelemetry tracing",
     "complexity": "medium",
     "description": "Instrument the event bus and API with OpenTelemetry traces. Each task should be traceable from creation through routing, agent spawn, and completion. Export to console (development) or OTLP (production).",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -234,9 +234,9 @@
     "title": "Create CLI command for bulk task import",
     "complexity": "medium",
     "description": "Add `anc import <file.json>` that reads a JSON array of task specs and creates them all via the API. Support dry-run mode, progress bar, and error recovery (skip failed, continue).",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
     "notes": ""
   },
   {
@@ -244,9 +244,9 @@
     "title": "Implement agent skill tracking",
     "complexity": "medium",
     "description": "Track which types of tasks each agent has completed successfully. Store as skill tags with proficiency scores (0-1). Use skills for smarter routing: prefer agents with relevant skills.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -254,9 +254,9 @@
     "title": "Handle concurrent task dispatch race condition",
     "complexity": "medium",
     "description": "When two tasks arrive simultaneously for the same agent (maxConcurrency=1), one should queue while the other runs. Currently both may try to spawn. Add mutex/lock to resolve gate.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
     "notes": ""
   },
   {
@@ -264,9 +264,9 @@
     "title": "Fix memory injection exceeding context window",
     "complexity": "high",
     "description": "When an agent has accumulated many memories, the injected CLAUDE.md exceeds Claude context limits. Implement token-aware truncation: prioritize recent retros, high-importance memories, and task-relevant content.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -274,9 +274,9 @@
     "title": "Add database migration system",
     "complexity": "medium",
     "description": "SQLite schema changes currently require manual migration. Implement a simple migration system: numbered migration files in migrations/, auto-run on startup, track applied migrations in a meta table.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
     "notes": ""
   },
   {
@@ -284,9 +284,9 @@
     "title": "Implement task dependencies",
     "complexity": "high",
     "description": "Allow tasks to declare dependencies: task B blocks on task A. When A completes, automatically unblock B. Show dependency graph in dashboard. Handle circular dependency detection.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
     "notes": ""
   },
   {
@@ -294,9 +294,9 @@
     "title": "Add support for task templates",
     "complexity": "medium",
     "description": "Allow creating reusable task templates (e.g., \"Deploy to staging\", \"Security audit\") with pre-filled title, description, labels, agent, and review policy. CRUD API + dashboard UI.",
-    "satisfaction": null,
-    "task_completion": null,
-    "code_quality": null,
+    "satisfaction": 1,
+    "task_completion": 0,
+    "code_quality": 1,
     "notes": ""
   }
 ]

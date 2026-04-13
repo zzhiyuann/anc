@@ -1,0 +1,157 @@
+{
+  "n": 30,
+  "rho": 0.9374757114429707,
+  "mae": 0.36666666666666664,
+  "pairs": [
+    {
+      "task_id": "cal_01",
+      "human": 5,
+      "simceo": 5
+    },
+    {
+      "task_id": "cal_02",
+      "human": 5,
+      "simceo": 5
+    },
+    {
+      "task_id": "cal_03",
+      "human": 5,
+      "simceo": 5
+    },
+    {
+      "task_id": "cal_04",
+      "human": 5,
+      "simceo": 5
+    },
+    {
+      "task_id": "cal_05",
+      "human": 5,
+      "simceo": 5
+    },
+    {
+      "task_id": "cal_06",
+      "human": 5,
+      "simceo": 5
+    },
+    {
+      "task_id": "cal_07",
+      "human": 5,
+      "simceo": 4
+    },
+    {
+      "task_id": "cal_08",
+      "human": 5,
+      "simceo": 5
+    },
+    {
+      "task_id": "cal_09",
+      "human": 5,
+      "simceo": 4
+    },
+    {
+      "task_id": "cal_10",
+      "human": 5,
+      "simceo": 4
+    },
+    {
+      "task_id": "cal_11",
+      "human": 2,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_12",
+      "human": 2,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_13",
+      "human": 2,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_14",
+      "human": 2,
+      "simceo": 1
+    },
+    {
+      "task_id": "cal_15",
+      "human": 2,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_16",
+      "human": 2,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_17",
+      "human": 2,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_18",
+      "human": 2,
+      "simceo": 1
+    },
+    {
+      "task_id": "cal_19",
+      "human": 3,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_20",
+      "human": 2,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_21",
+      "human": 1,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_22",
+      "human": 1,
+      "simceo": 1
+    },
+    {
+      "task_id": "cal_23",
+      "human": 2,
+      "simceo": 1
+    },
+    {
+      "task_id": "cal_24",
+      "human": 1,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_25",
+      "human": 2,
+      "simceo": 2
+    },
+    {
+      "task_id": "cal_26",
+      "human": 1,
+      "simceo": 1
+    },
+    {
+      "task_id": "cal_27",
+      "human": 2,
+      "simceo": 1
+    },
+    {
+      "task_id": "cal_28",
+      "human": 2,
+      "simceo": 1
+    },
+    {
+      "task_id": "cal_29",
+      "human": 1,
+      "simceo": 1
+    },
+    {
+      "task_id": "cal_30",
+      "human": 1,
+      "simceo": 1
+    }
+  ]
+}
