@@ -331,63 +331,122 @@ async function executeTask(
     const created = JSON.parse(createResp);
     const taskId = created.id;
 
-    // Dispatch to engineer agent (ANC won't auto-route REST-created tasks)
-    execSync(
-      `curl -s -X POST http://localhost:3849/api/v1/tasks/${taskId}/dispatch -H 'Content-Type: application/json' -d '{"role": "engineer"}'`,
-      { encoding: 'utf-8', timeout: 10_000 }
-    );
+    // Dispatch to engineer agent
+    let dispatchResp: any;
+    try {
+      const dr = execSync(
+        `curl -s -X POST http://localhost:3849/api/v1/tasks/${taskId}/dispatch -H 'Content-Type: application/json' -d '{"role": "engineer"}'`,
+        { encoding: 'utf-8', timeout: 10_000 }
+      );
+      dispatchResp = JSON.parse(dr);
+    } catch (e: any) {
+      console.error(`  [Dispatch failed] ${e.message}`);
+      return { output: 'DISPATCH_FAILED', interactionLog, tokens: 0, cost: 0 };
+    }
 
-    // Wait for agent to pick up and complete (poll every 30s, max 10 min)
+    const issueKey = dispatchResp?.session?.issueKey || `${taskId}-engineer`;
+
+    // Wait for agent to complete — check BOTH task state AND session state
     let output = '';
-    const maxWait = 600_000;
-    const pollInterval = 30_000;
+    const maxWait = 600_000; // 10 min
+    const pollInterval = 15_000; // check every 15s
     let elapsed = 0;
 
     while (elapsed < maxWait) {
       await sleep(pollInterval);
       elapsed += pollInterval;
 
-      // Check task status
-      const statusResp = execSync(
-        `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
-        { encoding: 'utf-8', timeout: 5_000 }
-      );
+      // Strategy 1: Check task state via API
+      try {
+        const statusResp = execSync(
+          `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
+          { encoding: 'utf-8', timeout: 5_000 }
+        );
+        const task_status = JSON.parse(statusResp);
 
-      const status = JSON.parse(statusResp);
+        // ANC uses 'state' not 'status'
+        const state = task_status.state || task_status.status;
 
-      if (status.status === 'done' || status.status === 'review') {
-        output = status.handoff || status.description || '';
-        break;
-      }
-
-      // SimCEO might intervene mid-task
-      if (status.status === 'in_progress' && elapsed > pollInterval * 2) {
-        const agentProgress = status.last_output || '';
-        const followUp = generateFollowUp(task, agentProgress, condition);
-        if (followUp !== 'NO_INTERVENTION') {
-          interactionLog.push(`[CEO @ ${elapsed / 1000}s]: ${followUp}`);
-          // Post follow-up comment
-          execSync(
-            `curl -s -X POST http://localhost:3849/api/v1/tasks/${taskId}/comments -H 'Content-Type: application/json' -d '${JSON.stringify({ body: followUp })}'`,
-            { encoding: 'utf-8', timeout: 5_000 }
-          );
+        if (state === 'done' || state === 'review') {
+          output = task_status.handoffSummary || task_status.handoff || '';
+          break;
         }
+        if (state === 'failed') {
+          output = 'TASK_FAILED: ' + (task_status.handoffSummary || '');
+          break;
+        }
+      } catch { /* continue polling */ }
+
+      // Strategy 2: Check if session went idle (agent finished)
+      try {
+        const agentResp = execSync(
+          `curl -s http://localhost:3849/api/v1/agents/engineer`,
+          { encoding: 'utf-8', timeout: 5_000 }
+        );
+        const agent = JSON.parse(agentResp);
+        const session = (agent.sessions || []).find((s: any) => s.issueKey === issueKey);
+
+        if (session && session.state === 'idle') {
+          // Session completed — try to get output from task
+          try {
+            const tr = execSync(
+              `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
+              { encoding: 'utf-8', timeout: 5_000 }
+            );
+            const t = JSON.parse(tr);
+            output = t.handoffSummary || t.handoff || 'Agent completed (idle)';
+          } catch {
+            output = 'Agent completed (idle, no handoff retrieved)';
+          }
+          break;
+        }
+      } catch { /* continue polling */ }
+
+      // Strategy 3: Check if tmux session died (agent crashed or finished)
+      try {
+        const tmuxCheck = execSync(
+          `tmux has-session -t '${dispatchResp?.session?.tmuxSession || ''}' 2>&1 || echo 'dead'`,
+          { encoding: 'utf-8', timeout: 3_000 }
+        );
+        if (tmuxCheck.includes('dead') && elapsed > 60_000) {
+          // tmux gone after 1+ min = agent finished or crashed
+          try {
+            const tr = execSync(
+              `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
+              { encoding: 'utf-8', timeout: 5_000 }
+            );
+            const t = JSON.parse(tr);
+            output = t.handoffSummary || t.handoff || 'Agent session ended';
+          } catch {
+            output = 'Agent session ended (no handoff)';
+          }
+          break;
+        }
+      } catch { /* continue */ }
+
+      // Log progress
+      if (elapsed % 60_000 === 0) {
+        console.log(`    ... waiting ${elapsed / 1000}s`);
       }
     }
 
-    // Get budget info
-    const budgetResp = execSync(
-      `curl -s http://localhost:3849/api/v1/budget`,
-      { encoding: 'utf-8', timeout: 5_000 }
-    );
-    const budget = JSON.parse(budgetResp);
+    if (!output && elapsed >= maxWait) {
+      output = 'TIMEOUT: agent did not complete within 10 minutes';
+    }
 
-    return {
-      output,
-      interactionLog,
-      tokens: budget.today_tokens || 0,
-      cost: budget.today_cost || 0,
-    };
+    // Get budget info
+    let cost = 0, tokens = 0;
+    try {
+      const budgetResp = execSync(
+        `curl -s http://localhost:3849/api/v1/budget`,
+        { encoding: 'utf-8', timeout: 5_000 }
+      );
+      const budget = JSON.parse(budgetResp);
+      cost = budget.today_cost || 0;
+      tokens = budget.today_tokens || 0;
+    } catch { /* ignore */ }
+
+    return { output, interactionLog, tokens, cost };
   } catch (e: any) {
     console.error(`  [Error] Task execution failed: ${e.message}`);
     return { output: 'EXECUTION_ERROR', interactionLog, tokens: 0, cost: 0 };
