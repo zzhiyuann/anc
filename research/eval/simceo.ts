@@ -353,6 +353,14 @@ async function executeTask(
         const t = raw.task || raw;
         const state = t.state;
 
+        // ANC may return session object (state=idle/active) instead of task
+        // Session idle + alive=false means agent completed
+        if (t.alive === false && (state === 'idle' || t.lastCompletedAt)) {
+          output = t.handoffSummary || 'Agent completed (session idle)';
+          console.log(`    [ANC] Agent session idle → completed (${elapsed/1000}s)`);
+          break;
+        }
+
         if (state === 'done' || state === 'review') {
           output = t.handoffSummary || '';
           // If no summary yet, try to get attachments
