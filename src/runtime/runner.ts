@@ -65,6 +65,7 @@ import {
 } from './health.js';
 import { ensureHookToken } from '../api/hook-handler.js';
 import { resolveTaskIdFromIssueKey } from '../core/tasks.js';
+import { estimateComplexity } from '../core/task-complexity.js';
 
 // Re-export resolveSession + ResolveResult from their new home for backwards compat
 export { resolveSession, type ResolveResult } from './resolve.js';
@@ -135,7 +136,8 @@ export function spawnClaude(opts: SpawnInternalOpts): { success: boolean; tmuxSe
 
   // Write script
   const scriptPath = `/tmp/anc-spawn-${tmuxSession}.sh`;
-  writeFileSync(scriptPath, _buildSpawnScript(workspace.root, fullPrompt, role, issueKey, useContinue, modelId), { mode: 0o755 });
+  const complexityMeta = taskMeta ? { title: taskMeta.title, description: taskMeta.description, priority: priority ?? 3 } : undefined;
+  writeFileSync(scriptPath, _buildSpawnScript(workspace.root, fullPrompt, role, issueKey, useContinue, modelId, complexityMeta), { mode: 0o755 });
 
   // Kill stale tmux
   const tmux = getTmuxPath();
@@ -304,9 +306,18 @@ function buildDefaultPrompt(issueKey: string): string {
 }
 
 /** @internal Exported for testing */
-export function _buildSpawnScript(workDir: string, prompt: string, role: string, issueKey: string, useContinue: boolean, modelId?: string): string {
+export function _buildSpawnScript(workDir: string, prompt: string, role: string, issueKey: string, useContinue: boolean, modelId?: string, taskMeta?: { title: string; description: string | null; priority: number }): string {
+  // If task metadata is provided, check complexity and prepend decomposition hint
+  let finalPrompt = prompt;
+  if (taskMeta && !useContinue) {
+    const { shouldDecompose } = estimateComplexity(taskMeta);
+    if (shouldDecompose) {
+      finalPrompt = `NOTE: This task appears complex. Consider decomposing into sub-tasks using \`anc create-sub $ANC_TASK_ID "<title>" "<description>"\` before starting.\n\n${prompt}`;
+    }
+  }
+
   const promptFile = `/tmp/anc-prompt-${role}-${issueKey}.txt`;
-  writeFileSync(promptFile, prompt, 'utf-8');
+  writeFileSync(promptFile, finalPrompt, 'utf-8');
   const continueFlag = useContinue ? ' --continue' : '';
 
   // Load agent OAuth token so the claude session posts as the agent, not CEO

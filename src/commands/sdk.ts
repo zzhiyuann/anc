@@ -175,7 +175,27 @@ export async function createSubCommand(
     { input },
   );
   const created = (data as { issueCreate: { issue: { identifier: string; url: string } } }).issueCreate.issue;
-  console.log(`✓ Created ${created.identifier}: ${title}`);
+
+  // Also create a local ANC task with parentTaskId linkage
+  let ancTaskId: string | undefined;
+  try {
+    const taskId = process.env.ANC_TASK_ID;
+    const result = await ancApi('POST', '/tasks', {
+      title,
+      description,
+      parentTaskId: taskId ?? null,
+      linearIssueKey: created.identifier,
+      source: 'dispatch',
+      createdBy: process.env.AGENT_ROLE ? `agent:${process.env.AGENT_ROLE}` : 'ceo',
+    });
+    if (result.ok && result.data.id) {
+      ancTaskId = result.data.id as string;
+    }
+  } catch {
+    // Local API may not be running — Linear issue is still created
+  }
+
+  console.log(`✓ Created ${created.identifier}: ${title}${ancTaskId ? ` (ANC: ${ancTaskId})` : ''}`);
 }
 
 export async function searchCommand(term: string): Promise<void> {
