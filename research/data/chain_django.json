@@ -1,0 +1,93 @@
+[
+  {
+    "id": "django_chain_01",
+    "title": "Fix QuerySet.union() crash with annotated subqueries",
+    "description": "QuerySet.union() raises a DatabaseError when one of the combined querysets includes an annotation with Subquery. Trace through django/db/models/sql/compiler.py to understand how UNION queries are compiled and why the annotation columns cause a mismatch. The fix should normalize the select clause before combining, and add a regression test in tests/queries/test_qs_combinators.py.",
+    "depends_on_knowledge_from": []
+  },
+  {
+    "id": "django_chain_02",
+    "title": "Add test coverage for QuerySet combinator edge cases",
+    "description": "Expand the test suite in tests/queries/test_qs_combinators.py to cover intersection and difference operations with annotations, aggregates, and mixed ordering. Include tests for nested combinators (union of unions) and combinators with values() and values_list(). This builds on the compiler internals learned while fixing the union bug.",
+    "depends_on_knowledge_from": [
+      "django_chain_01"
+    ]
+  },
+  {
+    "id": "django_chain_03",
+    "title": "Refactor SQL compiler's select-clause normalization into a reusable method",
+    "description": "During the union fix and test expansion, the select-clause normalization logic was added inline. Extract it into a dedicated method on SQLCompiler (e.g., normalize_select_for_combinator) so that union, intersection, and difference all share the same code path. Ensure all existing combinator tests still pass after the refactor.",
+    "depends_on_knowledge_from": [
+      "django_chain_01",
+      "django_chain_02"
+    ]
+  },
+  {
+    "id": "django_chain_04",
+    "title": "Implement QuerySet.union() support for distinct on specific fields (PostgreSQL)",
+    "description": "Add a distinct_fields parameter to QuerySet.union() that generates DISTINCT ON for PostgreSQL backends. This requires extending the combinator compilation path using the normalized select method introduced in the refactor. Raise NotSupportedError on backends that don't support DISTINCT ON, and add feature detection to DatabaseFeatures.",
+    "depends_on_knowledge_from": [
+      "django_chain_01",
+      "django_chain_03"
+    ]
+  },
+  {
+    "id": "django_chain_05",
+    "title": "Handle empty QuerySet in combinator chains gracefully",
+    "description": "When QuerySet.none() is included in a union or intersection chain, Django currently emits unnecessary SQL. Detect the empty queryset case in the compiler and short-circuit: none() in a union should be dropped, none() in an intersection should return none(). Add tests verifying the optimization produces correct results and fewer queries.",
+    "depends_on_knowledge_from": [
+      "django_chain_02",
+      "django_chain_03"
+    ]
+  },
+  {
+    "id": "django_chain_06",
+    "title": "Fix combinator queries ignoring database router hints",
+    "description": "Multi-database setups using DATABASE_ROUTERS find that combinator queries always execute against the default database, ignoring the router's db_for_read hint. Trace the using() propagation through the combinator code path in SQLCompiler and ensure all sub-queries respect the specified database alias. Add a test using a secondary database alias.",
+    "depends_on_knowledge_from": [
+      "django_chain_03",
+      "django_chain_04"
+    ]
+  },
+  {
+    "id": "django_chain_07",
+    "title": "Add queryset combinator examples and caveats to documentation",
+    "description": "Update docs/ref/models/querysets.txt to document the new distinct_fields parameter, the empty queryset optimization, and multi-database behavior with combinators. Include concrete code examples showing annotation-safe unions and the none() short-circuit. Reference the backend-specific limitations discovered during implementation.",
+    "depends_on_knowledge_from": [
+      "django_chain_04",
+      "django_chain_05",
+      "django_chain_06"
+    ]
+  },
+  {
+    "id": "django_chain_08",
+    "title": "Optimize combinator query compilation to avoid redundant subquery wrapping",
+    "description": "Profile combinator queries and identify that the compiler wraps each leg in an unnecessary subquery on SQLite and MySQL. Modify the compilation path to emit flat UNION/INTERSECT SQL when the sub-queries have compatible select clauses (using the normalization method). Verify with EXPLAIN output and add a performance-oriented test.",
+    "depends_on_knowledge_from": [
+      "django_chain_03",
+      "django_chain_06"
+    ]
+  },
+  {
+    "id": "django_chain_09",
+    "title": "Support F() expressions referencing outer query in combinator subqueries",
+    "description": "Allow F() expressions in combinator sub-queries to reference columns from an outer query context, enabling correlated UNION subqueries in Subquery() wrappers. This requires adjusting the ResolvedOuterRef handling in the normalized select path so outer references survive the combinator compilation. Add tests combining Subquery, OuterRef, and union.",
+    "depends_on_knowledge_from": [
+      "django_chain_01",
+      "django_chain_03",
+      "django_chain_08"
+    ]
+  },
+  {
+    "id": "django_chain_10",
+    "title": "End-to-end integration test for complex combinator pipeline with all features",
+    "description": "Create a comprehensive integration test that exercises the full combinator pipeline: annotated unions with distinct_fields, none() optimization, multi-database routing, outer references, and the flat SQL optimization. Use a realistic schema (e.g., multi-tenant SaaS with orders across shards) and verify correctness on both PostgreSQL and SQLite backends. This validates that all preceding changes compose correctly.",
+    "depends_on_knowledge_from": [
+      "django_chain_04",
+      "django_chain_05",
+      "django_chain_06",
+      "django_chain_08",
+      "django_chain_09"
+    ]
+  }
+]

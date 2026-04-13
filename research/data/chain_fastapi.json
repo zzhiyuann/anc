@@ -1,0 +1,92 @@
+[
+  {
+    "id": "fastapi_chain_01",
+    "title": "Fix query parameter default value handling for Optional types",
+    "description": "When a query parameter is declared as Optional[int] = None, FastAPI correctly marks it as not required. However, when using Optional[int] = Query(default=None), the OpenAPI schema incorrectly omits the nullable property. Trace the parameter processing in fastapi/params.py and fastapi/dependencies/utils.py to fix the schema generation for Query params with explicit None defaults.",
+    "depends_on_knowledge_from": []
+  },
+  {
+    "id": "fastapi_chain_02",
+    "title": "Add regression tests for parameter default value edge cases",
+    "description": "Building on the parameter processing logic discovered in the previous fix, write comprehensive tests covering all combinations: Query/Path/Header/Cookie with None defaults, with explicit Query(default=None), with Annotated syntax, and with union types like int | None. Place tests in tests/test_param_defaults.py following the existing test patterns that use TestClient and assert against the OpenAPI schema dict.",
+    "depends_on_knowledge_from": [
+      "fastapi_chain_01"
+    ]
+  },
+  {
+    "id": "fastapi_chain_03",
+    "title": "Refactor dependency resolution to extract parameter analysis into a standalone function",
+    "description": "The function get_dependant in fastapi/dependencies/utils.py mixes parameter introspection with dependency tree construction. Extract the parameter-type analysis logic (the part that determines if something is a query, path, header, cookie, or body param) into a pure function analyze_param that returns a structured result. This enables reuse in tooling and makes testing easier. Ensure all existing tests still pass.",
+    "depends_on_knowledge_from": [
+      "fastapi_chain_01",
+      "fastapi_chain_02"
+    ]
+  },
+  {
+    "id": "fastapi_chain_04",
+    "title": "Implement request-scoped dependency caching with TTL support",
+    "description": "FastAPI currently caches dependency results per-request via the use_cache parameter. Add an optional cache_ttl_seconds parameter to Depends() that allows a resolved dependency value to be reused across multiple requests within the TTL window, stored in an async-safe LRU cache keyed by the dependency callable and its arguments. This is useful for expensive lookups like permission checks or config fetches that don't change frequently.",
+    "depends_on_knowledge_from": [
+      "fastapi_chain_03"
+    ]
+  },
+  {
+    "id": "fastapi_chain_05",
+    "title": "Handle edge case where cached dependencies interact with generator dependencies",
+    "description": "Generator dependencies (those using yield) have cleanup logic that runs after the response. When combined with the new TTL caching from the previous task, the cleanup must not run if the cached value is still being shared with other requests. Update the dependency resolution in fastapi/dependencies/utils.py to track whether a cached generator dependency's lifecycle is owned by the current request or shared, and only run cleanup when the last reference expires.",
+    "depends_on_knowledge_from": [
+      "fastapi_chain_03",
+      "fastapi_chain_04"
+    ]
+  },
+  {
+    "id": "fastapi_chain_06",
+    "title": "Add OpenAPI extension for documenting cached vs fresh dependency behavior",
+    "description": "Endpoints using TTL-cached dependencies may return slightly stale data. Add an x-dependency-caching OpenAPI extension to affected endpoints that documents which dependencies are cached and their TTL. Implement this in the route schema generation code in fastapi/routing.py, leveraging the parameter analysis function extracted earlier to inspect the dependency tree for cache configurations.",
+    "depends_on_knowledge_from": [
+      "fastapi_chain_03",
+      "fastapi_chain_04"
+    ]
+  },
+  {
+    "id": "fastapi_chain_07",
+    "title": "Write integration tests for cached dependencies under concurrent load",
+    "description": "Create tests in tests/test_dependency_cache_concurrent.py that use httpx.AsyncClient to send concurrent requests and verify that TTL-cached dependencies are resolved only once within the window, generator cleanup runs at the correct time, and the cache properly invalidates after TTL expiry. Use the anyio testing patterns already established in FastAPI's test suite and mock time progression for deterministic TTL testing.",
+    "depends_on_knowledge_from": [
+      "fastapi_chain_04",
+      "fastapi_chain_05"
+    ]
+  },
+  {
+    "id": "fastapi_chain_08",
+    "title": "Refactor middleware exception handling to preserve dependency cleanup guarantees",
+    "description": "When a middleware raises an exception, generator dependency cleanup (the code after yield) may be skipped. Audit the exception flow through fastapi/routing.py and the ASGI middleware stack to ensure that dependency cleanup always runs, even when middlewares or exception handlers raise. This is especially critical now that shared cached generator dependencies must track their reference count correctly across error paths.",
+    "depends_on_knowledge_from": [
+      "fastapi_chain_05",
+      "fastapi_chain_07"
+    ]
+  },
+  {
+    "id": "fastapi_chain_09",
+    "title": "Add dependency cache metrics endpoint for observability",
+    "description": "Add an optional /internal/dependency-cache-stats endpoint (enabled via FastAPI app settings) that returns cache hit rates, eviction counts, active TTL entries, and per-dependency resolution times. Use the internal dependency tracking structures from the caching implementation. Wire it as a standard FastAPI route so it benefits from the same OpenAPI docs generation, and include the x-internal: true OpenAPI extension to mark it as non-public.",
+    "depends_on_knowledge_from": [
+      "fastapi_chain_04",
+      "fastapi_chain_06",
+      "fastapi_chain_08"
+    ]
+  },
+  {
+    "id": "fastapi_chain_10",
+    "title": "Document the dependency caching lifecycle with architecture decision record",
+    "description": "Add docs/en/docs/advanced/dependency-caching.md covering the full feature: TTL configuration, generator dependency interaction, cleanup guarantees during errors, cache metrics endpoint, and the OpenAPI extensions. Include a sequence diagram showing the cache hit/miss/eviction/cleanup flow. Reference the specific modules (dependencies/utils.py, routing.py) and link to the relevant test files as executable examples.",
+    "depends_on_knowledge_from": [
+      "fastapi_chain_04",
+      "fastapi_chain_05",
+      "fastapi_chain_06",
+      "fastapi_chain_07",
+      "fastapi_chain_08",
+      "fastapi_chain_09"
+    ]
+  }
+]

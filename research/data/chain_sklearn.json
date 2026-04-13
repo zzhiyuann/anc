@@ -1,0 +1,95 @@
+[
+  {
+    "id": "sklearn_chain_01",
+    "title": "Fix ColumnTransformer remainder passthrough with pandas DataFrame index mismatch",
+    "description": "When ColumnTransformer uses remainder='passthrough' with a pandas DataFrame input, the output array can silently misalign columns if the DataFrame has a non-default index. Trace through ColumnTransformer._validate_remainder and _hstack to identify where index-based iloc vs loc causes the mismatch, and fix the column selection to use positional indexing consistently.",
+    "depends_on_knowledge_from": []
+  },
+  {
+    "id": "sklearn_chain_02",
+    "title": "Add regression tests for ColumnTransformer with edge-case DataFrame inputs",
+    "description": "Write parametrized tests covering ColumnTransformer with DataFrames that have duplicate column names, non-contiguous integer indices, MultiIndex columns, and mixed sparse/dense transformer outputs. Tests should cover both remainder='passthrough' and remainder='drop' paths. Use the internal _hstack and output dtype logic discovered while fixing the index mismatch bug.",
+    "depends_on_knowledge_from": [
+      "sklearn_chain_01"
+    ]
+  },
+  {
+    "id": "sklearn_chain_03",
+    "title": "Refactor ColumnTransformer._hstack to unify sparse and dense concatenation paths",
+    "description": "The current _hstack method has duplicated validation logic across its sparse and dense branches, including repeated calls to check_array and manual dtype promotion. Refactor into a single code path that delegates to scipy.sparse.hstack or numpy.hstack at the final step, consolidating the shape validation and dtype logic learned from the earlier bug fix. Ensure all existing tests still pass.",
+    "depends_on_knowledge_from": [
+      "sklearn_chain_01",
+      "sklearn_chain_02"
+    ]
+  },
+  {
+    "id": "sklearn_chain_04",
+    "title": "Implement per-transformer feature name propagation in ColumnTransformer",
+    "description": "Add a get_feature_names_out method that correctly composes feature names from each fitted transformer, including handling remainder columns and transformers that lack their own get_feature_names_out. Leverage the refactored _hstack column-ordering logic to guarantee feature names align with the actual output columns. Handle the named_transformers_ attribute to map transformer names to their output slices.",
+    "depends_on_knowledge_from": [
+      "sklearn_chain_01",
+      "sklearn_chain_03"
+    ]
+  },
+  {
+    "id": "sklearn_chain_05",
+    "title": "Fix Pipeline.get_feature_names_out chain when intermediate steps drop or reorder features",
+    "description": "When a Pipeline contains a feature selector (e.g., SelectKBest) followed by a ColumnTransformer, get_feature_names_out raises or returns wrong names because the intermediate step's output column count doesn't match the next step's expectation. Fix the sequential name propagation in Pipeline to pass the correct feature subset at each stage, using knowledge of how ColumnTransformer's feature name output is structured.",
+    "depends_on_knowledge_from": [
+      "sklearn_chain_04"
+    ]
+  },
+  {
+    "id": "sklearn_chain_06",
+    "title": "Add edge-case tests for feature name propagation across nested Pipelines",
+    "description": "Create tests for deeply nested Pipeline-in-Pipeline and Pipeline-in-ColumnTransformer configurations, including cases with transformers that change feature count (PCA, PolynomialFeatures), no-op passthrough steps, and custom transformers without get_feature_names_out. Validate that feature names survive round-trips through clone() and set_output(transform='pandas'). Use the Pipeline fix and ColumnTransformer feature name logic from earlier tasks.",
+    "depends_on_knowledge_from": [
+      "sklearn_chain_04",
+      "sklearn_chain_05"
+    ]
+  },
+  {
+    "id": "sklearn_chain_07",
+    "title": "Implement verbose_feature_names_out parameter for ColumnTransformer with configurable prefix format",
+    "description": "Add a verbose_feature_names_out parameter (default True for backward compat) that controls whether transformer name prefixes are added to output feature names. When False, raw feature names pass through, raising on collision. Implement a short-prefix mode that uses transformer index instead of full name. Build on the feature name propagation infrastructure and test patterns from earlier tasks.",
+    "depends_on_knowledge_from": [
+      "sklearn_chain_03",
+      "sklearn_chain_04",
+      "sklearn_chain_06"
+    ]
+  },
+  {
+    "id": "sklearn_chain_08",
+    "title": "Handle ColumnTransformer with 0-column remainder and set_output pandas mode gracefully",
+    "description": "When all columns are consumed by named transformers, remainder='passthrough' produces an empty array that causes set_output(transform='pandas') to fail with a shape mismatch. Fix the interaction between _hstack, get_feature_names_out, and the pandas adapter so that zero-width remainders are silently dropped. This requires understanding the full chain from _hstack through feature names through the output adapter.",
+    "depends_on_knowledge_from": [
+      "sklearn_chain_01",
+      "sklearn_chain_03",
+      "sklearn_chain_04",
+      "sklearn_chain_07"
+    ]
+  },
+  {
+    "id": "sklearn_chain_09",
+    "title": "Add narrative documentation and example for ColumnTransformer feature name tracking",
+    "description": "Write a user guide section (rst) and a gallery example showing how feature names flow through ColumnTransformer and Pipeline, including the verbose_feature_names_out toggle, pandas output mode, and how to debug name mismatches. Reference the actual code paths in _hstack and get_feature_names_out. Include a realistic heterogeneous-data example with numeric scaling, categorical encoding, and text vectorization.",
+    "depends_on_knowledge_from": [
+      "sklearn_chain_04",
+      "sklearn_chain_05",
+      "sklearn_chain_07",
+      "sklearn_chain_08"
+    ]
+  },
+  {
+    "id": "sklearn_chain_10",
+    "title": "Integration test: end-to-end Pipeline with ColumnTransformer, cross-validation, and feature name audit",
+    "description": "Create an integration test that fits a full Pipeline (ColumnTransformer with mixed types \u2192 feature selection \u2192 classifier) using cross_val_score, then verifies that feature names, SHAP-style feature importances, and pandas output all remain consistent across folds. Test clone, pickle round-trip, and warm_start. This exercises every subsystem touched in the chain: _hstack, feature names, Pipeline propagation, verbose prefixes, and the zero-column edge case.",
+    "depends_on_knowledge_from": [
+      "sklearn_chain_02",
+      "sklearn_chain_05",
+      "sklearn_chain_06",
+      "sklearn_chain_07",
+      "sklearn_chain_08"
+    ]
+  }
+]
