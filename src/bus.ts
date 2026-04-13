@@ -92,6 +92,7 @@ export interface AncEvents {
   'task:dispatched': { taskId: string; role: string; parentTaskId: string | null };
   'task:updated': { taskId: string; patch: Record<string, unknown>; by: string };
   'task:completed': { taskId: string; handoffSummary: string | null };
+  'task:state-changed': { taskId: string; from: string; to: string; by: string };
   'task:progress': { taskId: string; content: string };
   'task:feedback-ready': { parentTaskId: string; pendingCount: number };
   'task:all-children-done': { parentTaskId: string };

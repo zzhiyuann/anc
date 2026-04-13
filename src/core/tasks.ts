@@ -152,11 +152,17 @@ export function updateTask(id: string, patch: Partial<Task>): Task | null {
 }
 
 export function setTaskState(id: string, state: TaskState, completedAt?: number): void {
+  const current = getTask(id);
+  const from = current?.state ?? 'todo';
   if (state === 'done' || state === 'failed' || state === 'canceled') {
     getDb().prepare('UPDATE tasks SET state = ?, completed_at = ? WHERE id = ?')
       .run(state, completedAt ?? Date.now(), id);
   } else {
     getDb().prepare('UPDATE tasks SET state = ? WHERE id = ?').run(state, id);
+  }
+  // Emit state-changed so WS clients update in real-time.
+  if (from !== state) {
+    void bus.emit('task:state-changed', { taskId: id, from, to: state, by: 'system' });
   }
 }
 
@@ -230,14 +236,8 @@ export function transitionTaskState(
     'INSERT INTO task_events (task_id, role, type, payload) VALUES (?, ?, ?, ?)'
   ).run(taskId, by, 'task:state-changed', payload);
 
-  // Emit on bus. The `task:status-changed` event is added at runtime; the
-  // bus's typed surface doesn't currently list it, so we cast to escape the
-  // generic constraint without touching bus.ts.
-  type StatusChangedPayload = { taskId: string; from: TaskState; to: TaskState; by: string };
-  const emitter = bus as unknown as {
-    emit: (event: string, data: StatusChangedPayload) => Promise<void>;
-  };
-  void emitter.emit('task:status-changed', { taskId, from, to: nextState, by });
+  // Emit state-changed on bus so WS clients get real-time updates.
+  void bus.emit('task:state-changed', { taskId, from, to: nextState, by });
 
   const updated = getTask(taskId)!;
   return { task: updated, from, to: nextState };

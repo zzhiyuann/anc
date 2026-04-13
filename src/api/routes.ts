@@ -782,9 +782,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
           'INSERT INTO task_events (task_id, role, type, payload) VALUES (?, ?, ?, ?)'
         ).run(id, 'ceo', 'task:updated', JSON.stringify({ by: 'ceo', patch: fullPatch }));
         // Bus emit
-        type UpdatedPayload = { taskId: string; patch: Record<string, unknown>; by: string };
-        const emitter = bus as unknown as { emit: (e: string, d: UpdatedPayload) => Promise<void> };
-        void emitter.emit('task:updated', { taskId: id, patch: fullPatch, by: 'ceo' });
+        void bus.emit('task:updated', { taskId: id, patch: fullPatch, by: 'ceo' });
         json(res, { task: { ...updated, labels: finalLabels } });
         return true;
       }

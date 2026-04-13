@@ -95,14 +95,21 @@ export function setupWebSocket(server: Server): void {
 
   // Subscribe to bus events and relay to clients
   const events = [
+    // Agent lifecycle
     'agent:spawned', 'agent:completed', 'agent:failed',
     'agent:idle', 'agent:suspended', 'agent:resumed',
-    'agent:health',
+    'agent:health', 'agent:blocked', 'agent:crashed',
+    'agent:process-event',
+    // Queue & system
     'queue:enqueued', 'queue:drain',
     'system:budget-alert',
+    // Webhooks
     'webhook:issue.created', 'webhook:comment.created',
-    // Wave 2A: task + notification events for the dashboard task detail view.
+    // Task events — all types so dashboard updates in real-time
     'task:created', 'task:commented', 'task:dispatched', 'task:completed',
+    'task:updated', 'task:state-changed', 'task:progress',
+    'task:feedback-ready', 'task:all-children-done',
+    // Notifications
     'notification:created',
   ] as const;
 

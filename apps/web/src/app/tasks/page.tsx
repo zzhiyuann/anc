@@ -215,6 +215,55 @@ function TasksPageInner() {
         break;
       }
 
+      case "task:state-changed": {
+        // { taskId, from, to, by } — splice new state into list without full refresh
+        const scTaskId = data?.taskId as string | undefined;
+        const scTo = data?.to as Task["state"] | undefined;
+        if (scTaskId && scTo) {
+          const isTerminal = scTo === "done" || scTo === "failed" || scTo === "canceled";
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === scTaskId
+                ? { ...t, state: scTo, ...(isTerminal ? { completedAt: Date.now() } : {}) }
+                : t,
+            ),
+          );
+        }
+        break;
+      }
+
+      case "task:updated": {
+        // { taskId, patch, by } — surgically apply field changes to rail
+        const uTaskId = data?.taskId as string | undefined;
+        const uPatch = data?.patch as Partial<Task> | undefined;
+        if (uTaskId && uPatch) {
+          setTasks((prev) =>
+            prev.map((t) => (t.id === uTaskId ? { ...t, ...uPatch } : t)),
+          );
+        }
+        break;
+      }
+
+      case "task:commented":
+        // Rail doesn't display comments, but debounced refresh catches
+        // any derived indicators (last-activity timestamp, etc.)
+        debouncedRefreshList();
+        break;
+
+      case "task:progress": {
+        // { taskId, content } — update progress in rail
+        const pTaskId = data?.taskId as string | undefined;
+        const pPercent = data?.percent as number | undefined;
+        if (pTaskId && pPercent != null) {
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === pTaskId ? { ...t, progress: pPercent } : t,
+            ),
+          );
+        }
+        break;
+      }
+
       // Agent lifecycle events — refresh the task list so derived state
       // (running indicator, session counts) stays current in the rail.
       case "agent:spawned":
