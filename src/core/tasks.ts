@@ -90,7 +90,7 @@ export function getTask(id: string): Task | null {
   return row ? rowToTask(row) : null;
 }
 
-export function listTasks(filter: { projectId?: string; state?: TaskState; limit?: number } = {}): Task[] {
+export function listTasks(filter: { projectId?: string; state?: TaskState; limit?: number; assignee?: string } = {}): Task[] {
   const where: string[] = [];
   const params: unknown[] = [];
   if (filter.projectId !== undefined) {
@@ -100,6 +100,10 @@ export function listTasks(filter: { projectId?: string; state?: TaskState; limit
   if (filter.state !== undefined) {
     where.push('state = ?');
     params.push(filter.state);
+  }
+  if (filter.assignee !== undefined) {
+    where.push('assignee = ?');
+    params.push(filter.assignee);
   }
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const limitClause = filter.limit ? `LIMIT ${Math.max(1, Math.floor(filter.limit))}` : '';

@@ -205,6 +205,38 @@ export function addKeyResult(
   };
 }
 
+/**
+ * Soft-archive an objective. Sets state='archived' (column auto-added on
+ * first call). Returns true if a row changed. Safer than hard-delete because
+ * historical OKR data is often referenced from notes/decisions.
+ */
+export function archiveObjective(id: string): boolean {
+  ensureSchema();
+  const db = getDb();
+  // Lazy migration: add state column if missing.
+  const cols = db.prepare("PRAGMA table_info(objectives)").all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'state')) {
+    db.exec("ALTER TABLE objectives ADD COLUMN state TEXT NOT NULL DEFAULT 'active'");
+  }
+  const result = db.prepare(`UPDATE objectives SET state = 'archived' WHERE id = ?`).run(id);
+  return result.changes > 0;
+}
+
+/**
+ * Hard-delete an objective and its key results. Used by the dashboard archive
+ * action when the user explicitly wants the row gone. Returns true if removed.
+ */
+export function deleteObjective(id: string): boolean {
+  ensureSchema();
+  const db = getDb();
+  const tx = db.transaction((objId: string): boolean => {
+    db.prepare(`DELETE FROM key_results WHERE objective_id = ?`).run(objId);
+    const result = db.prepare(`DELETE FROM objectives WHERE id = ?`).run(objId);
+    return result.changes > 0;
+  });
+  return tx(id);
+}
+
 export function updateKeyResult(
   id: string,
   patch: { current: number },

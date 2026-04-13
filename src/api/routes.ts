@@ -342,12 +342,13 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       const projectId = url.searchParams.get('projectId') ?? undefined;
       const stateParam = url.searchParams.get('state') ?? undefined;
       const limitParam = url.searchParams.get('limit');
+      const assignee = url.searchParams.get('assignee') ?? undefined;
       const limit = limitParam ? Math.min(Math.max(parseInt(limitParam) || 50, 1), 500) : 50;
       const validStates = ['todo', 'running', 'review', 'done', 'failed', 'canceled'] as const;
       const state = stateParam && (validStates as readonly string[]).includes(stateParam)
         ? (stateParam as typeof validStates[number])
         : undefined;
-      const tasks = listTasks({ projectId, state, limit });
+      const tasks = listTasks({ projectId, state, limit, assignee });
       const labelsByTask = getLabelsForTasks(tasks.map(t => t.id));
       const tasksWithMeta = tasks.map(t => ({ ...t, labels: labelsByTask[t.id] ?? [] }));
       json(res, { tasks: tasksWithMeta });
@@ -383,12 +384,15 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       const agent = getAgent(role);
       if (!agent) { error(res, 'Unknown agent role', 404); return true; }
 
+      const assigneeRaw = body?.assignee;
+      const assignee = typeof assigneeRaw === 'string' && assigneeRaw.trim() ? assigneeRaw.trim() : undefined;
       const task = createTask({
         title: title.trim(),
         description,
         priority,
         projectId: projectId ?? null,
         source: 'dashboard',
+        ...(assignee ? { assignee } : {}),
       });
       void bus.emit('task:created', {
         taskId: task.id,
@@ -977,11 +981,51 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
-    // GET /api/v1/events?limit=50
+    // GET /api/v1/events?limit=50&role=<role>&projectId=<id>&since=<ISO>
     if (path === '/events' && method === 'GET') {
       const limitParam = parseInt(url.searchParams.get('limit') ?? '50');
       const limit = Number.isNaN(limitParam) ? 50 : Math.min(Math.max(limitParam, 1), 500);
-      const events = getRecentEvents(limit);
+      const roleFilter = url.searchParams.get('role') ?? undefined;
+      const projectIdFilter = url.searchParams.get('projectId') ?? undefined;
+      const sinceFilter = url.searchParams.get('since') ?? undefined;
+
+      // If no filters, fast path
+      if (!roleFilter && !projectIdFilter && !sinceFilter) {
+        const events = getRecentEvents(limit);
+        json(res, { events });
+        return true;
+      }
+
+      // Filtered events query
+      const db = getDb();
+      const where: string[] = [];
+      const params: unknown[] = [];
+      if (roleFilter) {
+        where.push('role = ?');
+        params.push(roleFilter);
+      }
+      if (sinceFilter) {
+        where.push('created_at >= ?');
+        params.push(sinceFilter);
+      }
+      if (projectIdFilter) {
+        // Subquery: events whose issue_key matches any task with that project_id
+        where.push(`issue_key IN (SELECT id FROM tasks WHERE project_id = ?)`);
+        params.push(projectIdFilter);
+      }
+      const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+      params.push(limit);
+      const rows = db.prepare(
+        `SELECT * FROM events ${whereClause} ORDER BY id DESC LIMIT ?`
+      ).all(...params) as Array<Record<string, unknown>>;
+      const events = rows.map(r => ({
+        id: r.id as number,
+        eventType: r.event_type as string,
+        role: r.role as string | undefined,
+        issueKey: r.issue_key as string | undefined,
+        detail: r.detail as string | undefined,
+        createdAt: r.created_at as string,
+      }));
       json(res, { events });
       return true;
     }
@@ -1186,7 +1230,8 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     if (method === 'GET' && path === '/pulse/briefing') {
       try {
         const { generateBriefing } = await import('../core/briefing.js');
-        json(res, generateBriefing());
+        const force = url.searchParams.get('force') === '1';
+        json(res, generateBriefing({ force }));
       } catch (e) {
         error(res, (e as Error).message, 500);
       }
@@ -1298,6 +1343,115 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       try {
         const ks = await import('../core/kill-switch.js');
         json(res, { paused: ks.isGlobalPaused() });
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+
+    // === Gap Fill: Agent memory CRUD ===
+    m = matchRoute('/agents/:role/memory/:filename', path);
+    if (m) {
+      const role = m.params.role;
+      const filename = decodeURIComponent(m.params.filename);
+      try {
+        const mem = await import('../core/memory.js');
+        if (method === 'GET') {
+          const result = await mem.readMemoryFile(role, filename);
+          if (!result) { error(res, 'Not found', 404); return true; }
+          json(res, result);
+          return true;
+        }
+        if (method === 'PUT') {
+          const body = parseJson(await readBody(req));
+          if (!body || typeof body.body !== 'string') {
+            error(res, 'body (string) required', 400); return true;
+          }
+          const result = await mem.writeMemoryFile(role, filename, body.body);
+          json(res, result);
+          return true;
+        }
+        if (method === 'DELETE') {
+          const deleted = await mem.deleteMemoryFile(role, filename);
+          if (!deleted) { error(res, 'Not found', 404); return true; }
+          json(res, { ok: true });
+          return true;
+        }
+      } catch (e) {
+        const msg = (e as Error).message;
+        const status = msg.includes('invalid') || msg.includes('escape') ? 400 : 500;
+        error(res, msg, status);
+        return true;
+      }
+    }
+
+    // === Gap Fill: DELETE /pulse/objectives/:id (soft-delete/archive) ===
+    m = matchRoute('/pulse/objectives/:id', path);
+    if (method === 'DELETE' && m) {
+      try {
+        const { archiveObjective } = await import('../core/objectives.js');
+        const ok = archiveObjective(m.params.id);
+        if (!ok) { error(res, 'Objective not found', 404); return true; }
+        json(res, { ok: true });
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+
+    // === Gap Fill: /events?role=<role>&projectId=<id>&since=<ISO> ===
+    // (This overrides the earlier /events handler by matching first; we
+    //  replace the original block in-line to avoid double-match.)
+
+    // === Gap Fill: /tasks?assignee=<role> (already plumbed into listTasks) ===
+    // (The existing GET /tasks handler already reads searchParams; we just need
+    //  to add assignee there — handled in the early tasks block.)
+
+    // === Gap Fill: /config/budget/series?role=<role>&days=<n> ===
+    if (method === 'GET' && path === '/config/budget/series') {
+      const role = url.searchParams.get('role');
+      const daysParam = parseInt(url.searchParams.get('days') ?? '14');
+      const days = Number.isNaN(daysParam) ? 14 : Math.max(1, Math.min(daysParam, 90));
+      try {
+        const db = getDb();
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const startMs = now.getTime() - (days - 1) * 86_400_000;
+
+        const where: string[] = ['created_at >= ?'];
+        const params: unknown[] = [startMs];
+        if (role) {
+          where.push('agent_role = ?');
+          params.push(role);
+        }
+
+        const rows = db.prepare(`
+          SELECT created_at, cost_usd, tokens
+          FROM budget_log
+          WHERE ${where.join(' AND ')}
+        `).all(...params) as Array<{ created_at: number; cost_usd: number; tokens: number }>;
+
+        // Bucket into local-date
+        const buckets = new Map<string, { usd: number; tokens: number }>();
+        for (const row of rows) {
+          const d = new Date(row.created_at);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const cur = buckets.get(key) ?? { usd: 0, tokens: 0 };
+          cur.usd += row.cost_usd;
+          cur.tokens += row.tokens;
+          buckets.set(key, cur);
+        }
+
+        // Fill in zero days
+        const series: Array<{ date: string; usd: number; tokens: number }> = [];
+        for (let i = 0; i < days; i++) {
+          const d = new Date(startMs + i * 86_400_000);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const cur = buckets.get(key) ?? { usd: 0, tokens: 0 };
+          series.push({ date: key, ...cur });
+        }
+
+        json(res, { role: role ?? 'all', days: series });
       } catch (e) {
         error(res, (e as Error).message, 500);
       }

@@ -33,8 +33,8 @@ interface TaskRow {
   completed_at: number | null;
 }
 
-export function generateBriefing(): DailyBriefing {
-  if (cache && cache.expiresAt > Date.now()) return cache.briefing;
+export function generateBriefing(opts?: { force?: boolean }): DailyBriefing {
+  if (!opts?.force && cache && cache.expiresAt > Date.now()) return cache.briefing;
 
   const db = getDb();
   const now = Date.now();
