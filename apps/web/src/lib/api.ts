@@ -964,6 +964,12 @@ export const config = {
   async resetTodayBudget(): Promise<{ ok: true }> {
     return request<{ ok: true }>("/config/budget/reset", { method: "POST" });
   },
+  async toggleUnlimited(enabled: boolean): Promise<{ disabled: boolean }> {
+    return request<{ disabled: boolean }>("/config/budget/toggle-unlimited", {
+      method: "POST",
+      body: { enabled },
+    });
+  },
   async budgetSeries(
     role: string,
     days = 14,

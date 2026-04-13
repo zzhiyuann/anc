@@ -213,15 +213,33 @@ export function BudgetSection() {
       </div>
       <Separator className="my-3" />
 
-      {data.disabled && (
-        <div className="mb-4 rounded-md border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-900 dark:text-yellow-200">
-          <strong className="font-semibold">Unlimited mode active.</strong>{" "}
-          Budget checks are bypassed via the <code>ANC_BUDGET_DISABLED</code> env
-          var. Restart anc with the variable unset to re-enable enforcement. The
-          values below are still editable and will take effect when enforcement
-          resumes.
+      {/* Unlimited mode toggle */}
+      <div className="mb-4 flex items-center justify-between rounded-md border border-border bg-background/40 p-3">
+        <div>
+          <span className="text-sm font-medium">Unlimited mode</span>
+          <p className="text-xs text-muted-foreground">
+            {data.disabled
+              ? "Budget enforcement bypassed. Values below take effect when re-enabled."
+              : "Budget limits are enforced. Toggle to bypass all spending checks."}
+          </p>
         </div>
-      )}
+        <Button
+          type="button"
+          variant={data.disabled ? "default" : "outline"}
+          size="sm"
+          onClick={async () => {
+            try {
+              const res = await api.config.toggleUnlimited(!data.disabled);
+              setData(prev => prev ? { ...prev, disabled: res.disabled } : prev);
+              toast.success(res.disabled ? "Unlimited mode enabled" : "Budget enforcement resumed");
+            } catch (err) {
+              toast.error(err instanceof ApiError ? err.message : (err as Error).message);
+            }
+          }}
+        >
+          {data.disabled ? "ON" : "OFF"}
+        </Button>
+      </div>
 
       {/* Daily section */}
       <div className="space-y-4">

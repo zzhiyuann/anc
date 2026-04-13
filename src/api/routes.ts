@@ -46,6 +46,7 @@ import {
   saveConfig as saveBudgetConfig,
   resetTodayBudget,
   isDisabled as isBudgetDisabled,
+  setDisabled as setBudgetDisabled,
   getSummary as getBudgetSummary,
   type BudgetConfig,
   type BudgetConfigPatch,
@@ -1079,6 +1080,14 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     if (method === 'POST' && path === '/config/budget/reset') {
       resetTodayBudget();
       json(res, { ok: true });
+      return true;
+    }
+
+    if (method === 'POST' && path === '/config/budget/toggle-unlimited') {
+      const body = parseJson(await readBody(req));
+      const enabled = body && typeof body.enabled === 'boolean' ? body.enabled : !isBudgetDisabled();
+      setBudgetDisabled(enabled);
+      json(res, { disabled: isBudgetDisabled() });
       return true;
     }
 
