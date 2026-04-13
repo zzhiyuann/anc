@@ -1,4 +1,3 @@
-// TODO parent: wire into src/api/routes.ts
 /**
  * Objectives & Key Results — quarterly OKRs for the one-person company.
  *
@@ -15,6 +14,7 @@ import { getDb } from './db.js';
 export interface Objective {
   id: string;
   title: string;
+  description: string | null;
   quarter: string; // e.g. "2026 Q2"
   createdAt: number;
   keyResults: KeyResult[];
@@ -32,13 +32,21 @@ export interface KeyResult {
 
 let initialized = false;
 
-function ensureSchema(): void {
+/**
+ * Initialise the objectives + key_results tables. Idempotent.
+ *
+ * Safe to call multiple times; the parent agent will call this from
+ * src/core/db.ts during getDb() bootstrap. Until then we fall back to
+ * lazy init via ensureSchema() inside each public helper.
+ */
+export function init(): void {
   if (initialized) return;
   const db = getDb();
   db.exec(`
     CREATE TABLE IF NOT EXISTS objectives (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
+      description TEXT,
       quarter TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
@@ -60,12 +68,29 @@ function ensureSchema(): void {
     CREATE INDEX IF NOT EXISTS idx_key_results_objective
       ON key_results(objective_id);
   `);
+
+  // Additive migration: add description column to existing objectives table.
+  const cols = db.prepare("PRAGMA table_info(objectives)").all() as Array<{ name: string }>;
+  if (!cols.some(c => c.name === 'description')) {
+    db.exec("ALTER TABLE objectives ADD COLUMN description TEXT");
+  }
+
   initialized = true;
+}
+
+function ensureSchema(): void {
+  init();
+}
+
+/** Test helper: reset the in-memory init flag so init() runs again. */
+export function _resetObjectivesInit(): void {
+  initialized = false;
 }
 
 interface ObjectiveRow {
   id: string;
   title: string;
+  description: string | null;
   quarter: string;
   created_at: number;
 }
@@ -127,6 +152,7 @@ export function listObjectives(quarter?: string): Objective[] {
   return objRows.map((o) => ({
     id: o.id,
     title: o.title,
+    description: o.description ?? null,
     quarter: o.quarter,
     createdAt: o.created_at,
     keyResults: byObj.get(o.id) ?? [],
@@ -135,18 +161,21 @@ export function listObjectives(quarter?: string): Objective[] {
 
 export function createObjective(input: {
   title: string;
+  description?: string | null;
   quarter: string;
 }): Objective {
   ensureSchema();
   const db = getDb();
   const id = randomUUID();
   const createdAt = Date.now();
+  const description = input.description ?? null;
   db.prepare(
-    `INSERT INTO objectives (id, title, quarter, created_at) VALUES (?, ?, ?, ?)`,
-  ).run(id, input.title, input.quarter, createdAt);
+    `INSERT INTO objectives (id, title, description, quarter, created_at) VALUES (?, ?, ?, ?, ?)`,
+  ).run(id, input.title, description, input.quarter, createdAt);
   return {
     id,
     title: input.title,
+    description,
     quarter: input.quarter,
     createdAt,
     keyResults: [],

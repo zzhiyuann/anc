@@ -5,8 +5,14 @@ import type { WsMessage, WsSnapshot } from "./types";
 
 // WebSocket upgrades can't be proxied through Next.js rewrites, so we connect
 // directly to the anc gateway. Override via NEXT_PUBLIC_WS_URL in .env.local.
-const DEFAULT_WS_URL =
-  process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3848/ws";
+// Default derives from NEXT_PUBLIC_API_URL so the WS stays in lock-step with
+// the HTTP base; falls back to the live backend port (3849).
+function defaultWsUrl(): string {
+  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
+  const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3849";
+  return api.replace(/^http/, "ws").replace(/\/$/, "") + "/ws";
+}
+const DEFAULT_WS_URL = defaultWsUrl();
 
 interface UseWebSocketOptions {
   url?: string;

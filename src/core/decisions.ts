@@ -1,4 +1,3 @@
-// TODO parent: wire into src/api/routes.ts
 /**
  * Decision Log — append-only record of architecture / product / strategy calls
  * the CEO (or an agent) made, surfaced on the /pulse dashboard so nothing is
@@ -19,7 +18,13 @@ export interface Decision {
 
 let initialized = false;
 
-function ensureSchema(): void {
+/**
+ * Initialise the decisions table. Idempotent.
+ *
+ * Safe to call multiple times. The parent agent will call this from
+ * src/core/db.ts during getDb() bootstrap.
+ */
+export function init(): void {
   if (initialized) return;
   const db = getDb();
   db.exec(`
@@ -36,6 +41,15 @@ function ensureSchema(): void {
       ON decisions(created_at);
   `);
   initialized = true;
+}
+
+function ensureSchema(): void {
+  init();
+}
+
+/** Test helper: reset the in-memory init flag so init() runs again. */
+export function _resetDecisionsInit(): void {
+  initialized = false;
 }
 
 interface DecisionRow {

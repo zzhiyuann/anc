@@ -768,7 +768,11 @@ export function TaskListRail({
                   const isChecked = selected.has(t.id);
                   const project = t.projectId ? projectsById.get(t.projectId) : null;
                   const pri = PRIORITY_META[t.priority] ?? PRIORITY_META[3];
-                  const assignee = t.assignee ?? t.createdBy ?? "?";
+                  // Only show an assignee avatar when an agent has actually
+                  // been assigned. Falling back to createdBy was misleading
+                  // — every task showed "CEO" even when the engineer was
+                  // the real worker. Placeholder ring otherwise.
+                  const assignee = t.assignee ?? null;
                   return (
                     <div
                       key={t.id}
@@ -852,15 +856,24 @@ export function TaskListRail({
                           </span>
                         </span>
                       )}
-                      <span
-                        className={cn(
-                          "flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold",
-                          roleAvatarClass(assignee),
-                        )}
-                        title={assignee}
-                      >
-                        {agentInitial(assignee)}
-                      </span>
+                      {assignee ? (
+                        <span
+                          className={cn(
+                            "flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold",
+                            roleAvatarClass(assignee),
+                          )}
+                          title={assignee}
+                        >
+                          {agentInitial(assignee)}
+                        </span>
+                      ) : (
+                        <span
+                          className="flex size-4 shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-[9px] text-muted-foreground/50"
+                          title="Unassigned"
+                        >
+                          ·
+                        </span>
+                      )}
                       <span className="w-7 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
                         {relativeShort(t.createdAt)}
                       </span>

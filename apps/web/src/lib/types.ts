@@ -264,6 +264,24 @@ export interface Project {
   createdBy: string;
   createdAt: number;
   archivedAt: number | null;
+  // Wave B: Linear-style metadata persisted by the backend (Functional 2).
+  health?: ProjectHealth;
+  priority?: number;
+  lead?: string | null;
+  targetDate?: string | null;
+}
+
+/** Patch shape accepted by `projects.update`. */
+export interface ProjectUpdateInput {
+  name?: string;
+  description?: string | null;
+  color?: string;
+  icon?: string | null;
+  state?: ProjectState;
+  health?: ProjectHealth;
+  priority?: number;
+  lead?: string | null;
+  targetDate?: string | null;
 }
 
 export interface ProjectStats {

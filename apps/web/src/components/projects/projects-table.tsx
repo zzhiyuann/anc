@@ -20,7 +20,6 @@ import {
   HEALTH_DOT_CLASS,
   HEALTH_LABEL,
   getProjectMeta,
-  setProjectMeta,
   type ProjectLocalMeta,
 } from "./local-meta";
 import { PRIORITY_OPTIONS, PriorityGlyph } from "./priority-glyph";
@@ -59,9 +58,27 @@ export function ProjectsTable({ initialProjects, live }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sort, setSort] = useState<SortState>({ key: "name", dir: "asc" });
   const [agents, setAgents] = useState<AgentStatus[]>([]);
-  // Local-meta cache (so we re-render on inline edits).
-  const [metaTick, setMetaTick] = useState(0);
   const { lastMessage } = useWebSocket();
+
+  // Resolve effective meta for a project: prefer backend-provided fields,
+  // fall back to legacy localStorage only when the backend response omits
+  // them entirely (deprecated fallback path).
+  const resolveMeta = (p: ProjectWithStats): ProjectLocalMeta => {
+    const hasAny =
+      p.health !== undefined ||
+      p.priority !== undefined ||
+      p.lead !== undefined ||
+      p.targetDate !== undefined;
+    if (hasAny) {
+      return {
+        health: (p.health ?? "no-update") as ProjectLocalMeta["health"],
+        priority: p.priority ?? 3,
+        lead: p.lead ?? null,
+        targetDate: p.targetDate ?? null,
+      };
+    }
+    return getProjectMeta(p.id);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -116,9 +133,7 @@ export function ProjectsTable({ initialProjects, live }: Props) {
   }, [projects, search, scope, showArchived]);
 
   const rows = useMemo(() => {
-    // metaTick is intentionally referenced so this re-runs on inline edits.
-    void metaTick;
-    const enriched = filtered.map((p) => ({ project: p, meta: getProjectMeta(p.id) }));
+    const enriched = filtered.map((p) => ({ project: p, meta: resolveMeta(p) }));
     enriched.sort((a, b) => {
       const dir = sort.dir === "asc" ? 1 : -1;
       switch (sort.key) {
@@ -139,11 +154,23 @@ export function ProjectsTable({ initialProjects, live }: Props) {
       }
     });
     return enriched;
-  }, [filtered, sort, metaTick]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sort]);
 
-  const onMetaChange = (id: string, patch: Partial<ProjectLocalMeta>) => {
-    setProjectMeta(id, patch);
-    setMetaTick((n) => n + 1);
+  const onMetaChange = async (id: string, patch: Partial<ProjectLocalMeta>) => {
+    // Optimistic update: patch local state immediately.
+    setProjects((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    );
+    try {
+      const updated = await api.projects.update(id, patch);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, ...updated } : p)),
+      );
+    } catch {
+      // Revert on failure by re-fetching.
+      void refresh();
+    }
   };
 
   const activeCount = projects.filter((p) => p.state !== "archived").length;

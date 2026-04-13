@@ -1,4 +1,3 @@
-// TODO parent: wire into src/api/routes.ts
 /**
  * Kill switch — global pause/resume for all agent sessions and the dispatch
  * queue. Surfaced on the /pulse dashboard. Persisted to ~/.anc/kill-switch so
@@ -23,6 +22,11 @@ function killSwitchFile(): string {
 }
 
 let cached: boolean | null = null;
+
+/** Test helper: clear the in-memory paused flag cache. */
+export function _resetKillSwitchCache(): void {
+  cached = null;
+}
 
 function readFlag(): boolean {
   if (cached !== null) return cached;

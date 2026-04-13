@@ -450,6 +450,15 @@ export function TaskDetailCenter({
 
       <DescriptionBlock task={t} onSave={handleDescriptionSave} />
 
+      {/* Sub-issues — right under description, Linear-style */}
+      <section>
+        <SubIssuesTree
+          parentTaskId={taskId}
+          children={localData.children}
+          onChanged={() => void refresh()}
+        />
+      </section>
+
       {/* Runtime strip (collapsed) */}
       <section id="live-terminal-section">
         <RuntimeStrip
@@ -472,15 +481,6 @@ export function TaskDetailCenter({
           <HandoffRenderer handoff={localData.handoff} />
         </section>
       )}
-
-      {/* Sub-issues */}
-      <section>
-        <SubIssuesTree
-          parentTaskId={taskId}
-          children={localData.children}
-          onChanged={() => void refresh()}
-        />
-      </section>
 
       {/* Activity (events + comments merged) */}
       <section>

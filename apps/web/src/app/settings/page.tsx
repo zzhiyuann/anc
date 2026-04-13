@@ -75,13 +75,13 @@ export default async function SettingsPage() {
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">API Endpoint</span>
               <span className="font-mono">
-                {process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3848"}
+                {process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3849"}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">WebSocket</span>
               <span className="font-mono">
-                {process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3848/ws"}
+                {process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3849/ws"}
               </span>
             </div>
           </div>

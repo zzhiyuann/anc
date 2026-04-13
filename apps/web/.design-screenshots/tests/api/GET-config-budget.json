@@ -1,0 +1,1 @@
+{"config":{"daily":{"limit":50,"alertAt":0.8},"agents":{"engineer":{"limit":30,"alertAt":0.85},"strategist":{"limit":15,"alertAt":0.8},"ops":{"limit":10,"alertAt":0.8}}},"disabled":true,"summary":{"today":{"spent":0,"limit":50},"perAgent":{"engineer":{"spent":0,"limit":30},"strategist":{"spent":0,"limit":15},"ops":{"spent":0,"limit":10}}}}

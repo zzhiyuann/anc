@@ -143,6 +143,17 @@ vi.mock('../src/core/db.js', () => ({
 // --- Tasks / Projects / Notifications core mocks ---
 const tasksStore = new Map<string, Record<string, unknown>>();
 let taskSeq = 0;
+vi.mock('../src/core/labels.js', () => ({
+  listLabels: vi.fn(() => []),
+  createLabel: vi.fn((input: { name: string; color?: string }) => ({
+    id: 1, name: input.name, color: input.color ?? '#6b7280', createdAt: Date.now(),
+  })),
+  deleteLabel: vi.fn(() => true),
+  setTaskLabels: vi.fn(() => []),
+  getTaskLabels: vi.fn(() => []),
+  getLabelsForTasks: vi.fn(() => ({})),
+}));
+
 vi.mock('../src/core/tasks.js', () => ({
   createTask: vi.fn((input: Record<string, unknown>) => {
     taskSeq += 1;
@@ -168,6 +179,7 @@ vi.mock('../src/core/tasks.js', () => ({
   getTask: vi.fn((id: string) => tasksStore.get(id) ?? null),
   listTasks: vi.fn(() => Array.from(tasksStore.values())),
   getTaskChildren: vi.fn(() => []),
+  getChildCounts: vi.fn(() => ({})),
   setTaskState: vi.fn(),
   updateTask: vi.fn((id: string, patch: Record<string, unknown>) => {
     const existing = tasksStore.get(id);

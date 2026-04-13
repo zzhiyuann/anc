@@ -116,9 +116,44 @@ export function getDb(): Database.Database {
       state         TEXT NOT NULL DEFAULT 'active',
       created_by    TEXT NOT NULL DEFAULT 'ceo',
       created_at    INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      archived_at   INTEGER
+      archived_at   INTEGER,
+      health        TEXT,
+      priority      INTEGER,
+      lead          TEXT,
+      target_date   TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_projects_state ON projects(state, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS objectives (
+      id          TEXT PRIMARY KEY,
+      title       TEXT NOT NULL,
+      description TEXT,
+      quarter     TEXT NOT NULL,
+      created_at  INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_objectives_quarter ON objectives(quarter);
+
+    CREATE TABLE IF NOT EXISTS key_results (
+      id           TEXT PRIMARY KEY,
+      objective_id TEXT NOT NULL,
+      title        TEXT NOT NULL,
+      metric       TEXT NOT NULL,
+      target       REAL NOT NULL,
+      current      REAL NOT NULL DEFAULT 0,
+      created_at   INTEGER NOT NULL,
+      FOREIGN KEY (objective_id) REFERENCES objectives(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_key_results_objective ON key_results(objective_id);
+
+    CREATE TABLE IF NOT EXISTS decisions (
+      id          TEXT PRIMARY KEY,
+      title       TEXT NOT NULL,
+      rationale   TEXT NOT NULL,
+      decided_by  TEXT NOT NULL,
+      tags        TEXT NOT NULL DEFAULT '[]',
+      created_at  INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_decisions_created_at ON decisions(created_at);
 
     CREATE TABLE IF NOT EXISTS tasks (
       id                TEXT PRIMARY KEY,
@@ -138,6 +173,19 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_tasks_state ON tasks(state, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id, state, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS labels (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT NOT NULL UNIQUE,
+      color      TEXT NOT NULL DEFAULT '#6b7280',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS task_labels (
+      task_id  TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      label_id INTEGER NOT NULL REFERENCES labels(id) ON DELETE CASCADE,
+      PRIMARY KEY (task_id, label_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_task_labels_label ON task_labels(label_id);
 
     CREATE TABLE IF NOT EXISTS task_events (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -185,6 +233,42 @@ export function getDb(): Database.Database {
   if (!columns.some(c => c.name === 'task_id')) {
     db.prepare("ALTER TABLE sessions ADD COLUMN task_id TEXT").run();
     db.prepare("CREATE INDEX IF NOT EXISTS idx_sessions_task ON sessions(task_id)").run();
+  }
+
+  // Migrate projects table: add Wave B metadata columns if missing
+  const projectCols = db.prepare("PRAGMA table_info(projects)").all() as Array<{ name: string }>;
+  const haveProjectCols = new Set(projectCols.map(c => c.name));
+  for (const [name, type] of [
+    ['health', 'TEXT'],
+    ['priority', 'INTEGER'],
+    ['lead', 'TEXT'],
+    ['target_date', 'TEXT'],
+  ] as const) {
+    if (!haveProjectCols.has(name)) {
+      try { db.prepare(`ALTER TABLE projects ADD COLUMN ${name} ${type}`).run(); } catch { /**/ }
+    }
+  }
+
+  // Migrate tasks table: add assignee + due_date columns if missing
+  const taskCols = db.prepare("PRAGMA table_info(tasks)").all() as Array<{ name: string }>;
+  if (!taskCols.some(c => c.name === 'assignee')) {
+    db.prepare("ALTER TABLE tasks ADD COLUMN assignee TEXT").run();
+  }
+  if (!taskCols.some(c => c.name === 'due_date')) {
+    db.prepare("ALTER TABLE tasks ADD COLUMN due_date TEXT").run();
+  }
+
+  // Seed default labels if labels table is empty
+  const labelCount = db.prepare('SELECT COUNT(*) AS c FROM labels').get() as { c: number };
+  if (labelCount.c === 0) {
+    const insertLabel = db.prepare('INSERT OR IGNORE INTO labels (name, color) VALUES (?, ?)');
+    const seed = db.transaction(() => {
+      insertLabel.run('bug', '#ef4444');
+      insertLabel.run('feature', '#3b82f6');
+      insertLabel.run('research', '#8b5cf6');
+      insertLabel.run('urgent', '#f59e0b');
+    });
+    seed();
   }
 
   // Seed built-in 'system' project for standing duties

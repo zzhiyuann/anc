@@ -26,6 +26,8 @@ export interface Task {
   createdAt: number;
   completedAt: number | null;
   handoffSummary: string | null;
+  assignee: string | null;
+  dueDate: string | null;
 }
 
 function rowToTask(r: Record<string, unknown>): Task {
@@ -43,6 +45,8 @@ function rowToTask(r: Record<string, unknown>): Task {
     createdAt: r.created_at as number,
     completedAt: (r.completed_at as number | null) ?? null,
     handoffSummary: (r.handoff_summary as string | null) ?? null,
+    assignee: (r.assignee as string | null) ?? null,
+    dueDate: (r.due_date as string | null) ?? null,
   };
 }
 
@@ -57,8 +61,9 @@ export function createTask(input: Partial<Task> & { title: string }): Task {
   getDb().prepare(`
     INSERT INTO tasks (
       id, project_id, title, description, state, priority, source,
-      parent_task_id, created_by, linear_issue_key, created_at, completed_at, handoff_summary
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      parent_task_id, created_by, linear_issue_key, created_at, completed_at, handoff_summary,
+      assignee, due_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     input.projectId ?? null,
@@ -73,6 +78,8 @@ export function createTask(input: Partial<Task> & { title: string }): Task {
     createdAt,
     input.completedAt ?? null,
     input.handoffSummary ?? null,
+    input.assignee ?? null,
+    input.dueDate ?? null,
   );
 
   return getTask(id)!;
@@ -118,6 +125,8 @@ export function updateTask(id: string, patch: Partial<Task>): Task | null {
     linearIssueKey: 'linear_issue_key',
     completedAt: 'completed_at',
     handoffSummary: 'handoff_summary',
+    assignee: 'assignee',
+    dueDate: 'due_date',
   };
 
   const sets: string[] = [];
@@ -228,6 +237,22 @@ export function transitionTaskState(
 /** Read-only view of the legal-transitions matrix, primarily for tests. */
 export function getLegalTransitions(state: TaskState): TaskState[] {
   return Array.from(LEGAL_TRANSITIONS[state] ?? []);
+}
+
+/**
+ * Return a map { parentTaskId -> childCount } for the given parent ids.
+ * Used to annotate sub-issue trees with progress without N additional fetches.
+ */
+export function getChildCounts(parentIds: string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (parentIds.length === 0) return out;
+  const placeholders = parentIds.map(() => '?').join(',');
+  const rows = getDb().prepare(
+    `SELECT parent_task_id, COUNT(*) AS c FROM tasks
+     WHERE parent_task_id IN (${placeholders}) GROUP BY parent_task_id`
+  ).all(...parentIds) as Array<{ parent_task_id: string; c: number }>;
+  for (const r of rows) out[r.parent_task_id] = r.c;
+  return out;
 }
 
 export function getTaskChildren(parentId: string): Task[] {

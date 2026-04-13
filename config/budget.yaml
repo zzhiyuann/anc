@@ -1,17 +1,13 @@
-# Budget configuration — daily and per-agent spending limits
-# Costs are in USD. ANC emits system:budget-alert when alertAt threshold is reached.
-
 daily:
-  limit: 50.00        # max daily spend across all agents
-  alertAt: 0.80       # alert at 80% of daily limit
-
+  limit: 50
+  alertAt: 0.8
 agents:
   engineer:
-    limit: 30.00
+    limit: 30
     alertAt: 0.85
   strategist:
-    limit: 15.00
-    alertAt: 0.80
+    limit: 15
+    alertAt: 0.8
   ops:
-    limit: 10.00
-    alertAt: 0.80
+    limit: 10
+    alertAt: 0.8

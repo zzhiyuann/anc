@@ -25,7 +25,7 @@ export interface BudgetConfig {
 
 export interface BudgetConfigPatch {
   daily?: Partial<BudgetConfig['daily']>;
-  agents?: Record<string, AgentBudget | null>;
+  agents?: Record<string, Partial<AgentBudget> | null>;
 }
 
 const DEFAULT_CONFIG: BudgetConfig = {
@@ -93,8 +93,17 @@ export function saveConfig(patch: BudgetConfigPatch): BudgetConfig {
   };
   if (patch.agents) {
     for (const [role, val] of Object.entries(patch.agents)) {
-      if (val === null) delete next.agents[role];
-      else next.agents[role] = val;
+      if (val === null) {
+        delete next.agents[role];
+      } else {
+        // Merge into existing entry so a partial patch (e.g. only `limit`)
+        // preserves the other fields like `alertAt`.
+        const merged = { ...(next.agents[role] ?? {}), ...val };
+        next.agents[role] = {
+          limit: merged.limit ?? 0,
+          alertAt: merged.alertAt ?? 0.8,
+        };
+      }
     }
   }
   writeFileSync(configPath, stringifyYaml(next), 'utf-8');

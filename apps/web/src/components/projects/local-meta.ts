@@ -1,13 +1,10 @@
 /**
- * Client-side persistence for Linear-style project metadata that the backend
- * does not yet support. Wave B backend gap:
- *   - `health` (on-track / at-risk / off-track / no-update)
- *   - `priority` (1..5, matches task priority scale)
- *   - `lead` (agent role string)
- *   - `targetDate` (ISO yyyy-mm-dd string)
- *
- * Once the backend adds these columns, replace this module with API calls
- * via `api.projects.update(...)`.
+ * @deprecated As of Functional 2 (Wave B persistence), the canonical store for
+ * project health / priority / lead / targetDate is the backend (PATCH
+ * /projects/:id). This module is retained only as a read-only fallback for
+ * fields the backend response is missing (e.g. during a partial deploy where
+ * the columns exist but the route hasn't been updated yet). Do not call
+ * `setProjectMeta` from new code — use `api.projects.update(...)` instead.
  */
 
 import type { ProjectHealth } from "@/lib/types";

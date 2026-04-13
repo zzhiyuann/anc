@@ -18,6 +18,7 @@ import { isBreakerTripped, recordFailure, recordSuccess } from './circuit-breake
 import { enqueue } from '../routing/queue.js';
 import { spawnClaude, suspendSession, sessionExists, sendToAgent } from './runner.js';
 import { canSpend, estimateCost } from '../core/budget.js';
+import { isGlobalPaused } from '../core/kill-switch.js';
 
 const log = createLogger('resolve');
 
@@ -45,6 +46,12 @@ export function resolveSession(opts: {
   taskId?: string;
 }): ResolveResult {
   const { role, issueKey, prompt, priority, ceoAssigned, isDuty, taskId } = opts;
+
+  // 0. Global kill switch — refuse to spawn anything while paused.
+  if (isGlobalPaused()) {
+    log.warn(`${issueKey}: kill-switch engaged, refusing to spawn`, { issueKey });
+    return { action: 'blocked', error: 'kill-switch engaged' };
+  }
 
   // 1. Circuit breaker
   const tripped = isBreakerTripped(issueKey);

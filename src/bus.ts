@@ -85,6 +85,7 @@ export interface AncEvents {
   'task:created': { taskId: string; projectId: string | null; title: string; source: string };
   'task:commented': { taskId: string; author: string; body: string; commentId: number };
   'task:dispatched': { taskId: string; role: string; parentTaskId: string | null };
+  'task:updated': { taskId: string; patch: Record<string, unknown>; by: string };
   'task:completed': { taskId: string; handoffSummary: string | null };
 
   // Notification events

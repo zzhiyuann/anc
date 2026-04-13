@@ -20,8 +20,9 @@ export function deriveAgentStatus(agent: AgentStatus): UiStatus {
   return "idle";
 }
 
-/** First-letter avatar for an agent role. */
-export function agentInitial(role: string): string {
+/** First-letter avatar for an agent role. Null-safe. */
+export function agentInitial(role: string | null | undefined): string {
+  if (!role) return "?";
   return role.charAt(0).toUpperCase();
 }
 

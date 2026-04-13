@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { getDb } from './db.js';
 
 export type ProjectState = 'active' | 'paused' | 'archived';
+export type ProjectHealth = 'on-track' | 'at-risk' | 'off-track' | 'no-update';
 
 export interface Project {
   id: string;
@@ -18,6 +19,11 @@ export interface Project {
   createdBy: string;
   createdAt: number;
   archivedAt: number | null;
+  // Wave B: Linear-style metadata. All optional so old rows still validate.
+  health?: ProjectHealth;
+  priority?: number;
+  lead?: string | null;
+  targetDate?: string | null;
 }
 
 function rowToProject(r: Record<string, unknown>): Project {
@@ -31,6 +37,10 @@ function rowToProject(r: Record<string, unknown>): Project {
     createdBy: r.created_by as string,
     createdAt: r.created_at as number,
     archivedAt: (r.archived_at as number | null) ?? null,
+    health: (r.health as ProjectHealth | null) ?? 'no-update',
+    priority: (r.priority as number | null) ?? 3,
+    lead: (r.lead as string | null) ?? null,
+    targetDate: (r.target_date as string | null) ?? null,
   };
 }
 
@@ -51,8 +61,8 @@ export function createProject(input: Partial<Project> & { name: string }): Proje
   }
 
   getDb().prepare(`
-    INSERT INTO projects (id, name, description, color, icon, state, created_by, created_at, archived_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO projects (id, name, description, color, icon, state, created_by, created_at, archived_at, health, priority, lead, target_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     input.name,
@@ -63,6 +73,10 @@ export function createProject(input: Partial<Project> & { name: string }): Proje
     input.createdBy ?? 'ceo',
     input.createdAt ?? Date.now(),
     input.archivedAt ?? null,
+    input.health ?? 'no-update',
+    input.priority ?? 3,
+    input.lead ?? null,
+    input.targetDate ?? null,
   );
   return getProject(id)!;
 }
@@ -97,6 +111,10 @@ export function updateProject(id: string, patch: Partial<Project>): Project | nu
     icon: 'icon',
     state: 'state',
     archivedAt: 'archived_at',
+    health: 'health',
+    priority: 'priority',
+    lead: 'lead',
+    targetDate: 'target_date',
   };
   const sets: string[] = [];
   const params: unknown[] = [];

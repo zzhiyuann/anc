@@ -22,8 +22,12 @@ import { createLogger } from '../core/logger.js';
 import type { AgentRole } from '../linear/types.js';
 import {
   getTask, listTasks, createTask, getTaskChildren, updateTask, deleteTask,
-  transitionTaskState, type TaskState,
+  transitionTaskState, getChildCounts, type TaskState,
 } from '../core/tasks.js';
+import {
+  listLabels, createLabel, deleteLabel, setTaskLabels, getTaskLabels,
+  getLabelsForTasks,
+} from '../core/labels.js';
 import {
   loadReviewConfig, saveReviewConfig, resetReviewConfig, resolveReviewLevel,
   type ReviewLevel, type ReviewConfigPatch,
@@ -344,7 +348,9 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         ? (stateParam as typeof validStates[number])
         : undefined;
       const tasks = listTasks({ projectId, state, limit });
-      json(res, { tasks });
+      const labelsByTask = getLabelsForTasks(tasks.map(t => t.id));
+      const tasksWithMeta = tasks.map(t => ({ ...t, labels: labelsByTask[t.id] ?? [] }));
+      json(res, { tasks: tasksWithMeta });
       return true;
     }
 
@@ -453,7 +459,52 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         }
 
         void bus.emit('task:commented', { taskId: id, author: 'ceo', body: text, commentId });
-        json(res, { comment }, 201);
+
+        // Mention fanout: spawn a session for every non-CEO role mentioned.
+        const warnings: string[] = [];
+        const mentionsRaw = (body as Record<string, unknown>).mentions;
+        if (Array.isArray(mentionsRaw)) {
+          for (const mention of mentionsRaw) {
+            if (!mention || typeof mention !== 'object') continue;
+            const roleRaw = (mention as Record<string, unknown>).role;
+            if (typeof roleRaw !== 'string' || !roleRaw || roleRaw === 'ceo') continue;
+            const agent = getAgent(roleRaw);
+            if (!agent) {
+              warnings.push(`unknown role: ${roleRaw}`);
+              continue;
+            }
+            const issueKey = `${task.id}-${agent.role}`;
+            try {
+              const result = resolveSession({
+                role: agent.role as AgentRole,
+                issueKey,
+                prompt: text,
+                priority: task.priority,
+                taskId: task.id,
+              });
+              if (result.action === 'blocked') {
+                warnings.push(`${agent.role}: ${result.error ?? 'blocked'}`);
+                continue;
+              }
+              void bus.emit('task:dispatched', {
+                taskId: task.id,
+                role: agent.role,
+                parentTaskId: task.parentTaskId,
+              });
+              createNotification({
+                kind: 'dispatch',
+                title: `Dispatched ${agent.role} on @mention`,
+                body: text.length > 200 ? text.slice(0, 200) + '...' : text,
+                taskId: task.id,
+                agentRole: agent.role,
+              });
+            } catch (e) {
+              warnings.push(`${agent.role}: ${(e as Error).message}`);
+            }
+          }
+        }
+
+        json(res, { comment, ...(warnings.length ? { warnings } : {}) }, 201);
         return true;
       }
     }
@@ -611,7 +662,10 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         const body = parseJson(await readBody(req));
         if (!body) { error(res, 'Invalid JSON body', 400); return true; }
         const patch: Record<string, unknown> = {};
-        for (const key of ['title', 'description', 'priority', 'projectId', 'state'] as const) {
+        for (const key of [
+          'title', 'description', 'priority', 'projectId', 'state',
+          'assignee', 'dueDate',
+        ] as const) {
           if (key in body) patch[key] = body[key];
         }
         if (patch.projectId !== undefined && patch.projectId !== null) {
@@ -622,8 +676,40 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
             error(res, 'Unknown projectId', 404); return true;
           }
         }
+        // Validate assignee: null or string
+        if ('assignee' in patch && patch.assignee !== null && typeof patch.assignee !== 'string') {
+          error(res, 'assignee must be a string or null', 400); return true;
+        }
+        // Validate dueDate: null or yyyy-mm-dd string
+        if ('dueDate' in patch && patch.dueDate !== null) {
+          if (typeof patch.dueDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(patch.dueDate)) {
+            error(res, 'dueDate must be ISO yyyy-mm-dd string or null', 400); return true;
+          }
+        }
+        // Validate labels: array of strings, handled separately
+        let labelsPatch: string[] | undefined;
+        if ('labels' in body) {
+          if (!Array.isArray(body.labels) || !body.labels.every(l => typeof l === 'string')) {
+            error(res, 'labels must be string[]', 400); return true;
+          }
+          labelsPatch = body.labels as string[];
+        }
         const updated = updateTask(id, patch as Parameters<typeof updateTask>[1]);
-        json(res, { task: updated });
+        if (labelsPatch !== undefined) {
+          setTaskLabels(id, labelsPatch);
+        }
+        // Compose final shape with labels included
+        const finalLabels = getTaskLabels(id);
+        const fullPatch = { ...patch, ...(labelsPatch !== undefined ? { labels: labelsPatch } : {}) };
+        // Audit log
+        getDb().prepare(
+          'INSERT INTO task_events (task_id, role, type, payload) VALUES (?, ?, ?, ?)'
+        ).run(id, 'ceo', 'task:updated', JSON.stringify({ by: 'ceo', patch: fullPatch }));
+        // Bus emit
+        type UpdatedPayload = { taskId: string; patch: Record<string, unknown>; by: string };
+        const emitter = bus as unknown as { emit: (e: string, d: UpdatedPayload) => Promise<void> };
+        void emitter.emit('task:updated', { taskId: id, patch: fullPatch, by: 'ceo' });
+        json(res, { task: { ...updated, labels: finalLabels } });
         return true;
       }
       if (method === 'DELETE') {
@@ -721,7 +807,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         const body = parseJson(await readBody(req));
         if (!body) { error(res, 'Invalid JSON body', 400); return true; }
         const patch: Record<string, unknown> = {};
-        for (const key of ['name', 'description', 'color', 'icon', 'state'] as const) {
+        for (const key of ['name', 'description', 'color', 'icon', 'state', 'health', 'priority', 'lead', 'targetDate'] as const) {
           if (key in body) patch[key] = body[key];
         }
         const updated = updateProject(id, patch as Parameters<typeof updateProject>[1]);
@@ -781,6 +867,35 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       if (!Number.isFinite(id) || id <= 0) { error(res, 'Invalid notification id', 400); return true; }
       archiveNotification(id);
       json(res, { ok: true });
+      return true;
+    }
+
+    // === Labels ===
+
+    if (method === 'GET' && path === '/labels') {
+      json(res, { labels: listLabels() });
+      return true;
+    }
+
+    if (method === 'POST' && path === '/labels') {
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      const name = body.name;
+      if (typeof name !== 'string' || !name.trim()) {
+        error(res, 'name required (string)', 400); return true;
+      }
+      const color = typeof body.color === 'string' ? body.color : undefined;
+      const label = createLabel({ name: name.trim(), color });
+      json(res, { label }, 201);
+      return true;
+    }
+
+    m = matchRoute('/labels/:id', path);
+    if (method === 'DELETE' && m) {
+      const lid = parseInt(m.params.id);
+      if (!Number.isFinite(lid) || lid <= 0) { error(res, 'Invalid label id', 400); return true; }
+      const ok = deleteLabel(lid);
+      json(res, { ok });
       return true;
     }
 
@@ -1009,8 +1124,19 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
-    // Agent F: objectives
-    if (method === 'GET' && path === '/objectives') {
+    // === Pulse: briefing ===
+    if (method === 'GET' && path === '/pulse/briefing') {
+      try {
+        const { generateBriefing } = await import('../core/briefing.js');
+        json(res, generateBriefing());
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+
+    // === Pulse: objectives ===
+    if (method === 'GET' && path === '/pulse/objectives') {
       try {
         const { listObjectives } = await import('../core/objectives.js');
         const quarter = url.searchParams.get('quarter') ?? undefined;
@@ -1020,7 +1146,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       }
       return true;
     }
-    if (method === 'POST' && path === '/objectives') {
+    if (method === 'POST' && path === '/pulse/objectives') {
       const body = parseJson(await readBody(req));
       if (!body) { error(res, 'Invalid JSON body', 400); return true; }
       try {
@@ -1033,8 +1159,42 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
-    // Agent F: decisions
-    if (method === 'GET' && path === '/decisions') {
+    m = matchRoute('/pulse/objectives/:id/key-results', path);
+    if (method === 'POST' && m) {
+      const objectiveId = m.params.id;
+      const body = parseJson(await readBody(req));
+      if (!body) { error(res, 'Invalid JSON body', 400); return true; }
+      try {
+        const { addKeyResult } = await import('../core/objectives.js');
+        const kr = addKeyResult(objectiveId, body as unknown as Parameters<typeof addKeyResult>[1]);
+        json(res, { keyResult: kr }, 201);
+      } catch (e) {
+        error(res, (e as Error).message, 400);
+      }
+      return true;
+    }
+
+    m = matchRoute('/pulse/key-results/:id', path);
+    if (method === 'PATCH' && m) {
+      const krId = m.params.id;
+      const body = parseJson(await readBody(req));
+      if (!body || typeof body.current !== 'number') {
+        error(res, 'Body must include numeric `current`', 400);
+        return true;
+      }
+      try {
+        const { updateKeyResult } = await import('../core/objectives.js');
+        const kr = updateKeyResult(krId, { current: body.current });
+        if (!kr) { error(res, 'Key result not found', 404); return true; }
+        json(res, { keyResult: kr });
+      } catch (e) {
+        error(res, (e as Error).message, 400);
+      }
+      return true;
+    }
+
+    // === Pulse: decisions ===
+    if (method === 'GET' && path === '/pulse/decisions') {
       try {
         const { listDecisions } = await import('../core/decisions.js');
         const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
@@ -1044,7 +1204,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       }
       return true;
     }
-    if (method === 'POST' && path === '/decisions') {
+    if (method === 'POST' && path === '/pulse/decisions') {
       const body = parseJson(await readBody(req));
       if (!body) { error(res, 'Invalid JSON body', 400); return true; }
       try {
@@ -1057,21 +1217,29 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
-    // Agent F: kill-switch
-    if (method === 'POST' && path === '/kill-switch') {
-      const body = parseJson(await readBody(req)) ?? {};
+    // === Kill switch ===
+    if (method === 'POST' && path === '/kill-switch/pause') {
       try {
         const ks = await import('../core/kill-switch.js');
-        const action = body.action;
-        if (action === 'pause') {
-          json(res, ks.pauseAll());
-        } else if (action === 'resume') {
-          json(res, ks.resume());
-        } else if (action === 'status') {
-          json(res, { paused: ks.isGlobalPaused() });
-        } else {
-          error(res, 'action must be one of: pause, resume, status', 400);
-        }
+        json(res, ks.pauseAll());
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+    if (method === 'POST' && path === '/kill-switch/resume') {
+      try {
+        const ks = await import('../core/kill-switch.js');
+        json(res, ks.resume());
+      } catch (e) {
+        error(res, (e as Error).message, 500);
+      }
+      return true;
+    }
+    if (method === 'GET' && path === '/kill-switch/status') {
+      try {
+        const ks = await import('../core/kill-switch.js');
+        json(res, { paused: ks.isGlobalPaused() });
       } catch (e) {
         error(res, (e as Error).message, 500);
       }
@@ -1159,7 +1327,7 @@ function listWorkspaceFiles(dir: string): AttachmentEntry[] {
 }
 
 interface TaskDetail {
-  task: ReturnType<typeof getTask>;
+  task: (NonNullable<ReturnType<typeof getTask>> & { labels: string[] }) | null;
   sessions: Array<{
     issueKey: string; role: string; state: string;
     tmuxSession?: string; spawnedAt: number; alive: boolean;
@@ -1168,7 +1336,7 @@ interface TaskDetail {
   comments: Array<ReturnType<typeof mapCommentRow>>;
   attachments: AttachmentEntry[];
   cost: { totalUsd: number; byAgent: Array<{ role: string; usd: number; tokens: number }> };
-  children: ReturnType<typeof getTaskChildren>;
+  children: Array<NonNullable<ReturnType<typeof getTaskChildren>>[number] & { childCount: number }>;
   handoff: { body: string; actions?: unknown } | null;
 }
 
@@ -1263,7 +1431,10 @@ function buildTaskDetail(task: NonNullable<ReturnType<typeof getTask>>): TaskDet
     cost = { totalUsd, byAgent };
   }
 
-  const children = getTaskChildren(task.id);
+  const childrenRaw = getTaskChildren(task.id);
+  const childCounts = getChildCounts(childrenRaw.map(c => c.id));
+  const children = childrenRaw.map(c => ({ ...c, childCount: childCounts[c.id] ?? 0 }));
+  const labels = getTaskLabels(task.id);
 
   // Note: filename of the workspace file (basename) used here for clarity.
   void basename;
@@ -1283,7 +1454,8 @@ function buildTaskDetail(task: NonNullable<ReturnType<typeof getTask>>): TaskDet
     if (anyAlive) derivedState = 'running';
     else if (hasDeliverable) derivedState = 'review';
   }
-  const derivedTask = derivedState !== task.state ? { ...task, state: derivedState } : task;
+  const baseTask = derivedState !== task.state ? { ...task, state: derivedState } : task;
+  const derivedTask = { ...baseTask, labels };
 
   return { task: derivedTask, sessions, events, comments, attachments, cost, children, handoff };
 }
