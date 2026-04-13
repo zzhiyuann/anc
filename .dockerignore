@@ -1,0 +1,11 @@
+node_modules
+apps/web/node_modules
+apps/web/.next
+dist
+macos/build
+ios/build
+.git
+*.md
+.claude
+research
+tests

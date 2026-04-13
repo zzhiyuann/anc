@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  anc:
+    build: .
+    ports:
+      - "3849:3849"
+      - "3000:3000"
+    volumes:
+      - anc-state:/root/.anc
+      - anc-workspaces:/root/anc-workspaces
+    environment:
+      - NODE_ENV=production
+      - ANC_BUDGET_DISABLED=true
+      - ANC_LINEAR_TEAM_ID=${ANC_LINEAR_TEAM_ID:-test-team-id}
+      - ANC_LINEAR_TEAM_KEY=${ANC_LINEAR_TEAM_KEY:-TEST}
+      - ANC_LINEAR_API_KEY=${ANC_LINEAR_API_KEY:-not-used}
+      - ANC_WEBHOOK_PORT=3849
+      - NEXT_PUBLIC_API_URL=http://localhost:3849
+    restart: unless-stopped
+
+volumes:
+  anc-state:
+  anc-workspaces:
