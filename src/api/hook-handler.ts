@@ -39,12 +39,12 @@ import { bus } from '../bus.js';
 import { createLogger } from '../core/logger.js';
 import { recordSpend } from '../core/budget.js';
 import { computeCost, totalTokens, type TokenUsage } from '../core/pricing.js';
-import { addTaskComment } from '../core/tasks.js';
-import { processHandoff as processHandoffShared } from '../hooks/handoff-processor.js';
+import { addTaskComment, setTaskState, getTask, resolveTaskIdFromIssueKey } from '../core/tasks.js';
+import { processHandoff } from '../hooks/handoff-processor.js';
 import { getTrackedSessions, getSessionForIssue } from '../runtime/health.js';
 import { getWorkspacePath } from '../runtime/workspace.js';
 import { sendToAgent, sessionExists } from '../runtime/runner.js';
-import { getTask, resolveTaskIdFromIssueKey } from '../core/tasks.js';
+import { createNotification } from '../core/notifications.js';
 
 const log = createLogger('hook');
 
@@ -160,6 +160,18 @@ export function processHookEvent(
       void checkActiveCompletion(taskId, role, event);
     } catch (err) {
       log.warn(`active completion check failed: ${(err as Error).message}`);
+    }
+  }
+
+  // SessionEnd: the Claude Code process is exiting. This is the definitive
+  // signal that the agent is done. If the task is still 'running' and no
+  // HANDOFF.md exists, transition to 'failed'. This fixes Issue 6: agents
+  // that exit without HANDOFF leave tasks stuck in 'running' forever.
+  if (event.hook_event_name === 'SessionEnd') {
+    try {
+      void handleSessionEnd(taskId, role);
+    } catch (err) {
+      log.warn(`session end handler failed: ${(err as Error).message}`);
     }
   }
 
@@ -445,7 +457,7 @@ export async function checkActiveCompletion(
     // Only process if task is not already in review/done (prevent double-processing)
     if (task && task.state !== 'review' && task.state !== 'done') {
       log.info(`interactive completion: HANDOFF.md detected for ${issueKey}, processing`, { role, issueKey });
-      await processHandoffShared({
+      await processHandoff({
         issueKey,
         role,
         handoffPath,
@@ -559,6 +571,72 @@ export function ensureHookToken(): string {
   }
   process.env.ANC_HOOK_TOKEN = fresh;
   return fresh;
+}
+
+// --- SessionEnd handler: ensure tasks don't get stuck in 'running' ---
+
+/**
+ * When Claude Code exits (SessionEnd hook), check if the task is still 'running'.
+ * If HANDOFF.md exists → trigger processHandoff (normal completion).
+ * If no HANDOFF.md → transition task to 'failed' (agent exited without completing).
+ *
+ * This fixes the race condition where:
+ *   1. tmux dies → health monitor marks session idle
+ *   2. on-complete.ts tick skips non-active sessions (line 57)
+ *   3. Task stays 'running' forever
+ *
+ * By catching it at the hook level (before tmux death), we ensure the transition.
+ */
+async function handleSessionEnd(taskId: string, role: string): Promise<void> {
+  const resolvedTaskId = resolveTaskIdFromIssueKey(taskId);
+  if (!resolvedTaskId) return;
+
+  const task = getTask(resolvedTaskId);
+  if (!task) return;
+
+  // Only act if task is still running — don't override review/done/failed
+  if (task.state !== 'running' && task.state !== 'todo') return;
+
+  let workspace: string;
+  try {
+    // Try task ID first, then check for dispatch-style issueKeys
+    workspace = getWorkspacePath(taskId);
+  } catch {
+    try {
+      workspace = getWorkspacePath(resolvedTaskId);
+    } catch {
+      return;
+    }
+  }
+
+  const handoffPath = join(workspace, 'HANDOFF.md');
+
+  if (existsSync(handoffPath)) {
+    // HANDOFF exists but wasn't processed yet — process it now
+    log.info(`SessionEnd: HANDOFF.md found for ${taskId}, processing`, { role, taskId });
+    await processHandoff({
+      issueKey: taskId,
+      role,
+      handoffPath,
+      workspace,
+      spawnedAt: Date.now() - 60_000, // approximate
+      markSessionIdle: true,
+    });
+  } else {
+    // No HANDOFF — agent exited without completing. Mark failed.
+    log.warn(`SessionEnd: no HANDOFF.md for ${taskId}, marking task failed`, { role, taskId });
+    setTaskState(resolvedTaskId, 'failed', Date.now());
+    addTaskComment(resolvedTaskId, `agent:${role}`, 'Agent session ended without producing HANDOFF.md. Task marked as failed.');
+    createNotification({
+      kind: 'failure',
+      severity: 'warning',
+      title: `Agent exited without completing: ${task.title.substring(0, 50)}`,
+      body: `${role} session ended for task ${resolvedTaskId} without writing HANDOFF.md.`,
+      taskId: resolvedTaskId,
+      agentRole: role,
+    });
+    bus.emit('task:completed', { taskId: resolvedTaskId, handoffSummary: null });
+  }
 }
 
 /** @internal exported for testing */
