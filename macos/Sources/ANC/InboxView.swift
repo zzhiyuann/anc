@@ -34,11 +34,11 @@ struct InboxView: View {
                 // Header
                 HStack(spacing: 8) {
                     Text("Inbox")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.inter(16, weight: .semibold))
                     let unread = store.notifications.filter { $0.readAt == nil }.count
                     if unread > 0 {
                         Text("\(unread)")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.inter(11, weight: .medium))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -51,7 +51,7 @@ struct InboxView: View {
                         Task { await store.markAllNotificationsRead() }
                     } label: {
                         Text("Mark all read")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                     }
                     .buttonStyle(.borderless)
 
@@ -59,7 +59,7 @@ struct InboxView: View {
                         Task { await store.refreshNotifications() }
                     } label: {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                     }
                     .buttonStyle(.borderless)
                 }
@@ -73,7 +73,7 @@ struct InboxView: View {
                             withAnimation(.spring(duration: 0.2)) { filter = f }
                         } label: {
                             Text(f.rawValue)
-                                .font(.system(size: 11, weight: filter == f ? .semibold : .regular))
+                                .font(.inter(11, weight: filter == f ? .semibold : .regular))
                                 .foregroundColor(filter == f ? .ancAccent : .ancMuted)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
@@ -93,10 +93,10 @@ struct InboxView: View {
                 if filteredNotifications.isEmpty {
                     VStack(spacing: 8) {
                         Image(systemName: "tray")
-                            .font(.system(size: 24))
+                            .font(.inter(24))
                             .foregroundColor(.ancMuted)
                         Text("No notifications")
-                            .font(.system(size: 13))
+                            .font(.inter(13))
                             .foregroundColor(.ancMuted)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -119,10 +119,10 @@ struct InboxView: View {
                 } else {
                     VStack(spacing: 8) {
                         Image(systemName: "tray")
-                            .font(.system(size: 28))
+                            .font(.inter(28))
                             .foregroundColor(.ancMuted)
                         Text("Select a notification")
-                            .font(.system(size: 14))
+                            .font(.inter(14))
                             .foregroundColor(.ancMuted)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -151,22 +151,22 @@ struct InboxView: View {
                 // Kind icon + title
                 HStack(spacing: 10) {
                     Image(systemName: kindIcon(notif.kind))
-                        .font(.system(size: 20))
+                        .font(.inter(20))
                         .foregroundColor(severityColor(notif.severity))
                     Text(notif.title)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.inter(18, weight: .bold))
                 }
 
                 // Metadata
                 HStack(spacing: 12) {
                     Label(notif.kind.capitalized, systemImage: "tag")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                     Label(notif.severity.capitalized, systemImage: "exclamationmark.triangle")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(severityColor(notif.severity))
                     Text(formatDate(notif.createdAt))
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 }
 
@@ -175,11 +175,11 @@ struct InboxView: View {
                 // Body
                 if let body = notif.body, !body.isEmpty {
                     Text(body)
-                        .font(.system(size: 14))
+                        .font(.inter(14))
                         .textSelection(.enabled)
                 } else {
                     Text("No additional details")
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .foregroundColor(.ancMuted)
                 }
 
@@ -189,7 +189,7 @@ struct InboxView: View {
                         store.selectTask(taskId)
                     } label: {
                         Label("View linked task", systemImage: "link")
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                     }
                     .buttonStyle(.bordered)
                 }
@@ -239,14 +239,14 @@ struct NotificationRowView: View {
         HStack(spacing: 8) {
             // Kind icon
             Image(systemName: kindIcon(notification.kind))
-                .font(.system(size: 14))
+                .font(.inter(14))
                 .foregroundColor(severityColor(notification.severity))
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(notification.title)
-                        .font(.system(size: 12, weight: notification.readAt == nil ? .semibold : .regular))
+                        .font(.inter(12, weight: notification.readAt == nil ? .semibold : .regular))
                         .lineLimit(1)
                     Spacer()
                     if notification.readAt == nil {
@@ -259,13 +259,13 @@ struct NotificationRowView: View {
                 HStack {
                     if let body = notification.body, !body.isEmpty {
                         Text(body)
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                             .lineLimit(1)
                     }
                     Spacer()
                     Text(relativeTime(notification.createdAt))
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                         .foregroundColor(.ancMuted)
                 }
             }

@@ -37,11 +37,11 @@ struct ToastView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: toast.icon)
-                .font(.system(size: 14))
+                .font(.inter(14))
                 .foregroundColor(toast.color)
 
             Text(toast.message)
-                .font(.system(size: 12, weight: .medium))
+                .font(.inter(12, weight: .medium))
                 .foregroundColor(.primary)
                 .lineLimit(2)
         }

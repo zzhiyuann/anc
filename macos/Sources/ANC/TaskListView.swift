@@ -101,9 +101,9 @@ struct TaskListView: View {
             // Toolbar
             HStack(spacing: 8) {
                 Text("Tasks")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 Text("\(filteredTasks.count)")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -117,7 +117,7 @@ struct TaskListView: View {
                     if !isMultiSelectMode { multiSelection.removeAll() }
                 } label: {
                     Image(systemName: isMultiSelectMode ? "checkmark.circle.fill" : "checkmark.circle")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(isMultiSelectMode ? .ancAccent : .ancMuted)
                 }
                 .buttonStyle(.borderless)
@@ -131,7 +131,7 @@ struct TaskListView: View {
                     store.showCreateTask = true
                 } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.inter(12, weight: .medium))
                 }
                 .buttonStyle(.borderless)
                 .keyboardShortcut("n", modifiers: .command)
@@ -141,7 +141,7 @@ struct TaskListView: View {
                     Task { await store.refreshTasks() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh")
@@ -257,7 +257,7 @@ struct TaskListView: View {
             .disabled(filterStates.isEmpty && filterPriorities.isEmpty && filterAssignees.isEmpty && filterProjects.isEmpty)
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
-                .font(.system(size: 12))
+                .font(.inter(12))
                 .foregroundColor(hasActiveFilters ? .ancAccent : .ancMuted)
         }
         .menuStyle(.borderlessButton)
@@ -305,7 +305,7 @@ struct TaskListView: View {
             }
         } label: {
             Image(systemName: "arrow.up.arrow.down")
-                .font(.system(size: 12))
+                .font(.inter(12))
         }
         .menuStyle(.borderlessButton)
         .frame(width: 24)
@@ -348,9 +348,9 @@ struct TaskListView: View {
     private func chipView(_ label: String, color: Color, onRemove: @escaping () -> Void) -> some View {
         HStack(spacing: 4) {
             Circle().fill(color).frame(width: 6, height: 6)
-            Text(label).font(.system(size: 11))
+            Text(label).font(.inter(11))
             Button(action: onRemove) {
-                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                Image(systemName: "xmark").font(.inter(8, weight: .bold))
             }
             .buttonStyle(.borderless)
         }
@@ -376,7 +376,7 @@ struct TaskListView: View {
                             HStack(spacing: 0) {
                                 if isMultiSelectMode {
                                     Image(systemName: multiSelection.contains(task.id) ? "checkmark.circle.fill" : "circle")
-                                        .font(.system(size: 14))
+                                        .font(.inter(14))
                                         .foregroundColor(multiSelection.contains(task.id) ? .ancAccent : .ancMuted)
                                         .onTapGesture {
                                             toggleMultiSelect(task.id)
@@ -391,10 +391,10 @@ struct TaskListView: View {
                         HStack(spacing: 6) {
                             Circle().fill(state.color).frame(width: 8, height: 8)
                             Text(state.displayName)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.inter(12, weight: .semibold))
                                 .foregroundColor(.ancMuted)
                             Text("\(tasks.count)")
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                                 .foregroundColor(.ancMuted)
                         }
                     }
@@ -425,7 +425,7 @@ struct TaskListView: View {
     private var bulkActionsBar: some View {
         HStack(spacing: 8) {
             Text("\(multiSelection.count) selected")
-                .font(.system(size: 12, weight: .medium))
+                .font(.inter(12, weight: .medium))
 
             Spacer()
 
@@ -460,7 +460,7 @@ struct TaskListView: View {
                 bulkDelete()
             } label: {
                 Image(systemName: "trash")
-                    .font(.system(size: 11))
+                    .font(.inter(11))
                     .foregroundColor(.red)
             }
             .buttonStyle(.borderless)
@@ -470,7 +470,7 @@ struct TaskListView: View {
                 isMultiSelectMode = false
             }
             .buttonStyle(.borderless)
-            .font(.system(size: 12))
+            .font(.inter(12))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
@@ -514,14 +514,14 @@ struct TaskListView: View {
     private var disconnectedView: some View {
         VStack(spacing: 8) {
             Image(systemName: "wifi.slash")
-                .font(.system(size: 28))
+                .font(.inter(28))
                 .foregroundColor(.ancMuted)
             Text("Disconnected from backend")
-                .font(.system(size: 13))
+                .font(.inter(13))
                 .foregroundColor(.ancMuted)
             if let err = store.lastError {
                 Text(err)
-                    .font(.system(size: 11))
+                    .font(.inter(11))
                     .foregroundColor(.ancMuted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
@@ -538,12 +538,12 @@ struct TaskListView: View {
     private var emptyView: some View {
         VStack(spacing: 8) {
             Image(systemName: "checklist")
-                .font(.system(size: 32))
+                .font(.inter(32))
                 .foregroundColor(.ancMuted)
             Text("No tasks yet")
-                .font(.system(size: 14, weight: .medium))
+                .font(.inter(14, weight: .medium))
             Text("Press ⌘N to create one")
-                .font(.system(size: 12))
+                .font(.inter(12))
                 .foregroundColor(.ancMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -552,10 +552,10 @@ struct TaskListView: View {
     private var noMatchView: some View {
         VStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 24))
+                .font(.inter(24))
                 .foregroundColor(.ancMuted)
             Text("No matching tasks")
-                .font(.system(size: 13))
+                .font(.inter(13))
                 .foregroundColor(.ancMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -596,17 +596,17 @@ struct TaskRowView: View {
         HStack(spacing: 8) {
             // Priority glyph
             Text(priorityGlyph(task.priority))
-                .font(.system(size: 12))
+                .font(.inter(12))
                 .frame(width: 16)
 
             // Title
             Text(task.title)
-                .font(.system(size: 13, weight: .medium))
+                .font(.inter(13, weight: .medium))
                 .lineLimit(1)
 
             // State pill
             Text(task.state.displayName)
-                .font(.system(size: 10, weight: .medium))
+                .font(.inter(10, weight: .medium))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(task.state.color.opacity(0.15))
@@ -619,10 +619,10 @@ struct TaskRowView: View {
             if let assignee = task.assignee {
                 HStack(spacing: 3) {
                     Image(systemName: "person.circle")
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                     Text(assignee)
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -630,7 +630,7 @@ struct TaskRowView: View {
             // Project pill
             if task.projectId != nil {
                 Text(projectName ?? task.projectId ?? "")
-                    .font(.system(size: 10))
+                    .font(.inter(10))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
                     .background(Color.ancAccent.opacity(0.1))
@@ -642,7 +642,7 @@ struct TaskRowView: View {
             // Relative time
             if let ts = task.createdAt {
                 Text(relativeTime(ts))
-                    .font(.system(size: 11))
+                    .font(.inter(11))
                     .foregroundColor(.ancMuted)
             }
         }

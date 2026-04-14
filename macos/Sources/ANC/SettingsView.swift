@@ -15,7 +15,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Settings")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.inter(20, weight: .bold))
 
                 connectionSection
                 budgetSection
@@ -38,7 +38,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Backend URL")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                     Spacer()
                     Text("http://localhost:3849")
@@ -47,7 +47,7 @@ struct SettingsView: View {
 
                 HStack {
                     Text("Status")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                     Spacer()
                     HStack(spacing: 6) {
@@ -55,7 +55,7 @@ struct SettingsView: View {
                             .fill(store.connected ? Color.green : Color.red)
                             .frame(width: 8, height: 8)
                         Text(store.connected ? "Connected" : "Disconnected")
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .foregroundColor(store.connected ? .green : .red)
                     }
                 }
@@ -63,11 +63,11 @@ struct SettingsView: View {
                 if let err = store.lastError {
                     HStack {
                         Text("Last Error")
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .foregroundColor(.ancMuted)
                         Spacer()
                         Text(err)
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.red)
                             .lineLimit(2)
                     }
@@ -94,20 +94,20 @@ struct SettingsView: View {
                     // Daily limit
                     HStack {
                         Text("Daily Limit ($)")
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .foregroundColor(.ancMuted)
                         Spacer()
                         TextField("50", text: $dailyLimit)
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 80)
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                     }
 
                     // Summary
                     if let summary = config.summary, let today = summary.today {
                         HStack {
                             Text("Today's Spend")
-                                .font(.system(size: 12))
+                                .font(.inter(12))
                                 .foregroundColor(.ancMuted)
                             Spacer()
                             let pct = today.limit > 0 ? (today.spent / today.limit * 100) : 0
@@ -119,18 +119,18 @@ struct SettingsView: View {
 
                     // Per-agent limits
                     Text("Per-Agent Limits")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.inter(12, weight: .semibold))
                         .foregroundColor(.ancMuted)
 
                     ForEach(Array(config.config.agents.keys.sorted()), id: \.self) { role in
                         HStack {
                             Text(role.capitalized)
-                                .font(.system(size: 12))
+                                .font(.inter(12))
                             Spacer()
                             TextField("Limit", text: agentLimitBinding(role))
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 80)
-                                .font(.system(size: 12))
+                                .font(.inter(12))
 
                             // Show current spend
                             if let summary = config.summary,
@@ -155,7 +155,7 @@ struct SettingsView: View {
                     }
                 } else {
                     Text("Loading budget config...")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -170,21 +170,21 @@ struct SettingsView: View {
                 if let config = store.reviewConfig {
                     HStack {
                         Text("Default Policy")
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .foregroundColor(.ancMuted)
                         Spacer()
                         Text(config.resolvedDefault ?? config.config.defaultPolicy)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.inter(12, weight: .medium))
                     }
 
                     Text("Per-Role Policy")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.inter(12, weight: .semibold))
                         .foregroundColor(.ancMuted)
 
                     ForEach(Array(config.config.roles.keys.sorted()), id: \.self) { role in
                         HStack {
                             Text(role.capitalized)
-                                .font(.system(size: 12))
+                                .font(.inter(12))
                             Spacer()
                             Picker("", selection: reviewRoleBinding(role)) {
                                 Text("Strict").tag("strict")
@@ -207,7 +207,7 @@ struct SettingsView: View {
                     }
                 } else {
                     Text("Loading review config...")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -221,21 +221,21 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 if store.agents.isEmpty {
                     Text("No agents registered")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 } else {
                     ForEach(store.agents) { agent in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 8) {
                                 Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 16))
+                                    .font(.inter(16))
                                     .foregroundColor(.ancAccent)
 
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(agent.name)
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.inter(12, weight: .medium))
                                     Text("@\(agent.role)")
-                                        .font(.system(size: 11))
+                                        .font(.inter(11))
                                         .foregroundColor(.ancMuted)
                                 }
 
@@ -245,7 +245,7 @@ struct SettingsView: View {
                                 let statusText = agent.activeSessions > 0 ? "Active" : (agent.idleSessions > 0 ? "Idle" : "Offline")
                                 let statusColor: Color = agent.activeSessions > 0 ? .green : (agent.idleSessions > 0 ? .yellow : .gray)
                                 Text(statusText)
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(.inter(10, weight: .medium))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(statusColor.opacity(0.15))
@@ -267,7 +267,7 @@ struct SettingsView: View {
                             HStack(spacing: 16) {
                                 HStack(spacing: 4) {
                                     Text("Max Sessions")
-                                        .font(.system(size: 11))
+                                        .font(.inter(11))
                                         .foregroundColor(.ancMuted)
                                     Stepper(value: concurrencyBinding(agent.role), in: 1...10) {
                                         Text("\(agentConcurrency[agent.role] ?? agent.maxConcurrency)")
@@ -279,7 +279,7 @@ struct SettingsView: View {
 
                                 HStack(spacing: 4) {
                                     Text("Duty Slots")
-                                        .font(.system(size: 11))
+                                        .font(.inter(11))
                                         .foregroundColor(.ancMuted)
                                     Stepper(value: dutySlotsBinding(agent.role), in: 0...5) {
                                         Text("\(agentDutySlots[agent.role] ?? 0)")
@@ -325,7 +325,7 @@ struct SettingsView: View {
             VStack(spacing: 0) {
                 HStack {
                     Text("Edit Persona: \(editingPersonaRole ?? "")")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.inter(14, weight: .semibold))
                     Spacer()
                     Button { editingPersonaRole = nil } label: {
                         Image(systemName: "xmark.circle.fill").foregroundColor(.ancMuted)
@@ -366,15 +366,15 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text("App")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                     Spacer()
                     Text("ANC Dashboard")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                 }
                 HStack {
                     Text("Version")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                     Spacer()
                     Text("0.2.0 (Full Parity)")
@@ -382,11 +382,11 @@ struct SettingsView: View {
                 }
                 HStack {
                     Text("Platform")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                     Spacer()
                     Text("macOS 14+, SwiftUI")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                 }
             }
         }
@@ -481,10 +481,10 @@ struct SettingsSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancAccent)
                 Text(title)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.inter(12, weight: .semibold))
             }
 
             content()

@@ -68,11 +68,11 @@ struct SearchSheet: View {
             // Search field
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16))
+                    .font(.inter(16))
                     .foregroundColor(.ancMuted)
                 TextField("Search tasks, projects, agents...", text: $query)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 16))
+                    .font(.inter(16))
                     .focused($focused)
                     .onSubmit { selectFirst() }
 
@@ -90,7 +90,7 @@ struct SearchSheet: View {
                     dismiss()
                 }
                 .buttonStyle(.borderless)
-                .font(.system(size: 11))
+                .font(.inter(11))
                 .foregroundColor(.ancMuted)
                 .keyboardShortcut(.escape, modifiers: [])
             }
@@ -103,20 +103,20 @@ struct SearchSheet: View {
             if query.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 24))
+                        .font(.inter(24))
                         .foregroundColor(.ancMuted)
                     Text("Type to search everywhere")
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .foregroundColor(.ancMuted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if results.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "questionmark.circle")
-                        .font(.system(size: 24))
+                        .font(.inter(24))
                         .foregroundColor(.ancMuted)
                     Text("No results for \"\(query)\"")
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .foregroundColor(.ancMuted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -128,21 +128,21 @@ struct SearchSheet: View {
                         } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: result.icon)
-                                    .font(.system(size: 14))
+                                    .font(.inter(14))
                                     .foregroundColor(.ancAccent)
                                     .frame(width: 20)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(result.title)
-                                        .font(.system(size: 13, weight: .medium))
+                                        .font(.inter(13, weight: .medium))
                                         .lineLimit(1)
                                     Text(result.subtitle)
-                                        .font(.system(size: 11))
+                                        .font(.inter(11))
                                         .foregroundColor(.ancMuted)
                                         .lineLimit(1)
                                 }
                                 Spacer()
                                 Text(result.kindLabel)
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(.inter(10, weight: .medium))
                                     .foregroundColor(.ancMuted)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)

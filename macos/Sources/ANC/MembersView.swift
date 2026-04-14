@@ -18,9 +18,9 @@ struct MembersView: View {
             // Toolbar
             HStack(spacing: 8) {
                 Text("Members")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 Text("\(filteredAgents.count)")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -32,7 +32,7 @@ struct MembersView: View {
                     Task { await store.refreshAgents() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh")
@@ -80,7 +80,7 @@ struct MembersView: View {
                 Text("Done 7d")
                     .frame(width: 40, alignment: .trailing)
             }
-            .font(.system(size: 11, weight: .semibold))
+            .font(.inter(11, weight: .semibold))
             .foregroundColor(.ancMuted)
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
@@ -114,12 +114,12 @@ struct MembersView: View {
     private var emptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "person.2")
-                .font(.system(size: 28))
+                .font(.inter(28))
                 .foregroundColor(.ancMuted)
             Text("No agents")
-                .font(.system(size: 14, weight: .medium))
+                .font(.inter(14, weight: .medium))
             Text("Agents will appear when the backend is running")
-                .font(.system(size: 12))
+                .font(.inter(12))
                 .foregroundColor(.ancMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -137,15 +137,15 @@ struct AgentRowView: View {
         HStack(spacing: 10) {
             // Avatar
             Image(systemName: "person.circle.fill")
-                .font(.system(size: 24))
+                .font(.inter(24))
                 .foregroundColor(statusColor)
 
             // Name + Role
             VStack(alignment: .leading, spacing: 1) {
                 Text(agent.name)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.inter(13, weight: .medium))
                 Text("@\(agent.role)")
-                    .font(.system(size: 11))
+                    .font(.inter(11))
                     .foregroundColor(.ancMuted)
             }
             .frame(minWidth: 100, alignment: .leading)
@@ -159,12 +159,12 @@ struct AgentRowView: View {
             Group {
                 if let activeTask = tasks.first(where: { $0.state == .running && $0.assignee == agent.role }) {
                     Text(activeTask.title)
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                         .lineLimit(1)
                 } else {
                     Text("--")
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted.opacity(0.5))
                 }
             }
@@ -176,7 +176,7 @@ struct AgentRowView: View {
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundColor(agent.activeSessions > 0 ? .green : .ancMuted)
                 Text("/")
-                    .font(.system(size: 11))
+                    .font(.inter(11))
                     .foregroundColor(.ancMuted)
                 Text("\(agent.maxConcurrency)")
                     .font(.system(size: 12, design: .monospaced))
@@ -203,7 +203,7 @@ struct AgentRowView: View {
     private var statusPill: some View {
         let (text, color) = statusInfo
         return Text(text)
-            .font(.system(size: 10, weight: .medium))
+            .font(.inter(10, weight: .medium))
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
             .background(color.opacity(0.15))

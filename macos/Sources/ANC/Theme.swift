@@ -1,6 +1,25 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Inter Font Helper
+
+extension Font {
+    /// Use Inter font with the given size and weight.
+    /// Falls back to system font if Inter is not loaded.
+    static func inter(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        switch weight {
+        case .bold:
+            return .custom("Inter-Bold", size: size)
+        case .semibold:
+            return .custom("Inter-SemiBold", size: size)
+        case .medium:
+            return .custom("Inter-Medium", size: size)
+        default:
+            return .custom("Inter-Regular", size: size)
+        }
+    }
+}
+
 extension Color {
     // MARK: - Base palette (auto dark/light via NSColor dynamic providers)
 
@@ -57,7 +76,7 @@ struct LoadingStateView: View {
             ProgressView()
                 .controlSize(.regular)
             Text(message)
-                .font(.system(size: 12))
+                .font(.inter(12))
                 .foregroundColor(.ancMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -73,12 +92,12 @@ struct ErrorStateView: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 28))
+                .font(.inter(28))
                 .foregroundColor(.ancFailed)
             Text("Something went wrong")
-                .font(.system(size: 14, weight: .medium))
+                .font(.inter(14, weight: .medium))
             Text(message)
-                .font(.system(size: 12))
+                .font(.inter(12))
                 .foregroundColor(.ancMuted)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
@@ -105,12 +124,12 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 28))
+                .font(.inter(28))
                 .foregroundColor(.ancMuted)
             Text(title)
-                .font(.system(size: 14, weight: .medium))
+                .font(.inter(14, weight: .medium))
             Text(subtitle)
-                .font(.system(size: 12))
+                .font(.inter(12))
                 .foregroundColor(.ancMuted)
             if let actionTitle, let action {
                 Button(actionTitle) { action() }

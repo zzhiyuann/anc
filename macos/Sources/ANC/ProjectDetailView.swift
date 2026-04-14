@@ -37,7 +37,7 @@ struct ProjectDetailView: View {
                 VStack(spacing: 8) {
                     ProgressView()
                     Text("Loading project...")
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .foregroundColor(.ancMuted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -55,15 +55,15 @@ struct ProjectDetailView: View {
                 .frame(width: 32, height: 32)
                 .overlay(
                     Text(project.icon ?? "")
-                        .font(.system(size: 16))
+                        .font(.inter(16))
                 )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(project.name)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.inter(20, weight: .bold))
                 if let desc = project.description, !desc.isEmpty {
                     Text(desc)
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -72,7 +72,7 @@ struct ProjectDetailView: View {
 
             if let health = project.health {
                 Text(health.replacingOccurrences(of: "-", with: " ").capitalized)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.inter(12, weight: .medium))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(healthColor(health).opacity(0.15))
@@ -106,7 +106,7 @@ struct ProjectDetailView: View {
                 .font(.system(size: 16, weight: .semibold, design: .monospaced))
                 .foregroundColor(color)
             Text(label)
-                .font(.system(size: 11))
+                .font(.inter(11))
                 .foregroundColor(.ancMuted)
         }
         .padding(.horizontal, 12)
@@ -120,12 +120,12 @@ struct ProjectDetailView: View {
     private var tasksSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Tasks")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.inter(12, weight: .semibold))
                 .foregroundColor(.ancMuted)
 
             if groupedTasks.isEmpty {
                 Text("No tasks in this project")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
                     .padding(.vertical, 8)
             } else {
@@ -134,10 +134,10 @@ struct ProjectDetailView: View {
                         HStack(spacing: 6) {
                             Circle().fill(state.color).frame(width: 8, height: 8)
                             Text(state.displayName)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.inter(12, weight: .semibold))
                                 .foregroundColor(.ancMuted)
                             Text("\(tasks.count)")
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                                 .foregroundColor(.ancMuted)
                         }
 
@@ -147,14 +147,14 @@ struct ProjectDetailView: View {
                             } label: {
                                 HStack(spacing: 8) {
                                     Text(priorityGlyph(task.priority))
-                                        .font(.system(size: 11))
+                                        .font(.inter(11))
                                     Text(task.title)
-                                        .font(.system(size: 12))
+                                        .font(.inter(12))
                                         .lineLimit(1)
                                     Spacer()
                                     if let a = task.assignee {
                                         Text(a)
-                                            .font(.system(size: 11))
+                                            .font(.inter(11))
                                             .foregroundColor(.ancMuted)
                                     }
                                 }
@@ -175,7 +175,7 @@ struct ProjectDetailView: View {
     private var activeAgentsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Active Agents")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.inter(12, weight: .semibold))
                 .foregroundColor(.ancMuted)
 
             let taskAssignees = Set(projectTasks.compactMap { $0.assignee })
@@ -183,7 +183,7 @@ struct ProjectDetailView: View {
 
             if activeAgents.isEmpty {
                 Text("No agents working on this project")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
             } else {
                 ForEach(activeAgents) { agent in
@@ -191,10 +191,10 @@ struct ProjectDetailView: View {
                         Image(systemName: "person.circle.fill")
                             .foregroundColor(.ancAccent)
                         Text(agent.name)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.inter(13, weight: .medium))
                         Spacer()
                         Text("\(agent.activeSessions) active")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                     }
                     .padding(.vertical, 2)

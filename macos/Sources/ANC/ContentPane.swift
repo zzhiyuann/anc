@@ -40,9 +40,9 @@ struct ContentPane: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                             Text("Projects")
-                                .font(.system(size: 12))
+                                .font(.inter(12))
                         }
                     }
                     .buttonStyle(.borderless)
@@ -73,9 +73,9 @@ struct ContentPane: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                             Text("Members")
-                                .font(.system(size: 12))
+                                .font(.inter(12))
                         }
                     }
                     .buttonStyle(.borderless)
@@ -95,8 +95,8 @@ struct ContentPane: View {
     @ViewBuilder
     private func placeholder(_ title: String, subtitle: String) -> some View {
         VStack(spacing: 6) {
-            Text(title).font(.system(size: 22, weight: .semibold))
-            Text(subtitle).font(.system(size: 13)).foregroundColor(.ancMuted)
+            Text(title).font(.inter(22, weight: .semibold))
+            Text(subtitle).font(.inter(13)).foregroundColor(.ancMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

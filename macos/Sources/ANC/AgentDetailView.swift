@@ -41,14 +41,14 @@ struct AgentDetailView: View {
     private func headerSection(_ detail: AgentDetail) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "person.circle.fill")
-                .font(.system(size: 36))
+                .font(.inter(36))
                 .foregroundColor(.ancAccent)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(detail.name)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.inter(18, weight: .bold))
                 Text("@\(detail.role)")
-                    .font(.system(size: 13))
+                    .font(.inter(13))
                     .foregroundColor(.ancMuted)
             }
 
@@ -57,7 +57,7 @@ struct AgentDetailView: View {
             // Status pill
             let isActive = detail.activeSessions > 0
             Text(isActive ? "Active" : "Offline")
-                .font(.system(size: 12, weight: .medium))
+                .font(.inter(12, weight: .medium))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background((isActive ? Color.green : Color.gray).opacity(0.15))
@@ -89,7 +89,7 @@ struct AgentDetailView: View {
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundColor(color)
             Text(label)
-                .font(.system(size: 10))
+                .font(.inter(10))
                 .foregroundColor(.ancMuted)
         }
     }
@@ -135,7 +135,7 @@ struct AgentDetailView: View {
             onTabChange(index)
         } label: {
             Text(title)
-                .font(.system(size: 12, weight: selectedTab == index ? .semibold : .regular))
+                .font(.inter(12, weight: selectedTab == index ? .semibold : .regular))
                 .foregroundColor(selectedTab == index ? .ancAccent : .ancMuted)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
@@ -167,7 +167,7 @@ struct AgentDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("Persona")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.inter(12, weight: .semibold))
                         .foregroundColor(.ancMuted)
                     Spacer()
                     if !personaEdit {
@@ -200,12 +200,12 @@ struct AgentDetailView: View {
                     }
                 } else if let body = store.agentPersona {
                     Text(body)
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     Text("No persona found")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -221,14 +221,14 @@ struct AgentDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     if store.agentOutputs.isEmpty {
                         Text("No active sessions")
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .foregroundColor(.ancMuted)
                             .padding(16)
                     } else {
                         ForEach(store.agentOutputs) { output in
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(output.issueKey)
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.inter(11, weight: .semibold))
                                     .foregroundColor(.ancAccent)
                                 if output.output.isEmpty {
                                     Text("(no output yet)")
@@ -258,7 +258,7 @@ struct AgentDetailView: View {
                 let hasActiveTask = store.tasks.contains(where: { $0.assignee == role && $0.state == .running })
                 TextField(hasActiveTask ? "Send message to agent..." : "No active task to send message to", text: $messageText)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                 Button("Send") {
                     let msg = messageText
                     messageText = ""
@@ -296,7 +296,7 @@ struct AgentDetailView: View {
             VStack(spacing: 0) {
                 HStack {
                     Text("Memory Files")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.inter(12, weight: .semibold))
                     Spacer()
                 }
                 .padding(8)
@@ -304,13 +304,13 @@ struct AgentDetailView: View {
 
                 if store.agentMemoryFiles.isEmpty {
                     Text("No memory files")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List(store.agentMemoryFiles, id: \.self, selection: $selectedMemoryFile) { file in
                         Text(file)
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .lineLimit(1)
                     }
                     .listStyle(.sidebar)
@@ -329,7 +329,7 @@ struct AgentDetailView: View {
                 if let content = store.agentMemoryContent {
                     HStack {
                         Text(content.filename)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.inter(12, weight: .semibold))
                         Spacer()
                         if !memoryEditMode {
                             Button("Edit") {
@@ -371,7 +371,7 @@ struct AgentDetailView: View {
                     }
                 } else {
                     Text("Select a memory file")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -395,7 +395,7 @@ struct AgentDetailView: View {
                                 .lineLimit(1)
                             Spacer()
                             Text(session.state.capitalized)
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                                 .foregroundColor(.ancMuted)
                             if let uptime = session.uptime {
                                 Text(formatUptime(uptime))
@@ -410,10 +410,10 @@ struct AgentDetailView: View {
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "terminal")
-                        .font(.system(size: 24))
+                        .font(.inter(24))
                         .foregroundColor(.ancMuted)
                     Text("No active sessions")
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .foregroundColor(.ancMuted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -428,7 +428,7 @@ struct AgentDetailView: View {
             if !store.budgetSeries.isEmpty {
                 // Sparkline
                 Text("Cost (14 days)")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.inter(12, weight: .semibold))
                     .foregroundColor(.ancMuted)
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -448,7 +448,7 @@ struct AgentDetailView: View {
                                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                                 .foregroundColor(day.usd > 0 ? .orange : .ancMuted)
                             Text("\(day.tokens) tokens")
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                                 .foregroundColor(.ancMuted)
                                 .frame(width: 100, alignment: .trailing)
                         }
@@ -457,7 +457,7 @@ struct AgentDetailView: View {
                 .listStyle(.inset(alternatesRowBackgrounds: true))
             } else {
                 Text("No cost data available")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -473,7 +473,7 @@ struct AgentDetailView: View {
         VStack(spacing: 0) {
             if store.systemEvents.isEmpty {
                 Text("No events")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -481,14 +481,14 @@ struct AgentDetailView: View {
                     ForEach(store.systemEvents) { event in
                         HStack(spacing: 8) {
                             Image(systemName: eventIcon(event.eventType))
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                                 .foregroundColor(eventColor(event.eventType))
                                 .frame(width: 16)
 
                             VStack(alignment: .leading, spacing: 1) {
                                 HStack {
                                     Text(event.eventType)
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.inter(12, weight: .medium))
                                     if let key = event.issueKey {
                                         Text(key)
                                             .font(.system(size: 11, design: .monospaced))
@@ -498,7 +498,7 @@ struct AgentDetailView: View {
                                 }
                                 if let detail = event.detail {
                                     Text(detail)
-                                        .font(.system(size: 11))
+                                        .font(.inter(11))
                                         .foregroundColor(.ancMuted)
                                 }
                             }
@@ -506,7 +506,7 @@ struct AgentDetailView: View {
                             Spacer()
 
                             Text(event.createdAt)
-                                .font(.system(size: 10))
+                                .font(.inter(10))
                                 .foregroundColor(.ancMuted)
                         }
                         .padding(.vertical, 2)

@@ -30,10 +30,10 @@ struct TaskDetailView: View {
     private var placeholderView: some View {
         VStack(spacing: 8) {
             Image(systemName: "doc.text")
-                .font(.system(size: 28))
+                .font(.inter(28))
                 .foregroundColor(.ancMuted)
             Text("Select a task")
-                .font(.system(size: 14))
+                .font(.inter(14))
                 .foregroundColor(.ancMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -80,7 +80,7 @@ struct TaskDetailView: View {
             HStack(spacing: 4) {
                 Circle().fill(detail.task.state.color).frame(width: 8, height: 8)
                 Text(detail.task.state.displayName)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.inter(12, weight: .medium))
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -89,11 +89,11 @@ struct TaskDetailView: View {
 
             // Priority chip
             Text(priorityGlyph(detail.task.priority))
-                .font(.system(size: 13))
+                .font(.inter(13))
 
             if let by = detail.task.createdBy {
                 Text("by \(by)")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
             }
 
@@ -101,7 +101,7 @@ struct TaskDetailView: View {
 
             if let ts = detail.task.createdAt {
                 Text(relativeTime(ts))
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
             }
         }
@@ -116,11 +116,11 @@ struct TaskDetailView: View {
                     commitTitle(detail.task.id)
                 })
                 .textFieldStyle(.plain)
-                .font(.system(size: 20, weight: .bold))
+                .font(.inter(20, weight: .bold))
                 .onExitCommand { editingTitle = false }
             } else {
                 Text(detail.task.title)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.inter(20, weight: .bold))
                     .onTapGesture {
                         titleDraft = detail.task.title
                         editingTitle = true
@@ -143,7 +143,7 @@ struct TaskDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text("Description")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.inter(12, weight: .semibold))
                     .foregroundColor(.ancMuted)
                 Spacer()
                 if !editingDescription {
@@ -152,7 +152,7 @@ struct TaskDetailView: View {
                         editingDescription = true
                     } label: {
                         Image(systemName: "pencil")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                     }
                     .buttonStyle(.borderless)
@@ -161,7 +161,7 @@ struct TaskDetailView: View {
 
             if editingDescription {
                 TextEditor(text: $descriptionDraft)
-                    .font(.system(size: 13))
+                    .font(.inter(13))
                     .frame(minHeight: 80, maxHeight: 200)
                     .padding(4)
                     .background(Color.ancSurface)
@@ -183,7 +183,7 @@ struct TaskDetailView: View {
             } else {
                 let desc = detail.task.description ?? "No description"
                 Text(desc)
-                    .font(.system(size: 13))
+                    .font(.inter(13))
                     .foregroundColor(detail.task.description == nil ? .ancMuted : .ancForeground)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .onTapGesture {
@@ -203,18 +203,18 @@ struct TaskDetailView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: showRuntime ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                     Circle()
                         .fill(detail.sessions.isEmpty ? Color.gray : Color.ancRunning)
                         .frame(width: 6, height: 6)
                     Text(detail.sessions.isEmpty ? "No active sessions" : "\(detail.sessions.count) active session\(detail.sessions.count == 1 ? "" : "s")")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.inter(12, weight: .medium))
                         .foregroundColor(detail.sessions.isEmpty ? .ancMuted : .ancForeground)
                     Spacer()
                     // Show first session state as one-liner
                     if !showRuntime, let first = detail.sessions.first {
                         Text(first.state.capitalized)
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                     }
                 }
@@ -232,7 +232,7 @@ struct TaskDetailView: View {
                             .lineLimit(1)
                         Spacer()
                         Text(session.state.capitalized)
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                     }
                     .padding(.leading, 16)
@@ -255,17 +255,17 @@ struct TaskDetailView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: showHandoff ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                     Image(systemName: "arrow.right.circle")
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.orange)
                     Text("Handoff")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.inter(12, weight: .semibold))
                         .foregroundColor(.ancMuted)
                     Spacer()
                     if !showHandoff {
                         Text("Show full handoff")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancAccent)
                     }
                 }
@@ -276,7 +276,7 @@ struct TaskDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     if let summary = handoff.summary {
                         Text(summary)
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .foregroundColor(.ancForeground)
                             .textSelection(.enabled)
                     }
@@ -284,12 +284,12 @@ struct TaskDetailView: View {
                     if let steps = handoff.nextSteps, !steps.isEmpty {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Next Steps:")
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.inter(11, weight: .medium))
                                 .foregroundColor(.ancMuted)
                             ForEach(steps, id: \.self) { step in
                                 HStack(alignment: .top, spacing: 4) {
                                     Text("•").foregroundColor(.ancMuted)
-                                    Text(step).font(.system(size: 11))
+                                    Text(step).font(.inter(11))
                                 }
                             }
                         }
@@ -314,18 +314,18 @@ struct TaskDetailView: View {
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: showChildren ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                     Text("Sub-issues")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.inter(12, weight: .semibold))
                         .foregroundColor(.ancMuted)
                     if detail.children.isEmpty {
                         Text("None")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                     } else {
                         let done = detail.children.filter { $0.state == .done }.count
                         Text("\(done)/\(detail.children.count)")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                     }
                 }
@@ -335,7 +335,7 @@ struct TaskDetailView: View {
             if showChildren {
                 if detail.children.isEmpty {
                     Text("No sub-issues")
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                         .padding(.leading, 16)
                 } else {
@@ -343,11 +343,11 @@ struct TaskDetailView: View {
                         HStack(spacing: 8) {
                             Circle().fill(child.state.color).frame(width: 6, height: 6)
                             Text(child.title)
-                                .font(.system(size: 12))
+                                .font(.inter(12))
                                 .lineLimit(1)
                             Spacer()
                             Text(child.state.displayName)
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                                 .foregroundColor(.ancMuted)
                         }
                         .padding(.leading, 16)
@@ -364,11 +364,11 @@ struct TaskDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text("Attachments")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.inter(12, weight: .semibold))
                     .foregroundColor(.ancMuted)
                 if !detail.attachments.isEmpty {
                     Text("\(detail.attachments.count)")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                         .foregroundColor(.ancMuted)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
@@ -378,19 +378,19 @@ struct TaskDetailView: View {
             }
             if detail.attachments.isEmpty {
                 Text("No attachments")
-                    .font(.system(size: 11))
+                    .font(.inter(11))
                     .foregroundColor(.ancMuted)
             } else {
                 ForEach(detail.attachments) { att in
                     HStack(spacing: 6) {
                         Image(systemName: "doc")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                         Text(att.name)
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                         Spacer()
                         Text(formatBytes(att.size))
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                     }
                     .padding(.vertical, 2)
@@ -404,14 +404,14 @@ struct TaskDetailView: View {
     private func activitySection(_ detail: TaskDetailResponse) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Activity")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.inter(12, weight: .semibold))
                 .foregroundColor(.ancMuted)
 
             // Interleave events and comments, sorted by time
             let items = buildActivityItems(detail)
             if items.isEmpty {
                 Text("No activity yet")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
                     .padding(.vertical, 4)
             } else {
@@ -440,21 +440,21 @@ struct TaskDetailView: View {
                 HStack {
                     if let role = item.role {
                         Text(role)
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.inter(11, weight: .semibold))
                             .foregroundColor(.ancForeground)
                     }
                     Text(item.typeLabel)
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                     Spacer()
                     Text(relativeTime(item.timestamp))
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                         .foregroundColor(.ancMuted)
                 }
 
                 if let body = item.body, !body.isEmpty {
                     Text(body)
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancForeground)
                         .padding(.top, 1)
                 }
@@ -479,7 +479,7 @@ struct TaskDetailView: View {
             HStack(spacing: 8) {
                 TextField("Add a comment... (@ to mention)", text: $commentText)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 13))
+                    .font(.inter(13))
                     .onSubmit { sendComment(detail.task.id) }
                     .onChange(of: commentText) { _, newVal in
                         showMentionPicker = newVal.hasSuffix("@")
@@ -489,7 +489,7 @@ struct TaskDetailView: View {
                     showMentionPicker.toggle()
                 } label: {
                     Image(systemName: "at")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 }
                 .buttonStyle(.borderless)
@@ -499,7 +499,7 @@ struct TaskDetailView: View {
                     sendComment(detail.task.id)
                 } label: {
                     Image(systemName: "paperplane.fill")
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                 }
                 .buttonStyle(.borderless)
                 .disabled(commentText.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -521,9 +521,9 @@ struct TaskDetailView: View {
                 } label: {
                     HStack(spacing: 3) {
                         Image(systemName: "person.circle")
-                            .font(.system(size: 10))
+                            .font(.inter(10))
                         Text(agent.name)
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)

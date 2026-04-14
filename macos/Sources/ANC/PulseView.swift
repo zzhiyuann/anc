@@ -17,14 +17,14 @@ struct PulseView: View {
             // Top bar
             HStack {
                 Text("Dashboard")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 Spacer()
 
                 Button {
                     Task { await refreshAll() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh")
@@ -37,7 +37,7 @@ struct PulseView: View {
                         Image(systemName: store.killSwitchPaused ? "play.fill" : "stop.fill")
                         Text(store.killSwitchPaused ? "Resume" : "Kill Switch")
                     }
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.inter(11, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -117,9 +117,9 @@ struct PulseView: View {
                                 .controlSize(.mini)
                         }
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 10))
+                            .font(.inter(10))
                         Text("Refresh")
-                            .font(.system(size: 10))
+                            .font(.inter(10))
                     }
                 }
                 .buttonStyle(.borderless)
@@ -133,7 +133,7 @@ struct PulseView: View {
                     if let burn = briefing.costBurn {
                         HStack {
                             Text("Budget:")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.inter(11, weight: .semibold))
                                 .foregroundColor(.ancMuted)
                             let pct = burn.budgetUsd > 0 ? (burn.spentUsd / burn.budgetUsd * 100) : 0
                             Text(String(format: "$%.2f / $%.0f (%.0f%%)", burn.spentUsd, burn.budgetUsd, pct))
@@ -148,15 +148,15 @@ struct PulseView: View {
                     // Today's queue
                     if !briefing.todayQueue.isEmpty {
                         Text("Today's Queue")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.inter(11, weight: .semibold))
                             .foregroundColor(.ancMuted)
                         ForEach(briefing.todayQueue, id: \.self) { item in
                             HStack(spacing: 6) {
                                 Image(systemName: "circle")
-                                    .font(.system(size: 6))
+                                    .font(.inter(6))
                                     .foregroundColor(.ancMuted)
                                 Text(item)
-                                    .font(.system(size: 12))
+                                    .font(.inter(12))
                                     .lineLimit(1)
                             }
                         }
@@ -165,15 +165,15 @@ struct PulseView: View {
                     // Yesterday's completions
                     if !briefing.yesterdayCompletions.isEmpty {
                         Text("Yesterday Completed")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.inter(11, weight: .semibold))
                             .foregroundColor(.ancMuted)
                         ForEach(briefing.yesterdayCompletions, id: \.self) { item in
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.circle")
-                                    .font(.system(size: 10))
+                                    .font(.inter(10))
                                     .foregroundColor(.green)
                                 Text(item)
-                                    .font(.system(size: 12))
+                                    .font(.inter(12))
                                     .lineLimit(1)
                             }
                         }
@@ -182,22 +182,22 @@ struct PulseView: View {
                     // Risks
                     if !briefing.risks.isEmpty {
                         Text("Risks")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.inter(11, weight: .semibold))
                             .foregroundColor(.red)
                         ForEach(briefing.risks, id: \.self) { risk in
                             HStack(spacing: 6) {
                                 Image(systemName: "exclamationmark.triangle")
-                                    .font(.system(size: 10))
+                                    .font(.inter(10))
                                     .foregroundColor(.red)
                                 Text(risk)
-                                    .font(.system(size: 12))
+                                    .font(.inter(12))
                             }
                         }
                     }
                 }
             } else {
                 Text("Loading briefing...")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
             }
         }
@@ -210,7 +210,7 @@ struct PulseView: View {
             let unreadMentions = store.notifications.filter { $0.readAt == nil && $0.kind == "dispatch" }
             if unreadMentions.isEmpty {
                 Text("No pending mentions")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
             } else {
                 ForEach(unreadMentions.prefix(5)) { notif in
@@ -219,17 +219,17 @@ struct PulseView: View {
                             .fill(Color.blue)
                             .frame(width: 6, height: 6)
                         Text(notif.title)
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .lineLimit(1)
                         Spacer()
                         Text(relativeTime(notif.createdAt))
-                            .font(.system(size: 10))
+                            .font(.inter(10))
                             .foregroundColor(.ancMuted)
                     }
                 }
                 if unreadMentions.count > 5 {
                     Text("+\(unreadMentions.count - 5) more")
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -246,21 +246,21 @@ struct PulseView: View {
 
             if doneTasks.isEmpty {
                 Text("No completed tasks recently")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
             } else {
                 ForEach(Array(doneTasks)) { task in
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 10))
+                            .font(.inter(10))
                             .foregroundColor(.green)
                         Text(task.title)
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .lineLimit(1)
                         Spacer()
                         if let assignee = task.assignee {
                             Text(assignee)
-                                .font(.system(size: 10))
+                                .font(.inter(10))
                                 .foregroundColor(.ancMuted)
                         }
                     }
@@ -302,7 +302,7 @@ struct PulseView: View {
                     showNewObjective = true
                 } label: {
                     Label("New", systemImage: "plus")
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                 }
                 .buttonStyle(.borderless)
                 .sheet(isPresented: $showNewObjective) {
@@ -312,18 +312,18 @@ struct PulseView: View {
 
             if filteredObjectives.isEmpty {
                 Text("No objectives defined")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
             } else {
                 ForEach(filteredObjectives) { obj in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text(obj.title)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.inter(13, weight: .medium))
                             Spacer()
                             if let q = obj.quarter {
                                 Text(q)
-                                    .font(.system(size: 10))
+                                    .font(.inter(10))
                                     .foregroundColor(.ancMuted)
                             }
                         }
@@ -332,7 +332,7 @@ struct PulseView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack {
                                     Text(kr.title)
-                                        .font(.system(size: 11))
+                                        .font(.inter(11))
                                     Spacer()
                                     Text("\(Int(kr.current))/\(Int(kr.target))")
                                         .font(.system(size: 10, design: .monospaced))
@@ -345,7 +345,7 @@ struct PulseView: View {
 
                         if obj.keyResults.isEmpty {
                             Text("No key results")
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                                 .foregroundColor(.ancMuted)
                         }
                     }
@@ -365,24 +365,24 @@ struct PulseView: View {
             VStack(alignment: .leading, spacing: 8) {
                 if store.decisions.isEmpty {
                     Text("No decisions logged")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 } else {
                     ForEach(store.decisions.prefix(5)) { decision in
                         VStack(alignment: .leading, spacing: 2) {
                             HStack {
                                 Text(decision.title)
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(.inter(12, weight: .medium))
                                 Spacer()
                                 if let by = decision.decidedBy {
                                     Text(by)
-                                        .font(.system(size: 10))
+                                        .font(.inter(10))
                                         .foregroundColor(.ancMuted)
                                 }
                             }
                             if let rationale = decision.rationale {
                                 Text(rationale)
-                                    .font(.system(size: 11))
+                                    .font(.inter(11))
                                     .foregroundColor(.ancMuted)
                                     .lineLimit(2)
                             }
@@ -390,7 +390,7 @@ struct PulseView: View {
                                 HStack(spacing: 4) {
                                     ForEach(decision.tags, id: \.self) { tag in
                                         Text(tag)
-                                            .font(.system(size: 9))
+                                            .font(.inter(9))
                                             .padding(.horizontal, 5)
                                             .padding(.vertical, 1)
                                             .background(Color.ancAccent.opacity(0.1))
@@ -411,7 +411,7 @@ struct PulseView: View {
                     showNewDecision = true
                 } label: {
                     Label("New Decision", systemImage: "plus")
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                 }
                 .buttonStyle(.borderless)
                 .sheet(isPresented: $showNewDecision) {
@@ -431,7 +431,7 @@ struct PulseView: View {
 
             if runningTasks.isEmpty {
                 Text("No running tasks")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
             } else {
                 ForEach(Array(runningTasks)) { task in
@@ -440,12 +440,12 @@ struct PulseView: View {
                             .fill(Color.blue)
                             .frame(width: 6, height: 6)
                         Text(task.title)
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .lineLimit(1)
                         Spacer()
                         if let ts = task.createdAt {
                             Text(relativeTime(ts))
-                                .font(.system(size: 10))
+                                .font(.inter(10))
                                 .foregroundColor(.ancMuted)
                         }
                     }
@@ -459,7 +459,7 @@ struct PulseView: View {
     private var newObjectiveSheet: some View {
         VStack(spacing: 16) {
             Text("New Objective")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.inter(16, weight: .semibold))
 
             TextField("Title", text: $newObjectiveTitle)
                 .textFieldStyle(.roundedBorder)
@@ -503,7 +503,7 @@ struct PulseView: View {
     private var newDecisionSheet: some View {
         VStack(spacing: 16) {
             Text("New Decision")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.inter(16, weight: .semibold))
 
             TextField("Title", text: $newDecisionTitle)
                 .textFieldStyle(.roundedBorder)
@@ -567,10 +567,10 @@ struct DashboardCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancAccent)
                 Text(title)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.inter(12, weight: .semibold))
             }
 
             content()

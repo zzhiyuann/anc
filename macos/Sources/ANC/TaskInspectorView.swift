@@ -18,7 +18,7 @@ struct TaskInspectorView: View {
             } else {
                 VStack(spacing: 4) {
                     Text("Select a task")
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .foregroundColor(.ancMuted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -41,7 +41,7 @@ struct TaskInspectorView: View {
                     let humanEvents = detail.events.filter { activityEventTypes.contains($0.type) }
                     if humanEvents.isEmpty && detail.comments.isEmpty {
                         Text("No activity")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                     } else {
                         let recentEvents = Array(humanEvents.prefix(5))
@@ -51,12 +51,12 @@ struct TaskInspectorView: View {
                                     .fill(Color.ancMuted.opacity(0.5))
                                     .frame(width: 5, height: 5)
                                 Text(event.type.replacingOccurrences(of: "agent:", with: "").replacingOccurrences(of: "task:", with: "").replacingOccurrences(of: "-", with: " "))
-                                    .font(.system(size: 11))
+                                    .font(.inter(11))
                                     .foregroundColor(.ancMuted)
                                     .lineLimit(1)
                                 Spacer()
                                 Text(relativeTime(event.createdAt))
-                                    .font(.system(size: 10))
+                                    .font(.inter(10))
                                     .foregroundColor(.ancMuted)
                             }
                         }
@@ -70,7 +70,7 @@ struct TaskInspectorView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Text("Total")
-                                .font(.system(size: 12))
+                                .font(.inter(12))
                                 .foregroundColor(.ancMuted)
                             Spacer()
                             Text(String(format: "$%.4f", detail.cost.totalUsd))
@@ -80,7 +80,7 @@ struct TaskInspectorView: View {
                         ForEach(detail.cost.byAgent, id: \.role) { agent in
                             HStack {
                                 Text(agent.role)
-                                    .font(.system(size: 11))
+                                    .font(.inter(11))
                                     .foregroundColor(.ancMuted)
                                 Spacer()
                                 Text(String(format: "$%.4f", agent.usd))
@@ -120,11 +120,11 @@ struct TaskInspectorView: View {
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 9))
+                        .font(.inter(9))
                     Image(systemName: icon)
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                     Text(title)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.inter(12, weight: .semibold))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -142,7 +142,7 @@ struct TaskInspectorView: View {
     private func propertiesSection(_ detail: TaskDetailResponse) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Properties")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.inter(12, weight: .semibold))
                 .foregroundColor(.ancMuted)
 
             // Status
@@ -195,13 +195,13 @@ struct TaskInspectorView: View {
                 let labels = detail.task.labels ?? []
                 if labels.isEmpty {
                     Text("None")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 } else {
                     FlowLayout(spacing: 4) {
                         ForEach(labels, id: \.self) { label in
                             Text(label)
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(Color.ancAccent.opacity(0.12))
@@ -236,7 +236,7 @@ struct TaskInspectorView: View {
                         dueDateValue = Date()
                     }
                     .buttonStyle(.borderless)
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancAccent)
                 }
             }
@@ -254,7 +254,7 @@ struct TaskInspectorView: View {
             if let ts = detail.task.createdAt {
                 propertyRow("Created") {
                     Text(formatDate(ts))
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -263,7 +263,7 @@ struct TaskInspectorView: View {
             if let source = detail.task.source {
                 propertyRow("Source") {
                     Text(source.rawValue)
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -275,7 +275,7 @@ struct TaskInspectorView: View {
     private func sessionsSection(_ detail: TaskDetailResponse) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Sessions")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.inter(12, weight: .semibold))
                 .foregroundColor(.ancMuted)
 
             ForEach(detail.sessions) { session in
@@ -288,7 +288,7 @@ struct TaskInspectorView: View {
                         .lineLimit(1)
                     Spacer()
                     Text(session.state)
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                 }
             }
@@ -300,24 +300,24 @@ struct TaskInspectorView: View {
     private func handoffSection(_ handoff: TaskHandoff) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Handoff")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.inter(12, weight: .semibold))
                 .foregroundColor(.ancMuted)
 
             if let summary = handoff.summary {
                 Text(summary)
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancForeground)
             }
 
             if let steps = handoff.nextSteps, !steps.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Next Steps:")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.inter(11, weight: .medium))
                         .foregroundColor(.ancMuted)
                     ForEach(steps, id: \.self) { step in
                         HStack(alignment: .top, spacing: 4) {
                             Text("•").foregroundColor(.ancMuted)
-                            Text(step).font(.system(size: 11))
+                            Text(step).font(.inter(11))
                         }
                     }
                 }
@@ -398,7 +398,7 @@ struct TaskInspectorView: View {
     private func propertyRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(alignment: .top) {
             Text(label)
-                .font(.system(size: 11))
+                .font(.inter(11))
                 .foregroundColor(.ancMuted)
                 .frame(width: 70, alignment: .leading)
             content()

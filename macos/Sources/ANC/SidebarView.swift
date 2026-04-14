@@ -11,9 +11,9 @@ struct SidebarView: View {
                 Circle()
                     .fill(Color.ancAccent)
                     .frame(width: 22, height: 22)
-                    .overlay(Text("A").font(.system(size: 12, weight: .bold)).foregroundColor(.white))
+                    .overlay(Text("A").font(.inter(12, weight: .bold)).foregroundColor(.white))
                 Text("ANC")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.inter(14, weight: .semibold))
                 Spacer()
                 ConnectionDot(connected: store.connected)
             }
@@ -45,7 +45,7 @@ struct SidebarView: View {
             HStack(spacing: 6) {
                 ConnectionDot(connected: store.connected)
                 Text(store.connected ? "Connected" : "Disconnected")
-                    .font(.system(size: 11))
+                    .font(.inter(11))
                     .foregroundColor(.ancMuted)
                 Spacer()
             }
@@ -64,7 +64,7 @@ struct SidebarView: View {
                 Spacer()
                 if let badge, badge > 0 {
                     Text("\(badge)")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.inter(11, weight: .medium))
                         .foregroundColor(.ancMuted)
                 }
             }

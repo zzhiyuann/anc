@@ -8,13 +8,13 @@ struct KeyboardShortcutsSheet: View {
             // Header
             HStack {
                 Text("Keyboard Shortcuts")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 Spacer()
                 Button {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
+                        .font(.inter(16))
                         .foregroundColor(.ancMuted)
                 }
                 .buttonStyle(.borderless)
@@ -74,13 +74,13 @@ struct KeyboardShortcutsSheet: View {
     private func shortcutSection(_ title: String, shortcuts: [(String, String)], modifier: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 13, weight: .bold))
+                .font(.inter(13, weight: .bold))
                 .foregroundColor(.ancForeground)
 
             ForEach(shortcuts, id: \.0) { label, key in
                 HStack {
                     Text(label)
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancForeground)
                     Spacer()
                     shortcutBadge(modifier: modifier, key: key)

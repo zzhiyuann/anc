@@ -16,13 +16,13 @@ struct CreateTaskSheet: View {
             // Header
             HStack {
                 Text("New Task")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 Spacer()
                 Button {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
+                        .font(.inter(16))
                         .foregroundColor(.ancMuted)
                 }
                 .buttonStyle(.borderless)
@@ -36,20 +36,20 @@ struct CreateTaskSheet: View {
                 // Title
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Title")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.inter(12, weight: .medium))
                         .foregroundColor(.ancMuted)
                     TextField("Task title", text: $title)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                 }
 
                 // Description
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Description")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.inter(12, weight: .medium))
                         .foregroundColor(.ancMuted)
                     TextEditor(text: $description)
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .frame(minHeight: 80, maxHeight: 150)
                         .padding(4)
                         .background(Color.ancSurface)
@@ -60,7 +60,7 @@ struct CreateTaskSheet: View {
                 // Agent
                 HStack {
                     Text("Agent")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.inter(12, weight: .medium))
                         .foregroundColor(.ancMuted)
                         .frame(width: 70, alignment: .leading)
                     Picker("", selection: $selectedAgent) {
@@ -76,7 +76,7 @@ struct CreateTaskSheet: View {
                 // Priority
                 HStack {
                     Text("Priority")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.inter(12, weight: .medium))
                         .foregroundColor(.ancMuted)
                         .frame(width: 70, alignment: .leading)
                     Picker("", selection: $priority) {
@@ -95,7 +95,7 @@ struct CreateTaskSheet: View {
                 // Project
                 HStack {
                     Text("Project")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.inter(12, weight: .medium))
                         .foregroundColor(.ancMuted)
                         .frame(width: 70, alignment: .leading)
                     Picker("", selection: $selectedProject) {

@@ -66,9 +66,9 @@ struct ProjectsView: View {
             // Toolbar
             HStack(spacing: 8) {
                 Text("Projects")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 Text("\(filteredProjects.count)")
-                    .font(.system(size: 12))
+                    .font(.inter(12))
                     .foregroundColor(.ancMuted)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -81,9 +81,9 @@ struct ProjectsView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                         Text("New Project")
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                     }
                 }
                 .buttonStyle(.borderless)
@@ -93,7 +93,7 @@ struct ProjectsView: View {
                     Task { await store.refreshProjectsWithStats() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh")
@@ -189,11 +189,11 @@ struct ProjectsView: View {
         } label: {
             HStack(spacing: 3) {
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.inter(11, weight: .semibold))
                     .foregroundColor(.ancMuted)
                 if sortColumn == column {
                     Image(systemName: sortAscending ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 8))
+                        .font(.inter(8))
                         .foregroundColor(.ancAccent)
                 }
             }
@@ -205,12 +205,12 @@ struct ProjectsView: View {
     private var emptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "folder")
-                .font(.system(size: 28))
+                .font(.inter(28))
                 .foregroundColor(.ancMuted)
             Text("No projects")
-                .font(.system(size: 14, weight: .medium))
+                .font(.inter(14, weight: .medium))
             Text("Projects will appear here when created")
-                .font(.system(size: 12))
+                .font(.inter(12))
                 .foregroundColor(.ancMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -231,11 +231,11 @@ struct ProjectRowView: View {
                     .frame(width: 10, height: 10)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(project.name)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.inter(13, weight: .medium))
                         .lineLimit(1)
                     if let desc = project.description, !desc.isEmpty {
                         Text(desc)
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                             .foregroundColor(.ancMuted)
                             .lineLimit(1)
                     }
@@ -249,7 +249,7 @@ struct ProjectRowView: View {
                     healthPill(health)
                 } else {
                     Text("--")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                         .foregroundColor(.ancMuted.opacity(0.5))
                 }
             }
@@ -259,10 +259,10 @@ struct ProjectRowView: View {
             Group {
                 if let p = project.priority {
                     Text(priorityGlyph(p))
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                 } else {
                     Text("--")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                         .foregroundColor(.ancMuted.opacity(0.5))
                 }
             }
@@ -273,14 +273,14 @@ struct ProjectRowView: View {
                 if let lead = project.lead {
                     HStack(spacing: 3) {
                         Image(systemName: "person.circle")
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                         Text(lead)
-                            .font(.system(size: 11))
+                            .font(.inter(11))
                     }
                     .foregroundColor(.ancMuted)
                 } else {
                     Text("--")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                         .foregroundColor(.ancMuted.opacity(0.5))
                 }
             }
@@ -290,11 +290,11 @@ struct ProjectRowView: View {
             Group {
                 if let target = project.targetDate {
                     Text(target)
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                 } else {
                     Text("--")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                         .foregroundColor(.ancMuted.opacity(0.5))
                 }
             }
@@ -306,7 +306,7 @@ struct ProjectRowView: View {
                     statChip("\(stats.done)/\(stats.total)", color: .green)
                 } else {
                     Text("--")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                         .foregroundColor(.ancMuted.opacity(0.5))
                 }
             }
@@ -316,11 +316,11 @@ struct ProjectRowView: View {
             Group {
                 if let state = project.state {
                     Text(state.rawValue.capitalized)
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                 } else {
                     Text("--")
-                        .font(.system(size: 10))
+                        .font(.inter(10))
                         .foregroundColor(.ancMuted.opacity(0.5))
                 }
             }
@@ -338,7 +338,7 @@ struct ProjectRowView: View {
 
     private func healthPill(_ health: String) -> some View {
         Text(health.replacingOccurrences(of: "-", with: " ").capitalized)
-            .font(.system(size: 10, weight: .medium))
+            .font(.inter(10, weight: .medium))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(healthColor(health).opacity(0.15))
@@ -376,11 +376,11 @@ struct CreateProjectSheet: View {
         VStack(spacing: 0) {
             HStack {
                 Text("New Project")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 Spacer()
                 Button { dismiss() } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
+                        .font(.inter(16))
                         .foregroundColor(.ancMuted)
                 }
                 .buttonStyle(.borderless)
@@ -391,27 +391,27 @@ struct CreateProjectSheet: View {
 
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Name").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted)
+                    Text("Name").font(.inter(12, weight: .medium)).foregroundColor(.ancMuted)
                     TextField("Project name", text: $name)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Description").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted)
+                    Text("Description").font(.inter(12, weight: .medium)).foregroundColor(.ancMuted)
                     TextField("Optional description", text: $description)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                 }
 
                 HStack {
-                    Text("Color").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    Text("Color").font(.inter(12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
                     ColorPicker("", selection: $pickerColor, supportsOpacity: false)
                         .labelsHidden()
                 }
 
                 HStack {
-                    Text("Priority").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    Text("Priority").font(.inter(12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
                     Picker("", selection: $priority) {
                         ForEach(TaskPriority.allCases, id: \.self) { p in
                             Text("\(priorityGlyph(p.rawValue)) \(p.displayName)").tag(p.rawValue)
@@ -467,11 +467,11 @@ struct EditProjectSheet: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Edit Project")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 Spacer()
                 Button { dismiss() } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
+                        .font(.inter(16))
                         .foregroundColor(.ancMuted)
                 }
                 .buttonStyle(.borderless)
@@ -482,27 +482,27 @@ struct EditProjectSheet: View {
 
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Name").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted)
+                    Text("Name").font(.inter(12, weight: .medium)).foregroundColor(.ancMuted)
                     TextField("Project name", text: $name)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Description").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted)
+                    Text("Description").font(.inter(12, weight: .medium)).foregroundColor(.ancMuted)
                     TextField("Optional description", text: $description)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                 }
 
                 HStack {
-                    Text("Color").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    Text("Color").font(.inter(12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
                     ColorPicker("", selection: $pickerColor, supportsOpacity: false)
                         .labelsHidden()
                 }
 
                 HStack {
-                    Text("Priority").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    Text("Priority").font(.inter(12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
                     Picker("", selection: $priority) {
                         ForEach(TaskPriority.allCases, id: \.self) { p in
                             Text("\(priorityGlyph(p.rawValue)) \(p.displayName)").tag(p.rawValue)
@@ -513,7 +513,7 @@ struct EditProjectSheet: View {
                 }
 
                 HStack {
-                    Text("State").font(.system(size: 12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
+                    Text("State").font(.inter(12, weight: .medium)).foregroundColor(.ancMuted).frame(width: 70, alignment: .leading)
                     Picker("", selection: $state) {
                         Text("Active").tag("active")
                         Text("Paused").tag("paused")

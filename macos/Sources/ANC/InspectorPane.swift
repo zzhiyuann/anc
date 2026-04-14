@@ -17,10 +17,10 @@ struct InspectorPane: View {
             } else {
                 VStack(spacing: 4) {
                     Image(systemName: "sidebar.right")
-                        .font(.system(size: 24))
+                        .font(.inter(24))
                         .foregroundColor(.ancMuted)
                     Text("Select an item")
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .foregroundColor(.ancMuted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -35,10 +35,10 @@ struct InspectorPane: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text(project.name)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 if let desc = project.description, !desc.isEmpty {
                     Text(desc)
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancForeground)
                 }
                 Divider()
@@ -61,7 +61,7 @@ struct InspectorPane: View {
                 if let stats = project.stats {
                     Divider()
                     Text("Stats")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.inter(12, weight: .semibold))
                         .foregroundColor(.ancMuted)
                     InspectorLabelRow("Total", "\(stats.total)")
                     InspectorLabelRow("Running", "\(stats.running)")
@@ -82,13 +82,13 @@ struct InspectorPane: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     Image(systemName: "person.circle.fill")
-                        .font(.system(size: 24))
+                        .font(.inter(24))
                         .foregroundColor(.ancAccent)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(agent.name)
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.inter(16, weight: .semibold))
                         Text("@\(agent.role)")
-                            .font(.system(size: 12))
+                            .font(.inter(12))
                             .foregroundColor(.ancMuted)
                     }
                 }
@@ -102,13 +102,13 @@ struct InspectorPane: View {
                 if !agentTasks.isEmpty {
                     Divider()
                     Text("Assigned Tasks")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.inter(12, weight: .semibold))
                         .foregroundColor(.ancMuted)
                     ForEach(agentTasks.prefix(8)) { task in
                         HStack(spacing: 6) {
                             Circle().fill(task.state.color).frame(width: 6, height: 6)
                             Text(task.title)
-                                .font(.system(size: 11))
+                                .font(.inter(11))
                                 .lineLimit(1)
                         }
                     }
@@ -126,14 +126,14 @@ struct InspectorPane: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text(notif.title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.inter(16, weight: .semibold))
                 Divider()
                 InspectorLabelRow("Kind", notif.kind.capitalized)
                 InspectorLabelRow("Severity", notif.severity.capitalized)
                 if let body = notif.body, !body.isEmpty {
                     Divider()
                     Text(body)
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                         .foregroundColor(.ancForeground)
                         .textSelection(.enabled)
                 }
@@ -152,11 +152,11 @@ private struct InspectorLabelRow: View {
     var body: some View {
         HStack {
             Text(label)
-                .font(.system(size: 11))
+                .font(.inter(11))
                 .foregroundColor(.ancMuted)
                 .frame(width: 70, alignment: .leading)
             Text(value)
-                .font(.system(size: 12))
+                .font(.inter(12))
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer()

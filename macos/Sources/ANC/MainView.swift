@@ -47,9 +47,9 @@ struct MainView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.ancMuted)
-                        .font(.system(size: 12))
+                        .font(.inter(12))
                     Text("Search...")
-                        .font(.system(size: 13))
+                        .font(.inter(13))
                         .foregroundColor(.ancMuted)
                 }
                 .padding(.horizontal, 12)
@@ -73,7 +73,7 @@ struct MainView: View {
                         .fill(store.connected ? Color.ancRunning : Color.ancFailed)
                         .frame(width: 7, height: 7)
                     Text(store.connected ? "Connected" : "Offline")
-                        .font(.system(size: 11))
+                        .font(.inter(11))
                         .foregroundColor(.ancMuted)
                 }
                 .help(store.connected ? "Connected to ANC backend" : "Disconnected from backend")
@@ -84,10 +84,10 @@ struct MainView: View {
                 } label: {
                     ZStack(alignment: .topTrailing) {
                         Image(systemName: "bell")
-                            .font(.system(size: 14))
+                            .font(.inter(14))
                         if store.unreadCount > 0 {
                             Text("\(min(store.unreadCount, 99))")
-                                .font(.system(size: 8, weight: .bold))
+                                .font(.inter(8, weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 3)
                                 .padding(.vertical, 1)

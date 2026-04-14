@@ -33,9 +33,14 @@ targets:
       - path: Sources/ANC
         excludes:
           - "Info.plist"
+          - "Resources/Fonts"
+      - path: Sources/ANC/Resources/Fonts
+        type: folder
+        buildPhase: resources
     info:
       path: Sources/ANC/Info.plist
       properties:
+        ATSApplicationFontsPath: Resources/Fonts
         LSApplicationCategoryType: public.app-category.productivity
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: YES
