@@ -7,11 +7,11 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-    system-ui, "Segoe UI", sans-serif;
+    var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    system-ui, sans-serif;
   --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, Consolas, monospace;
   --font-heading:
-    -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
   /* Status colors */
   --color-status-active: oklch(0.72 0.19 142);
@@ -193,8 +193,8 @@
   }
   html {
     font-family:
-      -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-      system-ui, "Segoe UI", sans-serif;
+      var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
+      system-ui, sans-serif;
     font-size: 13px;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
@@ -209,7 +209,7 @@
   }
   h1 {
     font-family:
-      -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui,
+      var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui,
       sans-serif;
     font-size: 20px;
     font-weight: 600;
@@ -218,7 +218,7 @@
   }
   h2 {
     font-family:
-      -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui,
+      var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui,
       sans-serif;
     font-size: 16px;
     font-weight: 600;
@@ -227,7 +227,7 @@
   }
   h3 {
     font-family:
-      -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui,
+      var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui,
       sans-serif;
     font-size: 13px;
     font-weight: 600;
@@ -238,7 +238,7 @@
   h5,
   h6 {
     font-family:
-      -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui,
+      var(--font-inter), -apple-system, BlinkMacSystemFont, system-ui,
       sans-serif;
     letter-spacing: -0.01em;
     font-weight: 600;
