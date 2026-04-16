@@ -365,6 +365,16 @@ function readWorkspaceHandoff(issueKey: string): string | null {
   return null;
 }
 
+/** Check if a tmux session is alive (direct check, bypasses ANC tracker). */
+function isTmuxAlive(tmuxSession: string): boolean {
+  try {
+    execSync(`tmux has-session -t "${tmuxSession}" 2>/dev/null`, { timeout: 3_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Capture tmux pane content as last-resort output. */
 function captureTmuxPane(tmuxSession: string): string | null {
   try {
@@ -411,9 +421,21 @@ async function executeTask(
   try {
     ensureAncServer();
 
+    // Append autonomy instruction so agent doesn't ask for confirmation
+    const evalDescription = [
+      task.description,
+      '',
+      '---',
+      'IMPORTANT: You are running in autonomous evaluation mode.',
+      '- Do NOT ask for confirmation or permission — proceed with the best approach.',
+      '- Implement the solution completely, including tests if applicable.',
+      '- When done, write HANDOFF.md with ## Summary and ## Verification sections.',
+      '- Do NOT wait for human input. Just do the work and write HANDOFF.md.',
+    ].join('\n');
+
     const createBody = JSON.stringify({
       title: task.title,
-      description: task.description,
+      description: evalDescription,
       priority: task.complexity === 'high' ? 1 : task.complexity === 'medium' ? 2 : 3,
     });
 
@@ -470,15 +492,16 @@ async function executeTask(
         }
 
         // Check for session death (agent crashed or finished without state update)
-        const sessions = raw.sessions || [];
-        const allDead = sessions.length > 0 && sessions.every((s: any) => !s.alive);
-        if (allDead && state !== 'todo') {
-          // Agent sessions all dead but state didn't transition — capture output
+        // Use direct tmux check as ground truth — API's alive field can be stale
+        // after server restarts.
+        const tmuxAlive = isTmuxAlive(tmuxSession);
+        if (!tmuxAlive && state !== 'todo') {
+          // Tmux is dead but state didn't transition — capture output
           output = t.handoffSummary || '';
           if (!output) output = readWorkspaceHandoff(taskId) || '';
           if (!output) output = captureWorkspaceDiff(taskId) || '';
-          if (!output) output = 'Agent sessions ended without HANDOFF';
-          console.log(`    [ANC] All sessions dead, capturing output (${elapsed/1000}s)`);
+          if (!output) output = 'Agent session ended without HANDOFF';
+          console.log(`    [ANC] Tmux dead, capturing output (${elapsed/1000}s)`);
           break;
         }
       } catch { /* continue polling */ }

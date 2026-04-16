@@ -329,7 +329,18 @@ export function _buildSpawnScript(workDir: string, prompt: string, role: string,
   // Capture current PATH so spawned tmux sessions can find claude and other tools.
   // Without this, service-launched ANC processes inherit a minimal PATH that
   // lacks /opt/homebrew/bin, /usr/local/bin, ~/.local/bin, etc.
-  const currentPath = process.env.PATH || '/usr/bin:/bin';
+  // Always include common tool directories (claude lives in ~/.local/bin).
+  const extraPaths = [
+    join(homedir(), '.local', 'bin'),  // claude CLI
+    '/opt/homebrew/bin',               // Homebrew on Apple Silicon
+    '/usr/local/bin',                  // Homebrew on Intel / system tools
+  ];
+  const basePath = process.env.PATH || '/usr/bin:/bin';
+  const pathParts = basePath.split(':');
+  for (const p of extraPaths) {
+    if (!pathParts.includes(p)) pathParts.unshift(p);
+  }
+  const currentPath = pathParts.join(':');
 
   // Model routing: set ANTHROPIC_MODEL env var as fallback for model selection.
   // Primary mechanism is settings.local.json "model" field written by writeAutoModeSettings.
