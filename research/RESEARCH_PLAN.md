@@ -78,11 +78,11 @@ An LLM (Claude via `claude -p`) simulates a human CEO who:
 | 1 | Evaluation harness code | ✅ Done |
 | 2 | SimCEO validation (claude -p) | ✅ Verified |
 | 3 | Calibration tasks generated | ✅ 30 tasks |
-| 4 | GitHub data pipeline | 🔄 Running |
-| 5 | SimCEO calibration ratings | 🔄 Running |
-| 6 | Human CEO rates 30 tasks | ⏳ Waiting |
-| 7 | SimCEO validation (Pearson ρ) | ⏳ After 5+6 |
-| 8 | Full ablation experiments | ⏳ After 4+7 |
+| 4 | GitHub data pipeline | ✅ Done (198 tasks, 5 repos) |
+| 5 | SimCEO calibration ratings | ✅ Done (30 tasks rated) |
+| 6 | Human CEO rates 30 tasks | ✅ Done |
+| 7 | SimCEO validation (Pearson ρ) | ✅ Done (ρ=0.937, MAE=0.367) |
+| 8 | Full ablation experiments | 🔄 Ready (eval harness fixed, server auto-start) |
 | 9 | Analysis + report generation | ⏳ After 8 |
 | 10 | Paper writing (LaTeX) | ⏳ After 9 |
 | 11 | External annotator ratings | ⏳ Parallel with 10 |
