@@ -119,7 +119,7 @@ describe('tasks CRUD', () => {
     expect(resolveTaskIdFromIssueKey('nope')).toBeNull();
   });
 
-  it('backfill migration runs: existing sessions get task_id + tasks row', () => {
+  it('orphan sessions (no task_id) are cleaned up on init', () => {
     const d = getDb();
     // Insert a raw session row with no task_id
     d.prepare(`
@@ -128,15 +128,13 @@ describe('tasks CRUD', () => {
        ceo_assigned, handoff_processed, use_continue, is_duty)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run('RYA-1', 'engineer', 'anc-engineer-RYA-1', 'active', 1111, 2, 0, 0, 0, 0);
-    // Now force re-init by resetting and re-opening
+    // Force re-init — orphan sessions should be cleaned up
     _resetDb();
     const d2 = getDb();
-    const row = d2.prepare('SELECT task_id FROM sessions WHERE issue_key = ?').get('RYA-1') as { task_id: string | null };
-    expect(row.task_id).toBe('migrated-RYA-1');
-    const task = d2.prepare('SELECT * FROM tasks WHERE id = ?').get('migrated-RYA-1') as Record<string, unknown>;
-    expect(task).toBeTruthy();
-    expect(task.title).toBe('RYA-1');
-    expect(task.created_by).toBe('system');
+    const row = d2.prepare('SELECT * FROM sessions WHERE issue_key = ?').get('RYA-1') as Record<string, unknown> | undefined;
+    expect(row).toBeUndefined(); // orphan cleaned up
+    const task = d2.prepare("SELECT * FROM tasks WHERE id LIKE 'migrated-%'").get() as Record<string, unknown> | undefined;
+    expect(task).toBeUndefined(); // no migrated tasks created
   });
 
   it('system project is seeded on init', () => {

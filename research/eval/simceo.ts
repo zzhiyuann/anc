@@ -11,9 +11,10 @@
  * No API key needed — runs via local Claude Code CLI.
  */
 
-import { execSync, spawn } from 'child_process';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { execSync, spawn, ChildProcess } from 'child_process';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 
 // --- Types ---
 
@@ -300,6 +301,95 @@ interface TaskExecution {
   cost: number;
 }
 
+// --- ANC Server Management ---
+
+const ANC_PORT = Number(process.env.ANC_PORT || 3849);
+const ANC_URL = `http://localhost:${ANC_PORT}`;
+let ancServerProcess: ChildProcess | null = null;
+
+function isAncServerRunning(): boolean {
+  try {
+    execSync(`curl -s -o /dev/null -w '%{http_code}' ${ANC_URL}/health`, {
+      encoding: 'utf-8', timeout: 3_000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function ensureAncServer(): void {
+  if (isAncServerRunning()) {
+    console.log('    [ANC] Server already running');
+    return;
+  }
+  console.log('    [ANC] Starting server...');
+  ancServerProcess = spawn('npx', ['tsx', 'src/index.ts', 'serve', '--port', String(ANC_PORT)], {
+    cwd: ANC_ROOT,
+    env: { ...process.env, ANC_BUDGET_DISABLED: 'true' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true,
+  });
+  ancServerProcess.unref();
+
+  // Wait for server to be ready (up to 15s)
+  for (let i = 0; i < 30; i++) {
+    try {
+      execSync('sleep 0.5', { timeout: 2000 });
+      if (isAncServerRunning()) {
+        console.log('    [ANC] Server started');
+        return;
+      }
+    } catch { /* keep waiting */ }
+  }
+  throw new Error('ANC server failed to start within 15s');
+}
+
+// --- Workspace output capture ---
+
+/** Read HANDOFF.md from workspace (may exist even if not captured via API). */
+function readWorkspaceHandoff(issueKey: string): string | null {
+  const wsBase = process.env.ANC_WORKSPACE_BASE || join(homedir(), 'anc-workspaces');
+  const wsDir = join(wsBase, issueKey);
+  // Check for HANDOFF.md or archived HANDOFF-*.md
+  if (existsSync(join(wsDir, 'HANDOFF.md'))) {
+    return readFileSync(join(wsDir, 'HANDOFF.md'), 'utf-8');
+  }
+  // Check archived handoffs
+  try {
+    const files = readdirSync(wsDir).filter(f => f.startsWith('HANDOFF') && f.endsWith('.md')).sort();
+    if (files.length > 0) {
+      return readFileSync(join(wsDir, files[files.length - 1]), 'utf-8');
+    }
+  } catch { /* no workspace */ }
+  return null;
+}
+
+/** Capture tmux pane content as last-resort output. */
+function captureTmuxPane(tmuxSession: string): string | null {
+  try {
+    return execSync(
+      `tmux capture-pane -t "${tmuxSession}" -p -S -200 2>/dev/null`,
+      { encoding: 'utf-8', timeout: 5_000 }
+    ).trim();
+  } catch {
+    return null;
+  }
+}
+
+/** Check workspace for any changed files (git diff). */
+function captureWorkspaceDiff(issueKey: string): string | null {
+  const wsBase = process.env.ANC_WORKSPACE_BASE || join(homedir(), 'anc-workspaces');
+  const wsDir = join(wsBase, issueKey);
+  if (!existsSync(wsDir)) return null;
+  try {
+    const diff = execSync('git diff HEAD 2>/dev/null || git diff 2>/dev/null', {
+      encoding: 'utf-8', timeout: 10_000, cwd: wsDir,
+    }).trim();
+    return diff || null;
+  } catch { return null; }
+}
+
 async function executeTask(
   task: TaskSpec,
   condition: AblationCondition
@@ -315,30 +405,33 @@ async function executeTask(
     return { output, interactionLog: [], tokens: 0, cost: 0 };
   }
 
-  // ANC-managed execution via real ANC server API
-  // Requires: anc serve running on :3849
-  // Flow: create task → auto-dispatch → agent works in tmux → poll for completion
+  // ANC-managed execution via ANC server API
+  // Auto-starts ANC server if not running.
+  // Flow: create task → auto-dispatch → agent works in tmux → poll for completion → capture output
   try {
+    ensureAncServer();
+
     const createBody = JSON.stringify({
       title: task.title,
       description: task.description,
-      labels: task.expected_labels,
       priority: task.complexity === 'high' ? 1 : task.complexity === 'medium' ? 2 : 3,
     });
 
     const createResp = execSync(
-      `curl -s -X POST http://localhost:3849/api/v1/tasks -H 'Content-Type: application/json' -d '${createBody.replace(/'/g, "'\\''")}'`,
+      `curl -s -X POST ${ANC_URL}/api/v1/tasks -H 'Content-Type: application/json' -d '${createBody.replace(/'/g, "'\\''")}'`,
       { encoding: 'utf-8', timeout: 10_000 }
     );
     const created = JSON.parse(createResp);
     const taskId = created.task?.id || created.id;
-    console.log(`    [ANC] Created task ${taskId}`);
+    const tmuxSession = created.tmuxSession || `anc-engineer-${taskId}`;
+    console.log(`    [ANC] Created task ${taskId}, tmux=${tmuxSession}`);
 
-    // Poll for completion — task auto-dispatches now (lifecycle fix)
+    // Poll for completion
     let output = '';
-    const maxWait = 1_800_000; // 30 min — complex tasks need time
+    const maxWait = 1_800_000; // 30 min
     const pollInterval = 15_000; // 15s
     let elapsed = 0;
+    let lastState = 'todo';
 
     while (elapsed < maxWait) {
       await sleep(pollInterval);
@@ -346,60 +439,69 @@ async function executeTask(
 
       try {
         const resp = execSync(
-          `curl -s http://localhost:3849/api/v1/tasks/${taskId}`,
+          `curl -s ${ANC_URL}/api/v1/tasks/${taskId}`,
           { encoding: 'utf-8', timeout: 5_000 }
         );
         const raw = JSON.parse(resp);
         const t = raw.task || raw;
         const state = t.state;
-
-        // ANC may return session object (state=idle/active) instead of task
-        // Session idle + alive=false means agent completed
-        if (t.alive === false && (state === 'idle' || t.lastCompletedAt)) {
-          output = t.handoffSummary || 'Agent completed (session idle)';
-          console.log(`    [ANC] Agent session idle → completed (${elapsed/1000}s)`);
-          break;
+        if (state !== lastState) {
+          console.log(`    [ANC] State: ${lastState} → ${state} (${elapsed/1000}s)`);
+          lastState = state;
         }
 
+        // Terminal states — capture output
         if (state === 'done' || state === 'review') {
           output = t.handoffSummary || '';
-          // If no summary yet, try to get attachments
-          if (!output) {
-            try {
-              const attResp = execSync(
-                `curl -s http://localhost:3849/api/v1/tasks/${taskId}/attachments`,
-                { encoding: 'utf-8', timeout: 5_000 }
-              );
-              const atts = JSON.parse(attResp);
-              const handoff = (atts.attachments || atts || []).find((a: any) => a.name?.includes('HANDOFF'));
-              if (handoff?.content) output = handoff.content;
-            } catch { /* ignore */ }
-          }
+          if (!output) output = readWorkspaceHandoff(taskId) || '';
           if (!output) output = `Task completed with state=${state}`;
           console.log(`    [ANC] Completed: state=${state} (${elapsed/1000}s)`);
           break;
         }
 
         if (state === 'failed') {
-          output = `TASK_FAILED: ${t.handoffSummary || 'no details'}`;
+          output = t.handoffSummary || '';
+          if (!output) output = readWorkspaceHandoff(taskId) || '';
+          if (!output) output = captureTmuxPane(tmuxSession) || '';
+          if (!output) output = captureWorkspaceDiff(taskId) || '';
+          output = `TASK_FAILED: ${output || 'no details'}`;
+          console.log(`    [ANC] Failed (${elapsed/1000}s)`);
+          break;
+        }
+
+        // Check for session death (agent crashed or finished without state update)
+        const sessions = raw.sessions || [];
+        const allDead = sessions.length > 0 && sessions.every((s: any) => !s.alive);
+        if (allDead && state !== 'todo') {
+          // Agent sessions all dead but state didn't transition — capture output
+          output = t.handoffSummary || '';
+          if (!output) output = readWorkspaceHandoff(taskId) || '';
+          if (!output) output = captureWorkspaceDiff(taskId) || '';
+          if (!output) output = 'Agent sessions ended without HANDOFF';
+          console.log(`    [ANC] All sessions dead, capturing output (${elapsed/1000}s)`);
           break;
         }
       } catch { /* continue polling */ }
 
       if (elapsed % 60_000 === 0) {
-        console.log(`    [ANC] ... waiting ${elapsed / 1000}s`);
+        console.log(`    [ANC] ... waiting ${elapsed / 1000}s (state=${lastState})`);
       }
     }
 
+    // Timeout — capture whatever output exists
     if (!output) {
-      output = 'TIMEOUT: agent did not complete within 10 minutes';
+      console.log(`    [ANC] Timeout after ${maxWait/1000}s, capturing available output`);
+      output = readWorkspaceHandoff(taskId) || '';
+      if (!output) output = captureTmuxPane(tmuxSession) || '';
+      if (!output) output = captureWorkspaceDiff(taskId) || '';
+      output = output ? `TIMEOUT (partial output): ${output}` : 'TIMEOUT: agent did not complete within 30 minutes';
     }
 
     // Get cost
     let cost = 0, tokens = 0;
     try {
       const budgetResp = execSync(
-        `curl -s http://localhost:3849/api/v1/budget`,
+        `curl -s ${ANC_URL}/api/v1/budget`,
         { encoding: 'utf-8', timeout: 5_000 }
       );
       const b = JSON.parse(budgetResp);

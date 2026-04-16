@@ -418,6 +418,13 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         priority: task.priority,
         taskId: task.id,
       });
+      if (result.action !== 'blocked' && result.action !== 'deduped') {
+        void bus.emit('task:dispatched', {
+          taskId: task.id,
+          role: agent.role,
+          parentTaskId: task.parentTaskId,
+        });
+      }
       json(
         res,
         { task, action: result.action, tmuxSession: result.tmuxSession, error: result.error },

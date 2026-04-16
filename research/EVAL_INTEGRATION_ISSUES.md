@@ -1,95 +1,55 @@
 # Eval Harness ↔ ANC Integration Issues
 
-**Context**: The research eval harness (`research/eval/`) needs to programmatically create tasks, dispatch agents, and detect completion via the ANC REST API. Several integration gaps prevent automated ablation experiments from running end-to-end.
+**Context**: The research eval harness (`research/eval/`) needs to programmatically create tasks, dispatch agents, and detect completion via the ANC REST API. Several integration gaps prevented automated ablation experiments from running end-to-end.
 
-## Issue 1: REST-created tasks don't auto-route
+**Status (2026-04-16)**: All critical issues resolved. The eval harness now auto-starts the ANC server and has robust output capture fallbacks.
 
-**Observed**: Tasks created via `POST /api/v1/tasks` stay in `todo` state. ANC does not auto-dispatch them to agents.
+## Issue 1: REST-created tasks don't auto-route — ✅ FIXED
 
-**Expected**: Tasks created via API should go through the same routing pipeline as webhook-created tasks (YAML rules → agent match → dispatch).
+**Was**: Tasks created via `POST /api/v1/tasks` stay in `todo` state, not auto-dispatched.
 
-**Workaround attempted**: Manually calling `POST /tasks/:id/dispatch` with `{"role": "engineer"}` after creation. This works — agent spawns.
+**Fix**: POST /tasks calls `resolveSession()` immediately after creation, which spawns an agent session and calls `setTaskRunning()`. Now also emits `task:dispatched` event for dashboard visibility.
 
-**Fix needed**: Either auto-route API-created tasks, or document that `/dispatch` is required. Ideally `POST /tasks` accepts an optional `autoRoute: true` flag.
+## Issue 2: Task state doesn't update to `running` — ✅ FIXED
 
-## Issue 2: Task state doesn't update to `in_progress`
+**Was**: After dispatch, task state stays `todo`.
 
-**Observed**: After dispatch, task state stays `todo` even though the agent is actively working in tmux. It never transitions to `in_progress`.
+**Fix**: `resolveSession()` calls `setTaskRunning(taskId)` on all spawn paths (line 139/149/172/217 in resolve.ts). Additionally, `buildTaskDetail()` has derivation logic that sets state to `running` if any session is alive.
 
-**Expected**: State should go `todo → in_progress` when the agent session spawns, then `in_progress → review/done` on completion.
+## Issue 3: Completion detection is unreliable — ✅ FIXED
 
-**Impact**: Polling `GET /tasks/:id` for `state === 'done'` never triggers because the state machine doesn't advance.
+**Was**: HANDOFF.md detection doesn't fire for API-created tasks.
 
-**Fix needed**: The dispatch handler or session lifecycle should update task state to `in_progress` when an agent starts working on it.
+**Fix**: Two complementary detection paths:
+1. `hook-handler.ts` `checkActiveCompletion()` — fires on Stop hook, detects HANDOFF.md in interactive mode
+2. `on-complete.ts` — tick-based detection for tmux death + HANDOFF.md
 
-## Issue 3: Completion detection is unreliable
+Both paths call `processHandoff()` which updates task state and writes `handoffSummary`.
 
-**Observed**: When the agent finishes (tmux session exits), the task state doesn't reliably update to `done` or `review`. The HANDOFF.md detection → state update pipeline doesn't fire for API-created tasks.
+## Issue 4: No way to retrieve agent output post-completion — ✅ FIXED
 
-**Strategies attempted in eval harness**:
-1. Poll `GET /tasks/:id` for `state === 'done'` → never triggers (Issue 2)
-2. Poll `GET /agents/engineer` for session `state === 'idle'` → sometimes works
-3. Check `tmux has-session` for tmux death → works but can't retrieve output
+**Was**: `GET /tasks/:id` returns `handoffSummary: null`.
 
-**Fix needed**: Ensure the HANDOFF.md watcher and `on-completion` hook fire for all task types, not just Linear-webhook-originated tasks. Alternatively, expose a WebSocket event `task:completed` that the eval harness can listen to.
+**Fix**: `processHandoff()` writes the summary to the task record via `updateTask(taskId, { handoffSummary })`. The `buildTaskDetail()` response includes it in `task.handoffSummary`. Additionally, the eval harness now has fallback output capture: workspace HANDOFF.md files → tmux capture-pane → git diff.
 
-## Issue 4: No way to retrieve agent output post-completion
+## Issue 5: tmux session cleanup — ✅ UNDERSTOOD
 
-**Observed**: After agent completes, `GET /tasks/:id` returns `handoffSummary: null`. The actual HANDOFF.md content is in the workspace directory but not exposed via API.
+Sessions exit when Claude Code completes its work (interactive mode). This is expected behavior. The health monitor detects tmux death and transitions appropriately.
 
-**Expected**: `GET /tasks/:id` should include the HANDOFF.md content (or a summary) in the response after completion.
+## Issue 6: Agent exits without HANDOFF → state stuck at `running` — ✅ FIXED
 
-**Fix needed**: The completion hook should write HANDOFF.md content to the task record (`handoffSummary` field in the tasks table).
+**Fixed in commit 11aaad3 (2026-04-12)**: on-complete.ts now detects tmux death and transitions task to `failed` (if ran >60s without artifacts) or marks idle (short sessions).
 
-## Issue 5: tmux session cleanup
+## Eval Harness Improvements (2026-04-16)
 
-**Observed**: Engineer tmux sessions disappear after a few minutes even when the agent hasn't written a HANDOFF.md. Unclear if this is the health monitor cleaning up or Claude Code exiting.
+The eval harness (`simceo.ts`) was updated with:
+1. **Auto-start ANC server** if not running (no more ETIMEDOUT errors)
+2. **Robust completion detection**: polls task state + checks all sessions dead
+3. **Multi-layer output capture**: handoffSummary → workspace HANDOFF.md → tmux capture-pane → git diff
+4. **Better logging**: state transitions logged as they happen
+5. **Removed dead code**: `alive === false` check on task object (field doesn't exist on Task type)
 
-**Expected**: Sessions should persist until explicitly cleaned up or until HANDOFF.md is detected.
+## Remaining Concerns (Non-Blocking)
 
-## Issue 6: Agent exits without HANDOFF → state stuck at `running`
-
-**Observed (2026-04-14 01:50)**: Agent tmux sessions for tasks `279fa100` and `ef9f29a8` exited after ~8 min of real work (confirmed via tmux capture-pane showing 19-20% context used). But task state stays `running` and `handoffSummary` is null. ANC never transitions the task to done/review/failed.
-
-**This worked for `django-7530` earlier** (got state=done in 165s), so the bug is intermittent — possibly related to whether the agent writes HANDOFF.md before the tmux session exits.
-
-**Hypothesis**: The agent hits its 5h budget limit or completes without writing HANDOFF.md. The session health monitor detects the tmux death but doesn't update the task state (only the session state goes to idle).
-
-**Fix needed**: When a tmux session exits (detected by health monitor), if the task is still `running`, transition it to either `review` (if HANDOFF.md exists in workspace) or `failed` (if not). Never leave a task in `running` with a dead session.
-
-## Summary of What Eval Harness Needs
-
-The eval harness needs a simple contract:
-
-```
-1. POST /tasks  (create)           → returns { id }
-2. POST /tasks/:id/dispatch        → returns { session }
-3. Task state auto-advances:       todo → in_progress → done/review/failed
-4. GET /tasks/:id                  → includes handoffSummary when done
-5. WebSocket event on completion   → { taskId, state, handoffSummary }
-```
-
-Currently steps 3 and 4 don't work reliably for REST-API-created tasks. Once these are fixed, the eval harness (`research/eval/simceo.ts` `executeTask()` function) should work out of the box.
-
-## Repro
-
-```bash
-# Start server
-ANC_BUDGET_DISABLED=true npx tsx src/index.ts serve --port 3849
-
-# Create task
-curl -s -X POST http://localhost:3849/api/v1/tasks \
-  -H 'Content-Type: application/json' \
-  -d '{"title": "Fix typo in README", "description": "Change recieve to receive", "priority": 3}'
-# Returns: {"id": "task-xxx"}
-
-# Dispatch
-curl -s -X POST http://localhost:3849/api/v1/tasks/task-xxx/dispatch \
-  -H 'Content-Type: application/json' \
-  -d '{"role": "engineer"}'
-# Agent spawns in tmux ✓
-
-# Poll — state never leaves "todo"
-curl -s http://localhost:3849/api/v1/tasks/task-xxx
-# {"state": "todo", "handoffSummary": null} ← even after agent finishes
-```
+1. **Agent quality**: Some agents finish without writing HANDOFF.md — the nudge mechanism in checkActiveCompletion helps, but isn't guaranteed to work.
+2. **Workspace setup for SWE-bench**: For repo-specific tasks, the agent must clone the repo in its workspace. This adds overhead but is by design (tests autonomous capability).
