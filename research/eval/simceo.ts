@@ -559,11 +559,14 @@ async function executeTask(
     const taskId = created.task?.id || created.id;
     console.log(`    [ANC] Created task ${taskId}`);
 
-    // Step 2: Bootstrap workspace with repo code at the ANC workspace path
+    // Step 2: Bootstrap workspace with repo code.
+    // The dispatch endpoint uses issueKey = `${taskId}-engineer` for multi-agent
+    // support, so the workspace will be at ~/anc-workspaces/<taskId>-engineer/.
+    const dispatchIssueKey = `${taskId}-engineer`;
     if (task.repo) {
       try {
-        cleanWorkspace(taskId);
-        bootstrapWorkspace(taskId, task.repo, task.base_commit);
+        cleanWorkspace(dispatchIssueKey);
+        bootstrapWorkspace(dispatchIssueKey, task.repo, task.base_commit);
       } catch (e: any) {
         console.error(`    [bootstrap] Failed: ${e.message}`);
       }
@@ -576,7 +579,7 @@ async function executeTask(
       { encoding: 'utf-8', timeout: 15_000 }
     );
     const dispatched = JSON.parse(dispatchResp);
-    const tmuxSession = dispatched.session?.tmuxSession || `anc-engineer-${taskId}`;
+    const tmuxSession = dispatched.session?.tmuxSession || `anc-engineer-${dispatchIssueKey}`;
     console.log(`    [ANC] Dispatched → ${tmuxSession}`);
 
     // Poll for completion
@@ -603,34 +606,47 @@ async function executeTask(
           lastState = state;
         }
 
+        // Helper: try both workspace paths (dispatch uses taskId-engineer)
+        const getHandoff = () =>
+          t.handoffSummary || readWorkspaceHandoff(dispatchIssueKey) || readWorkspaceHandoff(taskId) || '';
+        const getDiff = () =>
+          captureWorkspaceDiff(dispatchIssueKey) || captureWorkspaceDiff(taskId) || '';
+
+        // Check for HANDOFF.md directly in workspace — the Stop hook may not
+        // fire reliably in interactive mode, so we detect completion ourselves.
+        if (state === 'running') {
+          const directHandoff = readWorkspaceHandoff(dispatchIssueKey) || readWorkspaceHandoff(taskId);
+          if (directHandoff) {
+            output = directHandoff;
+            const diff = getDiff();
+            if (diff) output += `\n\n--- Git Diff ---\n${diff.slice(0, 4000)}`;
+            console.log(`    [ANC] HANDOFF.md detected in workspace (${elapsed/1000}s)`);
+            break;
+          }
+        }
+
         // Terminal states — capture output
         if (state === 'done' || state === 'review') {
-          output = t.handoffSummary || '';
-          if (!output) output = readWorkspaceHandoff(taskId) || '';
+          output = getHandoff();
           if (!output) output = `Task completed with state=${state}`;
           console.log(`    [ANC] Completed: state=${state} (${elapsed/1000}s)`);
           break;
         }
 
         if (state === 'failed') {
-          output = t.handoffSummary || '';
-          if (!output) output = readWorkspaceHandoff(taskId) || '';
+          output = getHandoff();
           if (!output) output = captureTmuxPane(tmuxSession) || '';
-          if (!output) output = captureWorkspaceDiff(taskId) || '';
+          if (!output) output = getDiff();
           output = `TASK_FAILED: ${output || 'no details'}`;
           console.log(`    [ANC] Failed (${elapsed/1000}s)`);
           break;
         }
 
         // Check for session death (agent crashed or finished without state update)
-        // Use direct tmux check as ground truth — API's alive field can be stale
-        // after server restarts.
         const tmuxAlive = isTmuxAlive(tmuxSession);
         if (!tmuxAlive && state !== 'todo') {
-          // Tmux is dead but state didn't transition — capture output
-          output = t.handoffSummary || '';
-          if (!output) output = readWorkspaceHandoff(taskId) || '';
-          if (!output) output = captureWorkspaceDiff(taskId) || '';
+          output = getHandoff();
+          if (!output) output = getDiff();
           if (!output) output = 'Agent session ended without HANDOFF';
           console.log(`    [ANC] Tmux dead, capturing output (${elapsed/1000}s)`);
           break;
@@ -645,14 +661,14 @@ async function executeTask(
     // Timeout — capture whatever output exists
     if (!output) {
       console.log(`    [ANC] Timeout after ${maxWait/1000}s, capturing available output`);
-      output = readWorkspaceHandoff(taskId) || '';
+      output = readWorkspaceHandoff(dispatchIssueKey) || readWorkspaceHandoff(taskId) || '';
       if (!output) output = captureTmuxPane(tmuxSession) || '';
-      if (!output) output = captureWorkspaceDiff(taskId) || '';
+      if (!output) output = captureWorkspaceDiff(dispatchIssueKey) || captureWorkspaceDiff(taskId) || '';
       output = output ? `TIMEOUT (partial output): ${output}` : 'TIMEOUT: agent did not complete within 30 minutes';
     }
 
     // Append git diff to output for SWE-bench ground truth comparison
-    const agentDiff = captureWorkspaceDiff(taskId);
+    const agentDiff = captureWorkspaceDiff(dispatchIssueKey) || captureWorkspaceDiff(taskId);
     if (agentDiff && !output.includes('Git Diff')) {
       output += `\n\n--- Git Diff ---\n${agentDiff.slice(0, 4000)}`;
     }
