@@ -15,6 +15,7 @@ import { execSync, spawn, ChildProcess } from 'child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { bootstrapWorkspace, cleanWorkspace } from './workspace-bootstrap.js';
 
 // --- Types ---
 
@@ -26,7 +27,8 @@ interface TaskSpec {
   expected_labels: string[];
   complexity: 'low' | 'medium' | 'high';
   source: 'github' | 'swebench' | 'custom';
-  ground_truth?: string; // path to known-good solution or test
+  ground_truth?: string; // known-good diff
+  base_commit?: string;  // git commit to checkout (SWE-bench)
 }
 
 interface SimCEORating {
@@ -117,16 +119,17 @@ export function rateTaskOutput(
   condition: AblationCondition,
   interactionLog: string[]
 ): SimCEORating {
+  // BLIND EVALUATION: strip condition info from the rating prompt.
+  // SimCEO should rate only the output quality, not be biased by knowing
+  // whether the agent had memory/oversight/etc.
   const prompt = `${SIMCEO_SYSTEM_PROMPT}
 
-You are evaluating an agent's work under these conditions:
-- Memory: ${condition.memory}
-- CEO Office oversight: ${condition.ceo_office ? 'active' : 'disabled'}
-- Review policy: ${condition.review_policy}
+You are evaluating an agent's work on a software engineering task.
 
 Task: ${task.title}
 Description: ${task.description}
 Complexity: ${task.complexity}
+${task.ground_truth ? `\nKnown correct approach (ground truth diff, first 1000 chars):\n${task.ground_truth.slice(0, 1000)}` : ''}
 
 Agent output:
 ${agentOutput.slice(0, 8000)}
@@ -134,7 +137,7 @@ ${agentOutput.slice(0, 8000)}
 Interaction log (CEO-agent exchanges):
 ${interactionLog.join('\n').slice(0, 4000)}
 
-Rate this output. Respond with ONLY valid JSON:
+Rate this output. If a ground truth diff is provided, check whether the agent's changes address the same root cause. Respond with ONLY valid JSON:
 {
   "satisfaction": <1-5>,
   "task_completion": <0 or 1>,
@@ -406,18 +409,124 @@ async function executeTask(
 ): Promise<TaskExecution> {
   const interactionLog: string[] = [];
 
+  // Generate a unique workspace ID per condition+task to avoid contamination
+  const wsId = `eval-${condition.name}-${task.id}`.replace(/[^a-zA-Z0-9_-]/g, '-');
+
+  // Bootstrap workspace with repo code (all conditions get the same starting state)
+  if (task.repo) {
+    try {
+      cleanWorkspace(wsId);
+      bootstrapWorkspace(wsId, task.repo, task.base_commit);
+    } catch (e: any) {
+      console.error(`    [bootstrap] Failed for ${task.repo}: ${e.message}`);
+    }
+  }
+
+  const wsBase = process.env.ANC_WORKSPACE_BASE || join(homedir(), 'anc-workspaces');
+  const wsDir = join(wsBase, wsId);
+
   if (condition.name === 'vanilla_baseline') {
-    // Vanilla: just run claude -p on the task directly, no ANC
-    const output = claudePrint(
-      `You are a software engineer. Complete this task:\n\nTitle: ${task.title}\nDescription: ${task.description}\n\nProvide the solution (code changes, explanation, and any tests). Write a HANDOFF.md summarizing your work.`,
-      8192
-    );
-    return { output, interactionLog: [], tokens: 0, cost: 0 };
+    // Vanilla: run Claude interactively in the bootstrapped workspace (fair comparison).
+    // Same code access as ANC conditions, no orchestration overhead.
+    const vanillaPrompt = [
+      `You are a software engineer. Complete this task:`,
+      ``,
+      `Title: ${task.title}`,
+      `Description: ${task.description}`,
+      ``,
+      `You are working in a git checkout of ${task.repo}. Make your code changes directly.`,
+      `When done, write HANDOFF.md with ## Summary and ## Verification sections.`,
+      `Do NOT ask for confirmation. Just implement the fix and write HANDOFF.md.`,
+    ].join('\n');
+
+    const tmuxName = `eval-vanilla-${task.id}`.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 60);
+    try {
+      // Kill stale session
+      try { execSync(`tmux kill-session -t "${tmuxName}" 2>/dev/null`, { stdio: 'pipe' }); } catch { /**/ }
+
+      // Write prompt to file (avoids quoting issues)
+      const promptPath = `/tmp/eval-prompt-${tmuxName}.txt`;
+      writeFileSync(promptPath, vanillaPrompt);
+
+      // Spawn Claude in the workspace
+      const script = [
+        `#!/bin/bash`,
+        `cd "${wsDir}" || exit 1`,
+        `export PATH="${join(homedir(), '.local', 'bin')}:/opt/homebrew/bin:/usr/local/bin:$PATH"`,
+        `unset CLAUDE_CODE CLAUDECODE CLAUDE_CODE_ENTRYPOINT`,
+        `PROMPT=$(cat "${promptPath}")`,
+        `claude --dangerously-skip-permissions "$PROMPT"`,
+      ].join('\n');
+      const scriptPath = `/tmp/eval-spawn-${tmuxName}.sh`;
+      writeFileSync(scriptPath, script, { mode: 0o755 });
+
+      execSync(`tmux new-session -d -s "${tmuxName}" "bash ${scriptPath}"`, {
+        stdio: 'pipe', timeout: 10_000,
+      });
+      // Auto-accept trust dialog
+      setTimeout(() => {
+        try { execSync(`tmux send-keys -t "${tmuxName}" Enter`, { stdio: 'pipe', timeout: 3000 }); } catch { /**/ }
+      }, 2000);
+
+      // Poll for completion (same as ANC path)
+      let output = '';
+      const maxWait = 1_800_000; // 30 min
+      const pollInterval = 15_000;
+      let elapsed = 0;
+
+      while (elapsed < maxWait) {
+        await sleep(pollInterval);
+        elapsed += pollInterval;
+
+        // Check if tmux died
+        if (!isTmuxAlive(tmuxName)) {
+          output = readWorkspaceHandoff(wsId) || '';
+          if (!output) output = captureWorkspaceDiff(wsId) || '';
+          if (!output) output = 'Agent completed without HANDOFF';
+          console.log(`    [vanilla] Session ended (${elapsed / 1000}s)`);
+          break;
+        }
+
+        // Check if HANDOFF.md appeared
+        const handoff = readWorkspaceHandoff(wsId);
+        if (handoff) {
+          output = handoff;
+          console.log(`    [vanilla] HANDOFF.md detected (${elapsed / 1000}s)`);
+          // Let agent finish naturally, don't kill immediately
+          await sleep(5_000);
+          break;
+        }
+
+        if (elapsed % 60_000 === 0) {
+          console.log(`    [vanilla] ... waiting ${elapsed / 1000}s`);
+        }
+      }
+
+      if (!output) {
+        output = readWorkspaceHandoff(wsId) || '';
+        if (!output) output = captureTmuxPane(tmuxName) || '';
+        if (!output) output = captureWorkspaceDiff(wsId) || '';
+        output = output ? `TIMEOUT (partial): ${output}` : 'TIMEOUT: no output in 30min';
+      }
+
+      // Capture the git diff as supplementary output
+      const diff = captureWorkspaceDiff(wsId);
+      if (diff && !output.includes(diff)) {
+        output += `\n\n--- Git Diff ---\n${diff.slice(0, 4000)}`;
+      }
+
+      // Kill tmux session
+      try { execSync(`tmux kill-session -t "${tmuxName}" 2>/dev/null`, { stdio: 'pipe' }); } catch { /**/ }
+
+      return { output, interactionLog: [], tokens: 0, cost: 0 };
+    } catch (e: any) {
+      console.error(`    [vanilla Error] ${e.message}`);
+      return { output: 'EXECUTION_ERROR: ' + e.message, interactionLog, tokens: 0, cost: 0 };
+    }
   }
 
   // ANC-managed execution via ANC server API
-  // Auto-starts ANC server if not running.
-  // Flow: create task → auto-dispatch → agent works in tmux → poll for completion → capture output
+  // Flow: create task (no dispatch) → bootstrap workspace → dispatch → poll → capture
   try {
     ensureAncServer();
 
@@ -427,16 +536,19 @@ async function executeTask(
       '',
       '---',
       'IMPORTANT: You are running in autonomous evaluation mode.',
+      `You are working in a git checkout of ${task.repo}.`,
       '- Do NOT ask for confirmation or permission — proceed with the best approach.',
-      '- Implement the solution completely, including tests if applicable.',
+      '- Make your code changes directly in the workspace.',
       '- When done, write HANDOFF.md with ## Summary and ## Verification sections.',
       '- Do NOT wait for human input. Just do the work and write HANDOFF.md.',
     ].join('\n');
 
+    // Step 1: Create task without auto-dispatch
     const createBody = JSON.stringify({
       title: task.title,
       description: evalDescription,
       priority: task.complexity === 'high' ? 1 : task.complexity === 'medium' ? 2 : 3,
+      noDispatch: true,
     });
 
     const createResp = execSync(
@@ -445,8 +557,27 @@ async function executeTask(
     );
     const created = JSON.parse(createResp);
     const taskId = created.task?.id || created.id;
-    const tmuxSession = created.tmuxSession || `anc-engineer-${taskId}`;
-    console.log(`    [ANC] Created task ${taskId}, tmux=${tmuxSession}`);
+    console.log(`    [ANC] Created task ${taskId}`);
+
+    // Step 2: Bootstrap workspace with repo code at the ANC workspace path
+    if (task.repo) {
+      try {
+        cleanWorkspace(taskId);
+        bootstrapWorkspace(taskId, task.repo, task.base_commit);
+      } catch (e: any) {
+        console.error(`    [bootstrap] Failed: ${e.message}`);
+      }
+    }
+
+    // Step 3: Dispatch via separate API call
+    const dispatchBody = JSON.stringify({ role: 'engineer' });
+    const dispatchResp = execSync(
+      `curl -s -X POST ${ANC_URL}/api/v1/tasks/${taskId}/dispatch -H 'Content-Type: application/json' -d '${dispatchBody}'`,
+      { encoding: 'utf-8', timeout: 15_000 }
+    );
+    const dispatched = JSON.parse(dispatchResp);
+    const tmuxSession = dispatched.session?.tmuxSession || `anc-engineer-${taskId}`;
+    console.log(`    [ANC] Dispatched → ${tmuxSession}`);
 
     // Poll for completion
     let output = '';
@@ -518,6 +649,12 @@ async function executeTask(
       if (!output) output = captureTmuxPane(tmuxSession) || '';
       if (!output) output = captureWorkspaceDiff(taskId) || '';
       output = output ? `TIMEOUT (partial output): ${output}` : 'TIMEOUT: agent did not complete within 30 minutes';
+    }
+
+    // Append git diff to output for SWE-bench ground truth comparison
+    const agentDiff = captureWorkspaceDiff(taskId);
+    if (agentDiff && !output.includes('Git Diff')) {
+      output += `\n\n--- Git Diff ---\n${agentDiff.slice(0, 4000)}`;
     }
 
     // Get cost

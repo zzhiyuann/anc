@@ -14,7 +14,10 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { execSync } from 'child_process';
 import { CONDITIONS, runExperiment } from './simceo.js';
+import { precacheRepos, cleanAllEvalWorkspaces } from './workspace-bootstrap.js';
+import { mean, std, pairedTTest, bootstrapCI, bonferroniCorrection, permutationTest, sigStars, formatCI } from './stats.js';
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -39,24 +42,7 @@ interface AggregateStats {
   avg_cost_usd: number;
 }
 
-// --- Statistics helpers ---
-
-function mean(arr: number[]): number {
-  if (arr.length === 0) return 0;
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
-}
-
-function std(arr: number[]): number {
-  if (arr.length <= 1) return 0;
-  const m = mean(arr);
-  return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / (arr.length - 1));
-}
-
-function ci95(arr: number[]): [number, number] {
-  const m = mean(arr);
-  const se = std(arr) / Math.sqrt(arr.length);
-  return [m - 1.96 * se, m + 1.96 * se];
-}
+// Statistics helpers imported from stats.ts
 
 // --- Analysis ---
 
@@ -82,7 +68,7 @@ function analyzeResults(runDir: string): AggregateStats[] {
     const durations = results.map((r: any) => r.duration_ms / 1000);
     const costs = results.map((r: any) => r.cost_usd);
 
-    const [satLo, satHi] = ci95(satisfactions);
+    const [satLo, satHi] = bootstrapCI(satisfactions);
 
     stats.push({
       condition: condition.name,
@@ -236,8 +222,22 @@ async function main() {
     JSON.stringify({ runId, tasks: taskSubset.length, conditions: conditions.map((c) => c.name) }, null, 2)
   );
 
-  // Run each condition sequentially
+  // Pre-cache all repos (avoids clone delays during runs)
+  precacheRepos(taskSubset);
+
+  // Run each condition sequentially with cleanup between conditions
   for (const condition of conditions) {
+    // Clean up workspaces from previous condition to prevent contamination
+    const evalTaskIds = taskSubset.map((t: any) =>
+      `eval-${condition.name}-${t.id}`.replace(/[^a-zA-Z0-9_-]/g, '-')
+    );
+    cleanAllEvalWorkspaces(evalTaskIds);
+
+    // Kill stale tmux sessions from previous condition
+    try {
+      execSync('tmux kill-server 2>/dev/null', { stdio: 'pipe' });
+    } catch { /* no sessions to kill */ }
+
     await runExperiment(taskSubset, condition, runDir);
   }
 

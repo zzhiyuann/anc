@@ -410,6 +410,14 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         source: task.source,
       });
 
+      // Allow callers to skip auto-dispatch (e.g., eval harness needs to
+      // bootstrap workspace before dispatching).
+      const noDispatch = body?.noDispatch === true;
+      if (noDispatch) {
+        json(res, { task, action: 'created' }, 201);
+        return true;
+      }
+
       const prompt = `${task.title}${task.description ? '\n\n' + task.description : ''}`;
       const result = resolveSession({
         role: agent.role as AgentRole,
