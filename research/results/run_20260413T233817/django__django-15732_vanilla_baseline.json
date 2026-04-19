@@ -1,0 +1,34 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "django__django-15732",
+    "title": "Cannot drop unique_together constraint on a single field with its own unique=True constraint",
+    "description": "Cannot drop unique_together constraint on a single field with its own unique=True constraint\nDescription\n\t\nI have an erroneous unique_together constraint on a model's primary key (unique_together = (('id',),)) that cannot be dropped by a migration. Apparently the migration tries to find all unique constraints on the column and expects there to be only one, but I've got two — the primary key and the unique_together constraint:\nIndexes:\n\t\"foo_bar_pkey\" PRIMARY KEY, btree (id)\n\t\"foo_bar_id_1c3b3088c74c3b17_uniq\" UNIQUE CONSTRAINT, btree (id)\nDatabase is PostgreSQL, if that makes any difference.\n",
+    "repo": "django/django",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "swebench",
+    "ground_truth": "diff --git a/django/db/backends/base/schema.py b/django/db/backends/base/schema.py\n--- a/django/db/backends/base/schema.py\n+++ b/django/db/backends/base/schema.py\n@@ -528,7 +528,10 @@ def alter_unique_together(self, model, old_unique_together, new_unique_together)\n         # Deleted uniques\n         for fields in olds.difference(news):\n             self._delete_composed_index(\n-                model, fields, {\"unique\": True}, self.sql_delete_unique\n+                model,\n+                fields",
+    "stream_index": 184
+  },
+  "rating": {
+    "task_id": "django__django-15732",
+    "satisfaction": 4,
+    "task_completion": 1,
+    "code_quality": 4,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent correctly identified the root cause in _delete_composed_index() and implemented a reasonable two-stage disambiguation fix that preserves backward compatibility. Communication was excellent — clear summary of bug, fix location, and test coverage. Fully autonomous with zero CEO intervention. Docking one point on code quality because matching against Django's internal naming pattern is somewhat brittle; filtering by primary_key=False alone may have sufficed, but the approach is defensible for a medium-complexity bug.",
+    "timestamp": "2026-04-14T00:03:02.990Z"
+  },
+  "duration_ms": 519729,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

@@ -1,0 +1,32 @@
+{
+  "condition": {
+    "name": "anc_full",
+    "memory": "full",
+    "ceo_office": true,
+    "review_policy": "normal"
+  },
+  "task": {
+    "id": "gh_astral-sh_ruff_22635",
+    "title": "Handle markdown code blocks with syntax errors",
+    "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+    "repo": "astral-sh/ruff",
+    "expected_labels": [],
+    "complexity": "low",
+    "source": "github"
+  },
+  "rating": {
+    "task_id": "gh_astral-sh_ruff_22635",
+    "satisfaction": 2,
+    "task_completion": 0,
+    "code_quality": 2,
+    "communication_quality": 3,
+    "autonomy_score": 4,
+    "recovery_needed": true,
+    "ceo_interventions": 0,
+    "rationale": "The agent claims to have fixed a bug in `crates/ruff_markdown/src/lib.rs`, but ruff has no such crate — markdown code block handling lives in `ruff_linter`/`ruff_python_formatter`, so the file paths and line numbers appear fabricated. The HANDOFF describes a hypothetical test rather than showing actual code or test execution output, and there's no evidence the change was built or verified against issue #22635's actual question (warning vs error vs diagnostic classification). Work needs to be redone with the real codebase.",
+    "timestamp": "2026-04-16T17:25:57.397Z"
+  },
+  "duration_ms": 357048,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

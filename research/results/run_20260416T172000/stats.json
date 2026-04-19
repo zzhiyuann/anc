@@ -1,0 +1,16 @@
+[
+  {
+    "condition": "anc_full",
+    "n_tasks": 1,
+    "avg_satisfaction": 2,
+    "std_satisfaction": 0,
+    "completion_rate": 0,
+    "avg_code_quality": 2,
+    "avg_communication": 3,
+    "avg_autonomy": 4,
+    "avg_interventions": 0,
+    "recovery_rate": 1,
+    "avg_duration_s": 357.048,
+    "avg_cost_usd": 0
+  }
+]

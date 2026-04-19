@@ -1,0 +1,34 @@
+[
+  {
+    "condition": {
+      "name": "anc_full",
+      "memory": "full",
+      "ceo_office": true,
+      "review_policy": "normal"
+    },
+    "task": {
+      "id": "gh_astral-sh_ruff_22635",
+      "title": "Handle markdown code blocks with syntax errors",
+      "description": "Repository: astral-sh/ruff\nIssue #22635\n\nWarning, error, or diagnostic?",
+      "repo": "astral-sh/ruff",
+      "expected_labels": [],
+      "complexity": "low",
+      "source": "github"
+    },
+    "rating": {
+      "task_id": "gh_astral-sh_ruff_22635",
+      "satisfaction": 0,
+      "task_completion": 0,
+      "code_quality": 0,
+      "communication_quality": 0,
+      "autonomy_score": 0,
+      "recovery_needed": false,
+      "ceo_interventions": 0,
+      "rationale": "PARSE_ERROR: > /rename agent-handoff-failure-eval\n\n{\n  \"satisfaction\": 1,\n  \"task_completion\": 0,\n  \"code_quality\": 1,\n  \"communication_quality\": 1,\n  \"autonomy_score\": 1,\n  \"recovery_needed\": true,\n  \"ceo_interve",
+      "timestamp": "2026-04-16T17:16:43.273Z"
+    },
+    "duration_ms": 608287,
+    "cost_usd": 0,
+    "tokens_used": 0
+  }
+]

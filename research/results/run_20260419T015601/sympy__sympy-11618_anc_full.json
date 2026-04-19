@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "anc_full",
+    "memory": "full",
+    "ceo_office": true,
+    "review_policy": "normal"
+  },
+  "task": {
+    "id": "sympy__sympy-11618",
+    "title": "distance calculation wrong",
+    "description": "distance calculation wrong\n``` python\n>>> Point(2,0).distance(Point(1,0,2))\n1\n```\n\nThe 3rd dimension is being ignored when the Points are zipped together to calculate the distance so `sqrt((2-1)**2 + (0-0)**2)` is being computed instead of `sqrt(5)`.\n\n",
+    "repo": "sympy/sympy",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "swebench",
+    "ground_truth": "diff --git a/sympy/geometry/point.py b/sympy/geometry/point.py\n--- a/sympy/geometry/point.py\n+++ b/sympy/geometry/point.py\n@@ -266,6 +266,20 @@ def distance(self, p):\n         sqrt(x**2 + y**2)\n \n         \"\"\"\n+        if type(p) is not type(self):\n+            if len(p) == len(self):\n+                return sqrt(sum([(a - b)**2 for a, b in zip(\n+                    self.args, p.args if isinstance(p, Point) else p)]))\n+            else:\n+                p1 = [0] * max(len(p), len(self))\n+        ",
+    "stream_index": 0,
+    "base_commit": "360290c4c401e386db60723ddb0109ed499c9f6e"
+  },
+  "rating": {
+    "task_id": "sympy__sympy-11618",
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent correctly identified the zip-truncation root cause and fixed it with zip_longest(fillvalue=S.Zero), which is functionally equivalent to the ground truth's zero-padding approach for mismatched dimensions. Added symmetric regression tests and verified the full geometry test suite passes. HANDOFF is clear, concise, and documents pre-existing unrelated failures honestly.",
+    "timestamp": "2026-04-19T02:02:15.720Z"
+  },
+  "duration_ms": 164047,
+  "cost_usd": 0,
+  "tokens_used": 0
+}

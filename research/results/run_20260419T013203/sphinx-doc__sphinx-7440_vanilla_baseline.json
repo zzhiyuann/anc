@@ -1,0 +1,35 @@
+{
+  "condition": {
+    "name": "vanilla_baseline",
+    "memory": "none",
+    "ceo_office": false,
+    "review_policy": "autonomous"
+  },
+  "task": {
+    "id": "sphinx-doc__sphinx-7440",
+    "title": "glossary duplicate term with a different case",
+    "description": "glossary duplicate term with a different case\n**Describe the bug**\r\n```\r\nWarning, treated as error:\r\ndoc/glossary.rst:243:duplicate term description of mysql, other instance in glossary\r\n```\r\n\r\n**To Reproduce**\r\nSteps to reproduce the behavior:\r\n[.travis.yml#L168](https://github.com/phpmyadmin/phpmyadmin/blob/f7cc383674b7099190771b1db510c62bfbbf89a7/.travis.yml#L168)\r\n```\r\n$ git clone --depth 1 https://github.com/phpmyadmin/phpmyadmin.git\r\n$ cd doc\r\n$ pip install 'Sphinx'\r\n$ make html\r\n```\r\n\r\n**Expected behavior**\r\nMySQL != mysql term right ?\r\n\r\n**Your project**\r\nhttps://github.com/phpmyadmin/phpmyadmin/blame/master/doc/glossary.rst#L234\r\n\r\n\r\n**Environment info**\r\n- OS: Unix\r\n- Python version: 3.6\r\n- Sphinx version: 3.0.0\r\n\r\n**Additional context**\r\nDid occur some hours ago, maybe you just released the version\r\n\r\n- https://travis-ci.org/github/williamdes/phpmyadmintest/jobs/671352365#L328\r\n\r\n\n",
+    "repo": "sphinx-doc/sphinx",
+    "expected_labels": [],
+    "complexity": "medium",
+    "source": "swebench",
+    "ground_truth": "diff --git a/sphinx/domains/std.py b/sphinx/domains/std.py\n--- a/sphinx/domains/std.py\n+++ b/sphinx/domains/std.py\n@@ -305,7 +305,7 @@ def make_glossary_term(env: \"BuildEnvironment\", textnodes: Iterable[Node], index\n         term['ids'].append(node_id)\n \n     std = cast(StandardDomain, env.get_domain('std'))\n-    std.note_object('term', termtext.lower(), node_id, location=term)\n+    std.note_object('term', termtext, node_id, location=term)\n \n     # add an index entry too\n     indexnode = addnode",
+    "stream_index": 0,
+    "base_commit": "9bb204dcabe6ba0fc422bf4a45ad0c79c680d90b"
+  },
+  "rating": {
+    "task_id": "sphinx-doc__sphinx-7440",
+    "satisfaction": 5,
+    "task_completion": 1,
+    "code_quality": 5,
+    "communication_quality": 5,
+    "autonomy_score": 5,
+    "recovery_needed": false,
+    "ceo_interventions": 0,
+    "rationale": "Agent correctly identified and fixed the root cause matching the ground truth diff (termtext.lower() → termtext in make_glossary_term). Went further by also removing lowercase=True from the term XRefRole for consistency, updated a doc reference to maintain case-sensitive lookup, and documented both the bug fix and incompatible change in CHANGES. Verification was thorough with relevant tests passing and pre-existing unrelated failures properly diagnosed.",
+    "timestamp": "2026-04-19T01:45:06.930Z"
+  },
+  "duration_ms": 330172,
+  "cost_usd": 0,
+  "tokens_used": 0
+}
