@@ -16,3 +16,4 @@ macos/ANC.xcodeproj/
 macos/DerivedData/
 macos/.screenshots/
 .DS_Store
+ios/build/
