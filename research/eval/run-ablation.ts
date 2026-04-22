@@ -233,10 +233,15 @@ async function main() {
     );
     cleanAllEvalWorkspaces(evalTaskIds);
 
-    // Kill stale tmux sessions from previous condition
+    // Kill only eval-related tmux sessions (not ANC server sessions)
     try {
-      execSync('tmux kill-server 2>/dev/null', { stdio: 'pipe' });
-    } catch { /* no sessions to kill */ }
+      const sessions = execSync("tmux list-sessions -F '#{session_name}' 2>/dev/null", {
+        encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim().split('\n').filter(s => s.startsWith('eval-'));
+      for (const sess of sessions) {
+        try { execSync(`tmux kill-session -t "${sess}" 2>/dev/null`, { stdio: 'pipe' }); } catch { /**/ }
+      }
+    } catch { /* no sessions */ }
 
     await runExperiment(taskSubset, condition, runDir);
   }
