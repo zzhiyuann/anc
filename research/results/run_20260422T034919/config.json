@@ -1,0 +1,13 @@
+{
+  "runId": "run_20260422T034919",
+  "tasks": 5,
+  "conditions": [
+    "vanilla_baseline",
+    "anc_no_memory",
+    "anc_memory_no_retros",
+    "anc_full",
+    "anc_no_oversight",
+    "anc_strict_review",
+    "anc_autonomous_review"
+  ]
+}
