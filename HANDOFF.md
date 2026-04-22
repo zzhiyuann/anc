@@ -1,46 +1,103 @@
-## Summary
+# HANDOFF: Django makemigrations router.allow_migrate() Bug Fix
 
-Implemented task dependencies so tasks can block on each other. Added a `dependsOn` field to tasks and wrote logic to auto-unblock when parent tasks complete. Also started on the dashboard graph view.
+## Bug Summary
 
-## What was done
+**Ticket:** Django #27461 (originally reported in #27200 comment #14)
+**Severity:** Release blocker (Django 1.10)
+**Fixed in:** Django 1.10.4 (commit `373c6c4`, backport `7fd3797`)
 
-- Added `dependsOn: string[]` to the task schema and a new `dependencies` table in SQLite:
+## Root Cause
 
-```ts
-db.exec(`CREATE TABLE dependencies (
-  task_id TEXT, depends_on TEXT,
-  UNIQUE(task_id, depends_on)
-)`);
+In `django/core/management/commands/makemigrations.py`, the consistency check calls `router.allow_migrate()` with incorrect `(app_label, model)` pairs.
+
+### Buggy Code (Django 1.10.0-1.10.3)
+
+```python
+for alias in sorted(aliases_to_check):
+    connection = connections[alias]
+    if (connection.settings_dict['ENGINE'] != 'django.db.backends.dummy' and any(
+            router.allow_migrate(connection.alias, app_label, model_name=model._meta.object_name)
+            for app_label in consistency_check_labels
+            for model in apps.get_models(app_label)    # <-- BUG
+    )):
+        loader.check_consistent_history(connection)
 ```
 
-- Modified `updateTask` in `core/tasks.ts` to check dependencies on completion:
+**The problem:** `apps.get_models(app_label)` does NOT filter by app_label — it returns **all models in the entire project**. This means every `app_label` is paired with every model from every app, creating invalid combinations like:
+- `allow_migrate('default', 'auth', model_name='MyAppModel')` — WRONG
+- `allow_migrate('default', 'myapp', model_name='User')` — WRONG
 
-```ts
-if (update.status === 'done') {
-  const blocked = db.prepare(
-    'SELECT task_id FROM dependencies WHERE depends_on = ?'
-  ).all(taskId);
-  for (const row of blocked) {
-    // unblock by setting status back to todo
-    updateTask(row.task_id, { status: 'todo' });
-  }
-}
+This breaks routers for sharded databases where not all shards have the same models.
+
+### Fixed Code
+
+```python
+for alias in sorted(aliases_to_check):
+    connection = connections[alias]
+    if (connection.settings_dict['ENGINE'] != 'django.db.backends.dummy' and any(
+            router.allow_migrate(connection.alias, app_label, model_name=model._meta.object_name)
+            for app_label in consistency_check_labels
+            for model in apps.get_app_config(app_label).get_models()    # <-- FIX
+    )):
+        loader.check_consistent_history(connection)
 ```
 
-- For circular dependency detection I check if A depends on B and B depends on A before inserting. Should cover most cases
+**The fix:** Replace `apps.get_models(app_label)` with `apps.get_app_config(app_label).get_models()` — this returns only the models belonging to the specified app.
 
-- Added a `/dependencies` React component that renders tasks as a list with indentation to show the graph. Couldn't get the actual graph library (dagre) to work with Next.js so used nested divs instead
+## Code Change
 
-## Known issues
+**File:** `django/core/management/commands/makemigrations.py`
 
-- The recursive `updateTask` call sometimes triggers the completion hook again, causing a loop where tasks flip between `done` and `todo` — added a `skipHooks` flag but it's not wired up everywhere yet
-- Circular detection only checks direct cycles (A→B→A), not transitive ones (A→B→C→A)
-- The `dependencies` table migration runs on every server start, which drops existing data due to `CREATE TABLE` without `IF NOT EXISTS`
-- Broke the task state machine — tasks in `blocked` status weren't part of the legal transitions so `updateTask` throws for those now
-- Didn't update the API routes to expose dependency CRUD, I was calling the DB directly from the React component via a new endpoint that bypasses validation
+```diff
+-    for model in apps.get_models(app_label)
++    for model in apps.get_app_config(app_label).get_models()
+```
 
-## Next
+One line change.
 
-- Fix the state machine transitions
-- Add IF NOT EXISTS to the migration
-- Look into proper graph rendering
+## Test Changes
+
+**File:** `tests/migrations/test_commands.py`
+
+### 1. Add proper INSTALLED_APPS isolation
+
+```diff
++@override_settings(INSTALLED_APPS=['migrations', 'migrations2'])
+ def test_makemigrations_consistency_checks_respect_routers(self):
+```
+
+Adding `@override_settings` with multiple apps ensures cross-app model leakage is detectable.
+
+### 2. Validate all allow_migrate() calls use correct pairs
+
+Replace the weak single assertion:
+
+```diff
+-allow_migrate.assert_called_with('other', 'migrations', model_name='UnicodeModel')
++allow_migrate.assert_any_call('other', 'migrations', model_name='UnicodeModel')
++# allow_migrate() is called with the correct arguments.
++self.assertGreater(len(allow_migrate.mock_calls), 0)
++for mock_call in allow_migrate.mock_calls:
++    _, call_args, call_kwargs = mock_call
++    connection_alias, app_name = call_args
++    self.assertIn(connection_alias, ['default', 'other'])
++    # Raises LookupError if invalid app_name/model_name pair.
++    apps.get_app_config(app_name).get_model(call_kwargs['model_name'])
+```
+
+This iterates every `allow_migrate()` call and verifies:
+- Connection alias is a valid database (`'default'` or `'other'`)
+- The `(app_name, model_name)` pair is valid — `get_model()` raises `LookupError` if the model doesn't belong to that app
+
+## Why This Matters
+
+Custom database routers for sharding rely on correct `(app_label, model_name)` pairs. Invalid pairs cause routers to:
+1. Raise errors (strict validation)
+2. Route models to wrong shards
+3. Silently skip migrations that should be applied
+
+## Timeline
+
+- **Django 1.10.0:** `allow_migrate()` called without `model_name` (#27200)
+- **Django ~1.10.2:** Fix added `model_name` but used `apps.get_models(app_label)` returning ALL models
+- **Django 1.10.4:** Corrected to `apps.get_app_config(app_label).get_models()` (#27461, PR #7530)
