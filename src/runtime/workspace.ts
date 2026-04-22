@@ -105,7 +105,7 @@ export function writeAutoModeSettings(
 
   const settings: Record<string, unknown> = {
     // Model preference for Claude Code (set by model router)
-    ...(modelId ? { model: modelId } : {}),
+    ...(modelId ? { model: modelId.replace(/-20\d{6}$/, '') } : {}),
     permissions: {
       allow: [
         'Bash(*)','Read(*)','Write(*)','Edit(*)','Glob(*)','Grep(*)',

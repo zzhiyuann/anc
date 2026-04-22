@@ -211,8 +211,9 @@ export function resolveSession(opts: {
   }
 
   // Spawn — auto-detect if workspace has prior conversation (use --continue for free context recovery)
-  const workspaceExists = existsSync(join(getWorkspacePath(issueKey), '.claude'));
-  const result = spawnClaude({ role, issueKey, prompt, useContinue: workspaceExists, ceoAssigned, priority, isDuty, taskId });
+  // Only use --continue if persona CLAUDE.md exists (not just .claude/ dir from settings)
+  const hasPersona = existsSync(join(getWorkspacePath(issueKey), '.claude', 'CLAUDE.md'));
+  const result = spawnClaude({ role, issueKey, prompt, useContinue: hasPersona, ceoAssigned, priority, isDuty, taskId });
   if (result.success) {
     setTaskRunning(taskId);
     recordSuccess(issueKey);

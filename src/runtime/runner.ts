@@ -344,8 +344,10 @@ export function _buildSpawnScript(workDir: string, prompt: string, role: string,
 
   // Model routing: set ANTHROPIC_MODEL env var as fallback for model selection.
   // Primary mechanism is settings.local.json "model" field written by writeAutoModeSettings.
-  const modelLine = modelId
-    ? `export ANTHROPIC_MODEL="${modelId}"`
+  // IMPORTANT: use short-form model IDs (claude-sonnet-4-6 not dated versions)
+  const safeModelId = modelId?.replace(/-20\d{6}$/, '') || undefined;
+  const modelLine = safeModelId
+    ? `export ANTHROPIC_MODEL="${safeModelId}"`
     : '# No model override — using default';
 
   return `#!/bin/bash

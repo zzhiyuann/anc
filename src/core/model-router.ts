@@ -46,9 +46,9 @@ const COST_MULTIPLIERS: Record<ModelTier, number> = {
 // --- Claude Code model identifiers ---
 
 export const MODEL_IDS: Record<ModelTier, string> = {
-  opus: 'claude-opus-4-20250514',
-  sonnet: 'claude-sonnet-4-20250514',
-  haiku: 'claude-haiku-3-20250307',
+  opus: 'claude-opus-4-6',
+  sonnet: 'claude-sonnet-4-6',
+  haiku: 'claude-haiku-4-5',
 };
 
 // --- Haiku keyword triggers ---

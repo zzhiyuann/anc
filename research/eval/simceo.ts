@@ -12,7 +12,7 @@
  */
 
 import { execSync, spawn, ChildProcess } from 'child_process';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, renameSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { bootstrapWorkspace, cleanWorkspace } from './workspace-bootstrap.js';
@@ -327,9 +327,17 @@ function ensureAncServer(): void {
     return;
   }
   console.log('    [ANC] Starting server...');
-  ancServerProcess = spawn('npx', ['tsx', 'src/index.ts', 'serve', '--port', String(ANC_PORT)], {
+  ancServerProcess = spawn('node', ['dist/index.js', 'serve', '--port', String(ANC_PORT)], {
     cwd: ANC_ROOT,
-    env: { ...process.env, ANC_BUDGET_DISABLED: 'true' },
+    env: {
+      ...process.env,
+      ANC_BUDGET_DISABLED: 'true',
+      // Dummy Linear env vars (Linear integration not needed for eval)
+      ANC_LINEAR_TEAM_ID: process.env.ANC_LINEAR_TEAM_ID || 'eval-dummy',
+      ANC_LINEAR_API_KEY: process.env.ANC_LINEAR_API_KEY || 'eval-dummy',
+      ANC_LINEAR_TEAM_KEY: process.env.ANC_LINEAR_TEAM_KEY || 'eval-dummy',
+      ANC_LINEAR_WEBHOOK_SECRET: process.env.ANC_LINEAR_WEBHOOK_SECRET || 'eval-dummy',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
   });
@@ -572,7 +580,19 @@ async function executeTask(
       }
     }
 
-    // Step 3: Dispatch via separate API call
+    // Step 3: Rename repo's own CLAUDE.md to avoid overriding ANC persona
+    const wsBase2 = process.env.ANC_WORKSPACE_BASE || join(homedir(), 'anc-workspaces');
+    const wsDir = join(wsBase2, dispatchIssueKey);
+    const repoClaude = join(wsDir, 'CLAUDE.md');
+    if (existsSync(repoClaude)) {
+      const content = readFileSync(repoClaude, 'utf-8');
+      // Only rename if it's the repo's CLAUDE.md (short), not ANC's persona (long)
+      if (content.length < 500) {
+        renameSync(repoClaude, join(wsDir, 'CLAUDE.repo.md'));
+      }
+    }
+
+    // Step 4: Dispatch via separate API call — ANC will write full persona to .claude/CLAUDE.md
     const dispatchBody = JSON.stringify({ role: 'engineer' });
     const dispatchResp = execSync(
       `curl -s -X POST ${ANC_URL}/api/v1/tasks/${taskId}/dispatch -H 'Content-Type: application/json' -d '${dispatchBody}'`,
@@ -581,6 +601,14 @@ async function executeTask(
     const dispatched = JSON.parse(dispatchResp);
     const tmuxSession = dispatched.session?.tmuxSession || `anc-engineer-${dispatchIssueKey}`;
     console.log(`    [ANC] Dispatched → ${tmuxSession}`);
+
+    // Step 5: Ensure ANC persona is also at workspace root (Claude Code reads root CLAUDE.md)
+    const ancPersonaPath = join(wsDir, '.claude', 'CLAUDE.md');
+    if (existsSync(ancPersonaPath)) {
+      const persona = readFileSync(ancPersonaPath, 'utf-8');
+      writeFileSync(repoClaude, persona);
+      console.log(`    [ANC] Persona copied to workspace root (${persona.split('\n').length} lines)`);
+    }
 
     // Poll for completion
     let output = '';
@@ -644,12 +672,16 @@ async function executeTask(
 
         // Check for session death (agent crashed or finished without state update)
         const tmuxAlive = isTmuxAlive(tmuxSession);
-        if (!tmuxAlive && state !== 'todo') {
+        if (!tmuxAlive && state !== 'todo' && elapsed > 30_000) {
+          // Only consider dead after 30s (give agent time to start)
           output = getHandoff();
           if (!output) output = getDiff();
           if (!output) output = 'Agent session ended without HANDOFF';
           console.log(`    [ANC] Tmux dead, capturing output (${elapsed/1000}s)`);
           break;
+        }
+        if (!tmuxAlive && elapsed <= 30_000) {
+          console.log(`    [ANC] Tmux not found at ${elapsed/1000}s (may still be starting, waiting...)`);
         }
       } catch { /* continue polling */ }
 
