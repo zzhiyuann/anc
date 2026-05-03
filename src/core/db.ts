@@ -249,15 +249,30 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_opt_exp_status ON optimization_experiments(status);
   `);
 
-  // Migrate existing tables from TEXT → INTEGER timestamps (idempotent)
-  migrateTimestamps(db);
+  // Ensure all expected columns exist on legacy tables BEFORE migrateTimestamps.
+  // The TEXT→INTEGER migration's SELECT references delay_until / issue_id, which
+  // would throw "no such column" against pre-Phase-1 schemas and abort getDb()
+  // mid-init. Adding the columns idempotently first keeps migration self-healing.
+  const queueCols = db.prepare("PRAGMA table_info(queue)").all() as Array<{ name: string }>;
+  const haveQueueCols = new Set(queueCols.map(c => c.name));
+  if (!haveQueueCols.has('delay_until')) {
+    try { db.prepare("ALTER TABLE queue ADD COLUMN delay_until INTEGER DEFAULT 0").run(); } catch { /**/ }
+  }
+  if (!haveQueueCols.has('issue_id')) {
+    try { db.prepare("ALTER TABLE queue ADD COLUMN issue_id TEXT NOT NULL DEFAULT ''").run(); } catch { /**/ }
+  }
 
-  // Migrate existing sessions table: add task_id column if missing
-  const columns = db.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
-  if (!columns.some(c => c.name === 'task_id')) {
+  // Migrate existing sessions table: add task_id column if missing.
+  // Done before migrateTimestamps so a future timestamp-migration crash can't
+  // strand sessions without task_id either.
+  const sessionCols = db.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+  if (!sessionCols.some(c => c.name === 'task_id')) {
     db.prepare("ALTER TABLE sessions ADD COLUMN task_id TEXT").run();
     db.prepare("CREATE INDEX IF NOT EXISTS idx_sessions_task ON sessions(task_id)").run();
   }
+
+  // Migrate existing tables from TEXT → INTEGER timestamps (idempotent)
+  migrateTimestamps(db);
 
   // Migrate projects table: add Wave B metadata columns if missing
   const projectCols = db.prepare("PRAGMA table_info(projects)").all() as Array<{ name: string }>;
@@ -376,11 +391,20 @@ function migrateTimestamps(d: Database.Database): void {
           agent_role,
           priority,
           context,
-          CAST(strftime('%s', created_at) AS INTEGER) * 1000,
+          COALESCE(
+            NULLIF(CAST(strftime('%s', created_at) AS INTEGER) * 1000, 0),
+            NULLIF(CAST(created_at AS INTEGER), 0),
+            unixepoch() * 1000
+          ),
           status,
           CASE
             WHEN delay_until IS NULL THEN 0
-            ELSE CAST(strftime('%s', delay_until) AS INTEGER) * 1000
+            WHEN typeof(delay_until) IN ('integer','real') THEN CAST(delay_until AS INTEGER)
+            ELSE COALESCE(
+              NULLIF(CAST(strftime('%s', delay_until) AS INTEGER) * 1000, 0),
+              NULLIF(CAST(delay_until AS INTEGER), 0),
+              0
+            )
           END
         FROM queue;
 
