@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/logo.svg" alt="ANC" width="80" />
-</p>
-
 <h1 align="center">ANC — Agent Native Company</h1>
 
 <p align="center">
@@ -30,11 +26,17 @@ ANC is an AI company operating system. You're the CEO. Your agents -- an Enginee
 ```bash
 git clone https://github.com/zzhiyuann/anc.git && cd anc
 npm install && npm run build && npm link
-anc setup        # configure credentials
-anc serve        # your company is now running
+anc setup        # one-time wizard for Linear API key, Discord webhook, etc.
+anc serve        # gateway on :3849 — your company is now running
 ```
 
-Open **http://localhost:3848** to see your command center.
+Then in a second terminal:
+
+```bash
+cd apps/web && npm run dev
+```
+
+Open **http://localhost:3000** to see your command center.
 
 > [Full setup guide &#8594;](docs/getting-started.md)
 
@@ -112,7 +114,7 @@ A real-time command center for your company. Not a task board -- a CEO cockpit.
 
 Plus: `Cmd+K` command palette, 27 keyboard shortcuts, real-time process capture stream, drag-to-resize panes.
 
-> Native macOS app available -- same features, native performance. [Build instructions &#8594;](docs/macos-app.md)
+> Native macOS app available -- same features, native performance. Build via `cd macos && xcodegen generate && open ANC.xcodeproj`.
 
 ## Architecture
 
@@ -142,32 +144,31 @@ Plus: `Cmd+K` command palette, 27 keyboard shortcuts, real-time process capture 
 | Guide | For |
 |-------|-----|
 | [Getting Started](docs/getting-started.md) | Installation, first run, your first task |
+| [Quick Start](docs/QUICKSTART.md) | Condensed setup checklist |
 | [CEO Guide](docs/CEO-GUIDE.md) | Day-to-day operations as the CEO |
-| [Configuration](docs/configuration/) | Agents, routing, budgets, review policies, personas |
-| [CLI Reference](docs/cli-reference.md) | All `anc` commands |
-| [API Reference](docs/api-reference.md) | REST endpoints + WebSocket events |
 | [Architecture](docs/ARCHITECTURE.md) | System design and internals |
-| [Self-Hosting](docs/self-hosting.md) | Docker, remote deployment |
+| [Roadmap](docs/ROADMAP.md) | What's shipping next |
 
 ## Compared To
 
+ANC sits one layer above the coding agents (Devin, Codex, Cursor, Claude Code) and adjacent to other orchestration platforms (Multica). The agents do the work; ANC is the company they work inside.
+
 | | ANC | Multica | Devin | Codex |
 |---|---|---|---|---|
-| **What it is** | Company OS | Task board for agents | Managed coding agent | Cloud coding agent |
-| **Agent memory** | Persistent + retros | None | None | None |
-| **Self-healing** | CEO Office agent | Manual | Manual | Manual |
-| **Review policy** | 5 configurable levels | Manual review | Manual review | Manual review |
-| **Project management** | Built-in | External (Jira/Linear) | External | External |
-| **Native app** | macOS + iOS (planned) | Web only | Web only | Web only |
-| **Self-hosted** | Yes | Yes | No | No |
-| **Open source** | MIT | Modified Apache | No | No |
+| **Category** | Company OS | Agent orchestration | Managed agent | Cloud agent |
+| **Persistent memory + retrospectives** | ✅ | Limited | ❌ | ❌ |
+| **Self-healing meta-agent** | ✅ CEO Office | ❌ manual | ❌ manual | ❌ manual |
+| **Configurable review policy** | ✅ 5 levels | Manual | Manual | Manual |
+| **Native macOS app** | ✅ shipping | Web only | Web only | Web only |
+| **Self-hosted** | ✅ MIT | ✅ MIT | ❌ | ❌ |
+| **Brings your own agents** | ✅ Claude Code (more soon) | ✅ multi-vendor | n/a | n/a |
 
 ## Contributing
 
-Contributions welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome. Open an issue or PR at [github.com/zzhiyuann/anc](https://github.com/zzhiyuann/anc).
 
 ```bash
-npx vitest run               # 425+ tests
+npx vitest run                   # backend tests
 cd apps/web && npx tsc --noEmit  # frontend typecheck
 ```
 

@@ -8,6 +8,10 @@ state.db
 apps/web/.git-backup/
 apps/web/.next/
 apps/web/node_modules/
+apps/web/.design-screenshots/
+
+# Internal sprint planning / launch ops (not public)
+launch/
 
 # macOS native app
 macos/build/
